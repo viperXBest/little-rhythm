@@ -14,11 +14,12 @@ Android app (sideloaded APK) where two parents share one baby, log by tap, chat 
 
 ## Stack
 
-- **App** (`/app`): Expo (React Native, TypeScript, strict), Expo Router, development build. Libraries: supabase-js, expo-secure-store, expo-audio (voice recording), expo-notifications, expo-dev-client.
+- **App** (`/app`): Expo (React Native, TypeScript, strict), Expo Router, development build. Libraries: supabase-js, expo-secure-store, @siteed/audio-studio (voice recording), expo-notifications, expo-dev-client.
 - **Backend** (`/supabase`): Supabase, EU region (Frankfurt). Postgres with RLS, Auth, Realtime, Edge Functions (Deno, TypeScript).
 - **AI**: Meta Model API, base URL `https://api.meta.ai/v1`, auth `Authorization: Bearer $MODEL_API_KEY`.
   - `muse-spark-1.3` via the OpenAI-compatible SDK (Chat Completions, tool calling, structured output). One user message may trigger several tool calls (agent loop).
   - `muse-voice-transcribe-1.0` for voice logs: the app records audio, the `chat` function transcribes it, then runs the same agent.
+  - Voice pipeline, no conversion anywhere: @siteed/audio-studio records WAV (16 kHz, mono, PCM16, compressed output off, max 30 s ≈ 0.96 MB) → `chat` function checks size and header (`_shared/voice.ts`) → `POST https://api.meta.ai/v1/asr/transcribe` (multipart: `request` JSON with `audioEncoding: "WAV"`, `audio` file) → agent. The endpoint accepts only WAV (mono PCM16, 16 or 24 kHz); m4a/AAC is rejected. expo-audio was removed (Android records compressed formats only).
   - Called **only** from Edge Functions. Key in Edge Function secrets as `MODEL_API_KEY`. Do not use `-contributor` model variants.
 - **Predictions**: one TypeScript module in `supabase/functions/_shared/`, unit-tested. The app gets results only from the `predict` function, so the card and the chat always agree. Predictions are computed on request, never stored.
 
@@ -92,7 +93,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
   - A new migration's timestamp must be later than the latest applied one (currently `20261029090000`).
   - Until 2026-10-29 09:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
   - Never use `supabase db push --include-all`.
-- Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Rebuild only when a native module changes.
+- Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Day 4 build swapped expo-audio for @siteed/audio-studio (plugin: device detection, background audio, notifications and phone-state handling all off; only RECORD_AUDIO). Rebuild only when a native module changes.
 - CI (GitHub Actions) on every push: typecheck + lint, prediction unit tests, RLS tests against local Supabase, gitleaks.
 
 ## Day plan
