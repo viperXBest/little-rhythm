@@ -3,14 +3,14 @@
 // POST { action: "redeem", code: "..." } -> { family_id }
 // Codes are never stored or logged in clear; only an HMAC with PAIR_CODE_PEPPER.
 
-import { z } from "npm:zod@3.24.2";
+import { z } from "npm:zod@4.6.6";
 
 import { formatCode, generateCode, hashCode, normalizeCode } from "../_shared/pair-code.ts";
 import { adminClient, getCaller, json } from "../_shared/supabase.ts";
 
 const RequestBody = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("create") }).strict(),
-  z.object({ action: z.literal("redeem"), code: z.string().min(1).max(32) }).strict(),
+  z.strictObject({ action: z.literal("create") }),
+  z.strictObject({ action: z.literal("redeem"), code: z.string().min(1).max(32) }),
 ]);
 
 const LIMITS = {

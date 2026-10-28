@@ -77,6 +77,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 - Private threads readable only by `owner_id`. Partner's check-in answers readable only after you answered the same day.
 - Pairing: random 8-character code, stored hashed, single use, expires in 24 h, attempts rate-limited.
 - AI tool calls: `baby_id` and `family_id` come from the session, **never** from the model. Validate all tool arguments with zod (ranges for ml, minutes, timestamps).
+- Edge Functions use zod >= 4.6.6; every array schema has .max(), every string .max().
 - Buddy: no medical advice, no diagnosis, no medication doses. Health questions → escalation card only.
 - Only age in weeks and recent events go to the AI. No names, no emails. Voice clips are transcribed and not stored. No chat content, audio or tokens in logs.
 - Session tokens in expo-secure-store, never AsyncStorage.
