@@ -13,6 +13,14 @@ export function adminClient(): SupabaseClient {
   });
 }
 
+/** Client acting as the caller (anon key + their JWT), so RLS applies to every query. */
+export function userClient(req: Request): SupabaseClient {
+  return createClient(requireEnv("SUPABASE_URL"), requireEnv("SUPABASE_ANON_KEY"), {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 /** Resolves the caller from the Authorization header, or null. */
 export async function getCaller(req: Request, admin: SupabaseClient): Promise<User | null> {
   const header = req.headers.get("Authorization") ?? "";
