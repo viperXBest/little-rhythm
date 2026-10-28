@@ -10,7 +10,6 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
       }
     },
@@ -42,7 +41,12 @@
         }
       ],
       "expo-secure-store",
-      "expo-speech-recognition"
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone to record voice logs. Audio is transcribed and not stored."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
