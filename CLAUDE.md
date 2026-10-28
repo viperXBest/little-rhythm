@@ -89,6 +89,9 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 
 - TypeScript strict everywhere; no `any`.
 - Database changes only through migrations in `/supabase/migrations`.
+  - A new migration's timestamp must be later than the latest applied one (currently `20261029090000`).
+  - Until 2026-10-29 09:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
+  - Never use `supabase db push --include-all`.
 - Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Next planned rebuild: adding expo-audio on Day 3.
 - CI (GitHub Actions) on every push: typecheck + lint, prediction unit tests, RLS tests against local Supabase, gitleaks.
 
