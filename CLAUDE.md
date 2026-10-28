@@ -53,7 +53,7 @@ Roadmap only: relationship nudges, pumping, growth charts, medication tracking, 
 
 ## Agent tools (chat function)
 
-`log_feed`, `log_sleep`, `log_diaper`, `get_recent_events`, `get_next_windows`. Write tools return proposals that the app shows as confirm cards; nothing is saved until the user confirms.
+`log_feed`, `log_sleep`, `end_sleep`, `log_diaper`, `get_recent_events`, `get_next_windows` (Day 5). Write tools return proposals that the app shows as confirm cards; nothing is saved until the user confirms. `end_sleep` closes the open sleep the server finds, never one the model names. Muse Spark runs with `reasoning_effort: "low"` (measured faster and as accurate, see `docs/chat.md`). Chat feed ranges match the app: bottle 5–400 ml, breast 1–90 min.
 
 ## Data model
 
