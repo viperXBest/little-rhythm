@@ -1,15 +1,25 @@
 # Little Rhythm — project spec
 
-Android app (sideloaded APK) where two parents share one baby, log by tap, chat or voice, see the next feed, nap and bedtime windows, and look after each other. Built in 10 days for a Meta hackathon. Code and security are production-grade; only hosting is demo-tier.
+Android app (sideloaded APK) where two parents share one baby, log by tap, chat or voice, see the next feed, nap and bedtime windows, and coordinate with each other. Built for the Meta Global AI Developer Hackathon (Indie Developer track). Code and security are production-grade; only hosting is demo-tier.
 
 - App name: Little Rhythm · Android package: `com.dragos.littlerhythm` · Expo slug: `little-rhythm`
-- Public repo: every commit is visible. Small commits per feature, pushed at the end of each session.
+- **Deadline: Nov 4, 9 PM ET (Nov 5, 04:00 Bucharest).** Submit on the evening of Nov 4.
+- Public repo: every commit is visible. Small commits per feature, pushed at the end of each session. Only work built during the event (from Oct 27) may be shown.
+
+## Hackathon rules that constrain the code
+
+- **No medical advice.** AI that gives medical advice is a listed anti-project and gets disqualified. The buddy never gives health, medical or medication advice. Any health question returns only an escalation card (call the paediatrician or 112). Not a mental-health or relationship counsellor either.
+- **Use of Meta AI tooling is 25% of the score.** Muse Spark 1.3 runs as a tool-calling agent; Muse Voice Transcribe handles voice. Make both visible in the demo and README.
+- Bonus prizes in reach: Best Agentic Use-Case, Most Viral on X, Community Vote.
 
 ## Stack
 
-- **App** (`/app`): Expo (React Native, TypeScript, strict), Expo Router, development build. Libraries: supabase-js, expo-secure-store, expo-speech-recognition, expo-notifications, expo-dev-client.
+- **App** (`/app`): Expo (React Native, TypeScript, strict), Expo Router, development build. Libraries: supabase-js, expo-secure-store, expo-audio (voice recording), expo-notifications, expo-dev-client.
 - **Backend** (`/supabase`): Supabase, EU region (Frankfurt). Postgres with RLS, Auth, Realtime, Edge Functions (Deno, TypeScript).
-- **AI**: Meta Model API, base URL `https://api.meta.ai/v1`, model `muse-spark-1.3`, OpenAI-compatible SDK (Chat Completions with tool calling and structured output). Called **only** from the `chat` Edge Function. Key in Edge Function secrets as `MODEL_API_KEY`.
+- **AI**: Meta Model API, base URL `https://api.meta.ai/v1`, auth `Authorization: Bearer $MODEL_API_KEY`.
+  - `muse-spark-1.3` via the OpenAI-compatible SDK (Chat Completions, tool calling, structured output). One user message may trigger several tool calls (agent loop).
+  - `muse-voice-transcribe-1.0` for voice logs: the app records audio, the `chat` function transcribes it, then runs the same agent.
+  - Called **only** from Edge Functions. Key in Edge Function secrets as `MODEL_API_KEY`. Do not use `-contributor` model variants.
 - **Predictions**: one TypeScript module in `supabase/functions/_shared/`, unit-tested. The app gets results only from the `predict` function, so the card and the chat always agree. Predictions are computed on request, never stored.
 
 ## Repo layout
@@ -31,14 +41,18 @@ README.md  SECURITY.md  LICENSE  .env.example
 |---|---|---|
 | F1 | Family and pairing | Sign up, create the baby, invite the partner with a one-time code; both phones see the same baby |
 | F2 | Tracking | One-tap feed (bottle in ml, or breast side and duration), sleep start/stop, diaper (wet/dirty); edit, delete, timeline; real-time sync |
-| F3 | Chat and voice logging | "She drank 90 ml at 3" becomes an event through Muse tool calling, shown as a confirm card before saving |
+| F3 | Agentic chat and voice logging | "She drank 90 ml at 3, she's asleep now" (typed or spoken) → Muse Voice Transcribe → Muse Spark agent creates the feed and the sleep, shown as confirm cards before saving |
 | F4 | Predictions | Next feed, next nap, bedtime-routine start and bedtime as time ranges, computed by code; Muse only explains them |
-| F5 | Buddy chat | Answers about the baby and parenting using recent data; tips; red-flag symptoms escalate to a doctor |
-| F6 | Couple layer | Daily 2-question check-in revealed once both answered; night-feed balance; relationship nudges; private and shared chats |
+| F5 | Buddy chat | Answers about the baby's logged data and explains the computed rhythm; never gives health advice; any health question returns only an escalation card |
+| F6 | Couple layer | Daily 2-question check-in revealed once both answered; night-feed balance; private and shared chats |
 | F7 | Notifications | Local reminders before predicted windows and for the daily check-in |
 | F8 | Account deletion | Deletes the user, and the family's data when they are the last member |
 
-Roadmap only: pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
+Roadmap only: relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
+
+## Agent tools (chat function)
+
+`log_feed`, `log_sleep`, `log_diaper`, `get_recent_events`, `get_next_windows`. Write tools return proposals that the app shows as confirm cards; nothing is saved until the user confirms.
 
 ## Data model
 
@@ -63,8 +77,8 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 - Private threads readable only by `owner_id`. Partner's check-in answers readable only after you answered the same day.
 - Pairing: random 8-character code, stored hashed, single use, expires in 24 h, attempts rate-limited.
 - AI tool calls: `baby_id` and `family_id` come from the session, **never** from the model. Validate all tool arguments with zod (ranges for ml, minutes, timestamps).
-- Buddy chat: no diagnosis, no medication doses. Red-flag symptoms (fever, breathing, dehydration, etc.) return an escalation card (call the paediatrician or 112).
-- Only age in weeks and recent events go to the AI. No names, no emails. No chat content or tokens in logs.
+- Buddy: no medical advice, no diagnosis, no medication doses. Health questions → escalation card only.
+- Only age in weeks and recent events go to the AI. No names, no emails. Voice clips are transcribed and not stored. No chat content, audio or tokens in logs.
 - Session tokens in expo-secure-store, never AsyncStorage.
 - The APK contains only the public Supabase URL and anon key. Never commit: `.env` files, the service_role key, `MODEL_API_KEY`, keystores, real personal data.
 - Per-user rate limits on `chat` and `pair` via `api_usage`.
@@ -74,20 +88,19 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 
 - TypeScript strict everywhere; no `any`.
 - Database changes only through migrations in `/supabase/migrations`.
-- Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes.
+- Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Next planned rebuild: adding expo-audio on Day 3.
 - CI (GitHub Actions) on every push: typecheck + lint, prediction unit tests, RLS tests against local Supabase, gitleaks.
 
 ## Day plan
 
-1. Setup: Muse test call, repo, Supabase project, Expo scaffold, first dev build, this file
-2. Auth, schema, all RLS, pairing, RLS tests
-3. Tracking and real-time sync
-4. Chat and voice logging (chat function, tools, confirm card)
-5. Predictions engine, predict function, "Next up" card, notifications
-6. Buddy chat context, safety rules, private/shared threads
-7. Couple layer, delete-account
-8. Security and quality pass, rate limits, CI green
-9. Polish, seed-demo script, README
-10. Release v1.0.0, demo video, pitch, submit
+1. Oct 27–28 · Setup (done): Muse test call, repo, Supabase, Expo scaffold, dev build, this file
+2. Oct 28 · Auth, schema, all RLS, pairing, RLS tests
+3. Oct 29 · Tracking and real-time sync; add expo-audio and rebuild
+4. Oct 30 · Agentic chat and voice logging (Muse Spark + Muse Voice Transcribe, confirm cards)
+5. Oct 31 · Predictions engine, predict function, "Next up" card, notifications
+6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance
+7. Nov 2 · delete-account, rate limits, security review, safety prompts, CI green
+8. Nov 3 · Polish, seed-demo, README, rehearse
+9. Nov 4 · Release v1.0.0, 3-min demo video, X post, submit in the evening
 
-Protect in this order if behind: security, pairing and sync, chat logging, predictions. Trim UI polish first.
+Protect in this order if behind: security, pairing and sync, agentic chat logging, predictions. Trim UI polish first.
