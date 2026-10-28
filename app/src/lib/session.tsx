@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js';
+import type { RealtimeChannel, Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { supabase } from '@/lib/supabase';
@@ -91,6 +91,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     );
     applyResult(userId, result);
   }, [userId, applyResult]);
+
+  // While waiting for the partner, listen for them joining (RLS: members of this family only).
+  const familyId = familyState?.userId === userId ? (familyState.family?.id ?? null) : null;
+  const waitingForPartner = familyState?.family ? familyState.family.memberCount < 2 : false;
+  useEffect(() => {
+    if (!familyId || !waitingForPartner) return;
+    let channel: RealtimeChannel | null = null;
+    let cancelled = false;
+    void (async () => {
+      await supabase.realtime.setAuth();
+      if (cancelled) return;
+      channel = supabase
+        .channel(`family_members:${familyId}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'family_members', filter: `family_id=eq.${familyId}` },
+          () => void refreshFamily(),
+        )
+        // Also catches a join that happened before the channel was up.
+        .subscribe((state) => {
+          if (state === 'SUBSCRIBED') void refreshFamily();
+        });
+    })();
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [familyId, waitingForPartner, refreshFamily]);
 
   const current = familyState !== null && familyState.userId === userId ? familyState : null;
   const family = current?.family ?? null;

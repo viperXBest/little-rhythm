@@ -80,7 +80,6 @@ function InviteCard() {
               void Share.share({ message: `Join me on Little Rhythm with this code: ${invite.code}` })
             }
           />
-          <Button title="My partner joined" variant="secondary" onPress={() => void refreshFamily()} />
           <Button title="New code" variant="secondary" onPress={onCreate} busy={busy} />
         </View>
       ) : (
