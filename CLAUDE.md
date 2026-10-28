@@ -105,6 +105,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance
 7. Nov 2 · delete-account, rate limits, security review, safety prompts, CI green
 8. Nov 3 · Polish, seed-demo, README, rehearse
+   - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and the brand accent colour (`#208AEF`, theme `primary`), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
 9. Nov 4 · Release v1.0.0, 3-min demo video, X post, submit in the evening
 
 Protect in this order if behind: security, pairing and sync, agentic chat logging, predictions. Trim UI polish first.
