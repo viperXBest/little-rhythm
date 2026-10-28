@@ -11,3 +11,6 @@ web-build/
 *.log
 .DS_Store
 .supabase/
+
+# Local API experiments (read MODEL_API_KEY from supabase/functions/.env)
+scripts/day4-scratch/
