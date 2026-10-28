@@ -8,6 +8,12 @@ function todayUtcDay(now: Date): number {
   return utcDay(now.getFullYear(), now.getMonth() + 1, now.getDate());
 }
 
+/** YYYY-MM-DD of a date in the phone's local calendar. */
+export function toLocalDateString(value: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+}
+
 /** Validates a YYYY-MM-DD birth date within the last 3 years. Returns it, or null. */
 export function parseBirthDate(input: string, now = new Date()): string | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.trim());

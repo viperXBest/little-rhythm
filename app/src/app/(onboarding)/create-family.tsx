@@ -1,17 +1,20 @@
 import { useState } from 'react';
 
+import { DateField } from '@/components/date-field';
 import { Button, ErrorText, Field, Screen } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
-import { parseBirthDate } from '@/lib/dates';
+import { parseBirthDate, toLocalDateString } from '@/lib/dates';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
 export default function CreateFamily() {
   const { refreshFamily } = useSession();
   const [name, setName] = useState('');
-  const [birthDate, setBirthDate] = useState('');
+  const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const today = new Date();
+  const threeYearsAgo = new Date(today.getFullYear() - 3, today.getMonth(), today.getDate());
 
   async function onSubmit() {
     setError(null);
@@ -20,9 +23,9 @@ export default function CreateFamily() {
       setError('Enter your baby’s name (up to 50 characters).');
       return;
     }
-    const date = parseBirthDate(birthDate);
+    const date = birthDate ? parseBirthDate(toLocalDateString(birthDate)) : null;
     if (!date) {
-      setError('Enter the birth date as YYYY-MM-DD, within the last 3 years.');
+      setError('Choose a birth date within the last 3 years.');
       return;
     }
     setBusy(true);
@@ -34,7 +37,7 @@ export default function CreateFamily() {
       setBusy(false);
       setError(
         rpcError.message === 'invalid_birth_date'
-          ? 'Enter the birth date as YYYY-MM-DD, within the last 3 years.'
+          ? 'Choose a birth date within the last 3 years.'
           : 'Could not save. Check your connection and try again.',
       );
       return;
@@ -51,14 +54,13 @@ export default function CreateFamily() {
         Only the first name and birth date. The birth date sets the age used for the rhythm.
       </ThemedText>
       <Field label="First name" value={name} onChangeText={setName} maxLength={50} />
-      <Field
+      <DateField
         label="Birth date"
+        mode="date"
         value={birthDate}
-        onChangeText={setBirthDate}
-        placeholder="YYYY-MM-DD"
-        keyboardType="numbers-and-punctuation"
-        maxLength={10}
-        onSubmitEditing={onSubmit}
+        onChange={setBirthDate}
+        minimumDate={threeYearsAgo}
+        maximumDate={today}
       />
       <ErrorText>{error}</ErrorText>
       <Button title="Continue" onPress={onSubmit} busy={busy} />
