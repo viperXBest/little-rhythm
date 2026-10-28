@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 
 import { Button, ErrorText, Screen } from '@/components/form';
+import { QuickLog } from '@/components/quick-log';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Timeline } from '@/components/timeline';
 import { Fonts, Spacing } from '@/constants/theme';
 import { ageInWeeks } from '@/lib/dates';
 import { createPairCode, pairErrorMessage } from '@/lib/pair';
@@ -29,6 +31,8 @@ export default function Home() {
       ) : (
         <ThemedText themeColor="textSecondary">You and your partner are both here.</ThemedText>
       )}
+      <QuickLog />
+      <Timeline />
       <Button title="Sign out" variant="secondary" onPress={() => void supabase.auth.signOut()} />
     </Screen>
   );
