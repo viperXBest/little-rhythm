@@ -42,9 +42,15 @@
       ],
       "expo-secure-store",
       [
-        "expo-audio",
+        "@siteed/audio-studio",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone to record voice logs. Audio is transcribed and not stored."
+          "enableDeviceDetection": false,
+          "enableBackgroundAudio": false,
+          "enableNotifications": false,
+          "enablePhoneStateHandling": false,
+          "iosConfig": {
+            "microphoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone to record voice logs. Audio is transcribed and not stored."
+          }
         }
       ]
     ],
