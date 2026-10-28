@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 
@@ -32,6 +33,7 @@ export default function Home() {
         <ThemedText themeColor="textSecondary">You and your partner are both here.</ThemedText>
       )}
       <QuickLog />
+      <Button title="Log by chat or voice" variant="secondary" onPress={() => router.push('/chat')} />
       <Timeline />
       <Button title="Sign out" variant="secondary" onPress={() => void supabase.auth.signOut()} />
     </Screen>

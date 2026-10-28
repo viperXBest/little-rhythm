@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 
 export type EventRow = Tables<'events'>;
 export type EventType = 'feed' | 'sleep' | 'diaper';
+export type EventSource = 'tap' | 'chat' | 'voice';
 export type BreastSide = 'left' | 'right';
 
 export type FeedDetails =
@@ -61,6 +62,7 @@ export function newEventRow(input: {
   startedAt: Date;
   endedAt?: Date | null;
   details?: FeedDetails | DiaperDetails;
+  source?: EventSource;
 }): EventRow {
   return {
     id: randomUUID(),
@@ -70,7 +72,7 @@ export function newEventRow(input: {
     ended_at: input.endedAt ? input.endedAt.toISOString() : null,
     details: input.details ?? {},
     created_by: input.userId,
-    source: 'tap',
+    source: input.source ?? 'tap',
     created_at: new Date().toISOString(),
   };
 }

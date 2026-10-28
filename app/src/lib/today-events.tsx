@@ -34,7 +34,8 @@ type TodayEvents = {
   refresh: () => Promise<void>;
   add: (row: EventRow) => Promise<WriteError | null>;
   update: (id: string, patch: EventPatch) => Promise<WriteError | null>;
-  endSleep: (id: string) => Promise<WriteError | null>;
+  /** Ends an open sleep at `endedAt` (default now). */
+  endSleep: (id: string, endedAt?: Date) => Promise<WriteError | null>;
   remove: (id: string) => Promise<WriteError | null>;
 };
 
@@ -182,10 +183,9 @@ export function TodayEventsProvider({ babyId, children }: { babyId: string; chil
   );
 
   const endSleep = useCallback(
-    async (id: string) => {
+    async (id: string, endedAt: Date = new Date()) => {
       const before = rows.get(id);
       if (!before) return 'failed' as const;
-      const endedAt = new Date();
       setRows((prev) => withRow(prev, { ...before, ended_at: endedAt.toISOString() }));
       const error = await stopSleep(id, endedAt);
       if (error) setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
