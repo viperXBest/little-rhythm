@@ -133,6 +133,21 @@ Deno.test({
     try {
       await Promise.all([subscribe(snoop), subscribe(all)]);
 
+      // Warm-up: right after `supabase db reset` the WAL stream can lag behind
+      // SUBSCRIBED. Log probes from A1 until one arrives, then start clean.
+      let warm = false;
+      for (let attempt = 0; attempt < 15 && !warm; attempt++) {
+        const probe = await a1.client
+          .from("events")
+          .insert({ baby_id: familyA.babyId, type: "diaper", started_at: new Date().toISOString() })
+          .select("id")
+          .single();
+        assertEquals(probe.error, null);
+        warm = await waitFor(() => received.some((c) => c.row.id === probe.data?.id), 2_000);
+      }
+      assert(warm, "realtime stream is up");
+      received.length = 0;
+
       // Family B: partner joins, logs a feed.
       const joinB = await admin.from("family_members").insert({
         family_id: familyB.familyId,
