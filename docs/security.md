@@ -101,28 +101,52 @@ user id. It is rate-limited to 5 attempts an hour, and it then runs
 ### What the password check protects against
 
 Re-entering the password stops someone holding only a stolen session from deleting
-the account, **unless they can also change the password**. Auth lets a signed-in
-session set a new password. With **secure password change** on (`[auth.email]
-secure_password_change = true` in `supabase/config.toml`; on hosted, the "Secure
-password change" toggle in the Email provider settings), Auth asks for a
-reauthentication code only when the session is missing or more than 24 hours old.
-From `internal/api/user.go` in supabase/auth at commit
-[`3afa027`](https://github.com/supabase/auth/blob/3afa027c5cd0709ae82b46b461c8addbfd527be9/internal/api/user.go#L154-L157):
+the account. To get around it, they would have to change the password first, and Auth
+blocks that two ways:
 
-```go
-if config.Security.UpdatePasswordRequireReauthentication {
-    ...
-    // we require reauthentication if the user hasn't signed in recently in the current session
-    if session == nil || now.After(session.CreatedAt.Add(24*time.Hour)) {
-```
+- **Require current password when updating** (hosted only). `PUT /auth/v1/user` with
+  a new password must also carry the current one. From `internal/api/user.go` in
+  supabase/auth at commit
+  [`3afa027`](https://github.com/supabase/auth/blob/3afa027c5cd0709ae82b46b461c8addbfd527be9/internal/api/user.go#L171-L186):
 
-`secure_password_change` maps to that setting: in Supabase CLI v2.122.0,
-`pkg/config/auth.go` sets `SecurityUpdatePasswordRequireReauthentication` from
-`SecurePasswordChange`.
+  ```go
+  // current password required when updating password
+  if config.Security.UpdatePasswordRequireCurrentPassword {
+      // ensure user is not in a password recovery flow
+      if !session.IsRecovery() {
+          if params.CurrentPassword == nil || *params.CurrentPassword == "" {
+              return apierrors.NewBadRequestError(apierrors.ErrorCodeCurrentPasswordRequired, ...)
+  ```
 
-- **Residual risk:** a stolen session less than 24 hours old can change the password,
-  then delete the account. The damage is the account itself and, for the last member,
-  the family cascade. A stolen token can already read and delete the family's events
-  and messages through RLS, so this is the only extra damage.
-- **Roadmap:** an emailed one-time code checked by `delete-account`. This needs custom
-  SMTP, because the built-in mailer is limited to 2 emails an hour.
+  - **Where it is set:** the hosted dashboard, Authentication → Sign In / Providers →
+    Email → "Require current password when updating" (Studio:
+    `SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD`).
+  - **Not covered locally or in CI:** Supabase CLI v2.122.0 has no `config.toml` key
+    for it, so the local stack and CI don't enforce it.
+  - **Exception:** a recovery session (opened from a password-reset email) skips the
+    check. Using it needs the user's inbox, not just a stolen token.
+- **Secure password change** (`[auth.email] secure_password_change = true` in
+  `supabase/config.toml`, and on hosted). Auth asks for a reauthentication code when
+  the session is missing or more than 24 hours old (`user.go`
+  [L154-L157](https://github.com/supabase/auth/blob/3afa027c5cd0709ae82b46b461c8addbfd527be9/internal/api/user.go#L154-L157)):
+  `if session == nil || now.After(session.CreatedAt.Add(24*time.Hour))`. In Supabase CLI
+  v2.122.0, `pkg/config/auth.go` maps `secure_password_change` to
+  `SecurityUpdatePasswordRequireReauthentication`. On its own it leaves sessions under
+  24 h open; together with the current-password requirement, it is defence in depth.
+
+**Verified on hosted** (29 Oct 2026, Auth v2.197.0), with a throwaway account that had
+no family:
+
+| Step | Result |
+|---|---|
+| `PUT /auth/v1/user` with a new password, no `current_password` | 400 `current_password_required` |
+| Same, wrong `current_password` | 400 `current_password_invalid` |
+| Same, right `current_password` (control) | 200 |
+| `delete-account` with the old password | 403 `invalid_password` |
+| `delete-account` with the current password | 200 `{deleted: true}` (no-family path) |
+| Sign-in afterwards | 400 `invalid_credentials`; no `auth.users` or orphan `profiles` row left |
+
+Re-run this check after any change to the hosted Auth settings.
+
+**What a stolen session can still do:** read and delete the family's events and send
+messages through RLS, as the user could. Deleting the account needs the password.

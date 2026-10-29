@@ -1,8 +1,7 @@
 // Account deletion (F8). The caller re-enters their password, checked here
-// against Auth. A stolen session alone can't delete the account unless the
-// attacker can also change the password; with secure password change on, Auth
-// allows that without reauthentication only for sessions under 24 h old
-// (residual risk, see docs/security.md "Account deletion").
+// against Auth, so a stolen session alone can't delete the account. Hosted Auth
+// requires the current password to change it (see docs/security.md "Account
+// deletion"; that setting is hosted-only, not in config.toml).
 // POST { password } -> { deleted: true }
 // Last member of the family: the family and everything under it goes.
 // One parent of two: their own data and shared-thread turns go; the partner's stay

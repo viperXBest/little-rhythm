@@ -49,7 +49,7 @@ README.md  SECURITY.md  LICENSE  .env.example
 | F7 | Notifications | Local reminders before predicted windows and for the daily check-in |
 | F8 | Account deletion | Deletes the user, and the family's data when they are the last member |
 
-Roadmap only: an emailed one-time code for account deletion (needs custom SMTP), relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
+Roadmap only: relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
 
 ## Agent tools (chat function)
 
@@ -88,7 +88,7 @@ Eleven tables, all with RLS. Every row hangs off a family; one helper, `is_famil
 - Only age in weeks and recent events go to the AI. No names, no emails. Voice clips are transcribed and not stored. No chat content, audio or tokens in logs.
 - Session tokens in expo-secure-store, never AsyncStorage.
 - The APK contains only the public Supabase URL and anon key. Never commit: `.env` files, the service_role key, `MODEL_API_KEY`, keystores, real personal data.
-- Account deletion re-checks the password server-side. With secure password change on (config.toml and hosted Auth), a stolen session can change the password, and so delete the account, only while the session is under 24 h old. Accepted residual risk; the emailed one-time code is roadmap.
+- Account deletion re-checks the password server-side. A stolen session can't change the password first: hosted Auth has "Require current password when updating" on (hosted-only; CLI v2.122.0 has no config.toml key, so local and CI don't cover it) and secure password change (also in config.toml). Verified on hosted; see docs/security.md.
 - Per-user rate limits on `chat`, `pair` and `predict` via `api_usage`.
 - Prediction reminders use the fixed ids `predict-feed`, `predict-nap` and `predict-routine`; the check-in reminder uses `checkin-daily`. Each sync cancels only its own ids. Never call `cancelAllScheduledNotificationsAsync`.
 - Couple data (check-ins, night-feed balance) never goes to the AI.
