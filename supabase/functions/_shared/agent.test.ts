@@ -544,6 +544,20 @@ Deno.test("system prompt: family-life scope, health rule that still logs, declin
   assertEquals(text.includes("call no tools"), false);
 });
 
+Deno.test("system prompt: fussiness, sleep worries without symptoms and food logs are family life, not referrals", async () => {
+  const model = scripted([]);
+  await runAgent(input("why is he so fussy tonight?", model.complete));
+  const text = model.seen[0][0].content ?? "";
+  assertEquals(
+    text.includes(
+      `These are family-life topics, not health: fussiness, crying, short naps, night waking, and "is this normal?" or "is she overtired?" about sleep when no symptom is mentioned; logs of what the baby ate or enjoyed; a tired parent asking about the log or the rhythm. Answer them from the log and the windows. Use the referral below only for symptoms, illness, medicine or doses, feeding amounts or frequency, development or milestone worries, whether an object, food or sleep setup is safe, or either parent's own health.`,
+    ),
+    true,
+  );
+  // The paragraph comes before the "Never" rules it narrows.
+  assertEquals(text.indexOf("These are family-life topics, not health") < text.indexOf("3. Never"), true);
+});
+
 Deno.test("a health question mixed with a log still returns the log's proposal", async () => {
   const model = scripted([
     {
