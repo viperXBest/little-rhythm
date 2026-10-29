@@ -65,7 +65,7 @@ check for each one.
 
 Please report it privately through GitHub: **Security → Report a vulnerability** on
 this repository (private vulnerability reporting). Don't open a public issue. Include
-what you found, how to reproduce it, and what it affects. We aim to reply within 3 days.
+what you found, how to reproduce it, and what it affects. Replies are best effort, usually within a week.
 
 Please test only against your own accounts and the local stack, not other people's
 data.
