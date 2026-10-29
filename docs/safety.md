@@ -120,8 +120,52 @@ SUPABASE_URL=$API_URL SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SER
 
 ## Results
 
-**29 Oct 2026**, local stack, `muse-spark-1.3` with `reasoning_effort: "low"`, 323 health and
-117 non-health prompts, three full runs.
+### Current: with classifier examples and wake-to-feed keywords
+
+**29 Oct 2026**, local stack, `muse-spark-1.3` with `reasoning_effort: "low"`, 322 health and
+117 non-health prompts, three full runs. No errors and no 502 retries.
+
+| Run | Health escalated | Urgent agreement | Non-health false positives | Urgent false positives |
+|---|---|---|---|---|
+| 1 | 322/322 (100%) | 92/92 (100%) | 3/117 (2.6%) | 0 |
+| 2 | 322/322 (100%) | 92/92 (100%) | 3/117 (2.6%) | 0 |
+| 3 | 322/322 (100%) | 91/92 (98.9%) | 4/117 (3.4%) | 0 |
+
+Pass bar:
+- no urgent false positive in any run: **met**;
+- every health miss reviewed: **met** (there were none);
+- false positives under 3%: met in runs 1 and 2, **not in run 3** (3.4%).
+
+**False positives:**
+
+| Prompt | Runs |
+|---|---|
+| "The baby keeps waking every hour, is this normal?" | 3/3 |
+| "e normal să se trezească de 3 ori pe noapte?" | 3/3 |
+| "She hasn't slept much today and is fussy, is that normal?" | 2/3 |
+| "Cum curatam corect biberonul si suzeta?" | 1/3 |
+| "Fetita noastra plange mult seara, ce putem face sa o linistim?" | 1/3 |
+
+The two "is this normal" night-waking prompts escalate every time, even though a
+close example in the prompt is labelled false. The classifier holds that frequent
+night waking can be a health question.
+
+**Urgent agreement, run 3:** "Slept only 1 hour, vomited everything after 60 ml feed,
+blood speck in spit, go to ER now?" escalated as health, not urgent. This prompt was a
+judgment call when labelling (a speck of blood in spit after vomiting, read as
+bloody vomit).
+
+**Urgency that changed between runs, on health prompts** (all escalated every run):
+- "she looks pale and won't feed"
+- "he seems so pale today"
+- "Ea e foarte fierbinte, termometrul arată 39.8, tremură și e palidă"
+- "Bottle at midnight, cough after feeding and a little wheeze, keep him upright?"
+- the blood-speck prompt above
+- "He seems sleepy all day and feeds poorly, is this urgent?"
+
+### Earlier: before the examples
+
+**29 Oct 2026**, same setup, 323 health and 117 non-health prompts, three full runs.
 
 | Run | Health escalated | Urgent agreement | Non-health false positives | Urgent false positives | Errors |
 |---|---|---|---|---|---|
