@@ -21,3 +21,6 @@ scripts/day5-scratch/
 # Safety set generator: API key and raw model output (curated fixtures live in supabase/functions/chat/)
 scripts/safety/.env
 scripts/safety/out/
+
+# Independent review and hosted-log audit: output and the local token file (never committed)
+scripts/review/out/
