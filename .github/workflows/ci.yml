@@ -22,13 +22,16 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: app/package-lock.json
       - run: npm ci
+      # Expo generates this file (gitignored) on start; it declares CSS and asset imports.
+      - name: Expo type references
+        run: echo '/// <reference types="expo/types" />' > expo-env.d.ts
       - run: npm run typecheck
       - run: npm run lint
 
@@ -36,7 +39,7 @@ jobs:
     name: Deno unit tests and format
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -51,7 +54,7 @@ jobs:
     name: RLS, realtime and function tests (local stack)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -99,16 +102,18 @@ jobs:
     env:
       GITLEAKS_VERSION: 8.30.1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Install gitleaks
         run: |
-          curl -sSfL -o gitleaks.tar.gz \
+          curl -sSfL -O \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSfL -o checksums.txt \
+          curl -sSfL -O \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
-          grep " gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz\$" checksums.txt | sha256sum -c -
-          tar -xzf gitleaks.tar.gz gitleaks
+          # sha256sum -c looks the file up by the name in the checksum list.
+          grep " gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz\$" "gitleaks_${GITLEAKS_VERSION}_checksums.txt" \
+            | sha256sum -c -
+          tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
       - name: Scan the full history
         run: ./gitleaks git . --config .gitleaks.toml --redact --no-banner -v
