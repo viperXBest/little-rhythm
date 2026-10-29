@@ -16,7 +16,7 @@ app (NextUp card) ──{tz, tz_offset_minutes}──▶ predict function
         verify JWT → rate limit (240/h) → caller's baby via their JWT (exactly one row)
         7 days of events + any open sleep, read with the caller's JWT (RLS)
         predict({ now, zone, birthDate, events })        _shared/predict.ts (pure)
-◀── { age_weeks, feed, nap, routine, bedtime, wake, zone } ──
+◀── { age_weeks, feed, nap, routine, bedtime, wake, zone, night_feeds } ──
 app: card rows + local reminders (this phone only, if switched on)
 
 chat function ── get_next_windows ──▶ the same engine, bound to the session baby
@@ -103,6 +103,8 @@ Sources:
   zone (`400 invalid_time_zone` otherwise).
 - Uses the same session-baby rule as `chat`: `not_in_family` and `multiple_babies` → 409.
 - Rate limit: `consume_rate_limit('predict', 3600, 240)`.
+- `night_feeds: { nights: 7, you, partner }` is the couple layer's balance
+  (`docs/couple.md`). It carries counts only and never goes to the chat model.
 - Logs carry error codes only, never events or windows.
 - Tests:
   - `predict/request.test.ts` (unit).
@@ -138,8 +140,9 @@ Sources:
     its start. Times already in the past are skipped. The text contains no names.
   - **Fixed identifiers:** the reminders use `predict-feed`, `predict-nap` and
     `predict-routine`. Only these are cancelled, both when rescheduling and when
-    the toggle is turned off. Other reminders, such as the daily check-in, are
-    never touched (`app/src/lib/reminder-plan.test.ts`).
+    the toggle is turned off. Other reminders, such as the daily check-in
+    (`checkin-daily`, `docs/couple.md`), are never touched
+    (`app/src/lib/reminder-plan.test.ts`).
   - **Limitation:** reminders reflect the last prediction this phone saw. If the
     app isn't opened after the partner logs a feed, the old reminder still fires.
 

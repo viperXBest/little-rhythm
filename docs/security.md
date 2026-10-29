@@ -2,9 +2,10 @@
 
 ## Realtime and RLS
 
-`events` and `family_members` are in the `supabase_realtime` publication
-(`supabase/migrations/20261029090000_events_realtime.sql`). No private table
-(chat, check-ins, invites, rate limits) is published; `supabase/tests/05_events.test.sql`
+`events`, `family_members`, `chat_messages` and `checkins` are in the
+`supabase_realtime` publication (`20261029090000_events_realtime.sql`,
+`20261029100000_chat_checkin.sql`). `chat_threads`, `invites`, `api_usage`,
+`profiles`, `babies` and `families` are not; `supabase/tests/05_events.test.sql`
 asserts both.
 
 For INSERT and UPDATE, Realtime runs the subscriber's `select` policy against the
@@ -16,6 +17,9 @@ gets no rows.
 stack. A parent in family A subscribes to all `events`, to `family_members`, and on
 a channel filtered to family B's baby. Family B gets a new member and logs a feed,
 then family A does the same. A receives family A's two changes and nothing from family B.
+A second test covers chat and check-ins: the partner receives shared-thread messages
+but not the other parent's private ones, and a check-in only for a day they have
+already answered.
 
 ```sh
 supabase start
@@ -35,6 +39,10 @@ DELETE events. Client filters don't apply to deletes either. With the default re
 identity, a DELETE payload carries only the primary key. So **delete PKs go to every
 `events` subscriber across all families**: random UUIDs, with no baby, family, type,
 time or details. The app ignores ids that aren't in its own list.
+
+`chat_messages` and `checkins` have no delete policy, so clients can't delete them.
+They are deleted only by cascade (account or family deletion), which broadcasts
+their primary keys in the same way.
 
 Accepted for the demo. The roadmap fix is soft delete (`deleted_at` set through an
 UPDATE), which goes through RLS like any other update.

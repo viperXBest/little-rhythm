@@ -1,19 +1,27 @@
-# Chat and voice logging (F3)
+# Chat, voice logging and the buddy (F3, F5)
 
 A parent types or holds the mic and says what happened ("she drank 90 ml at 3, she's
-asleep now"). The `chat` Edge Function turns that into **proposals**. The app shows
-each proposal as an editable confirm card. Nothing is saved until the parent taps Confirm.
+asleep now"), or asks about the log ("why so fussy tonight?"). The `chat` Edge Function
+turns that into **proposals** and a short reply. The app shows each proposal as an
+editable confirm card. Nothing is saved until the parent taps Confirm. Health questions
+get a static escalation card and no model text (see "Health gate" below).
 
 ```
-app ──JSON {text} or multipart {audio WAV}──▶ chat function
+app ──JSON {text, thread_id} or multipart {audio WAV, thread_id}──▶ chat function
         verify JWT → rate limit (60/h) → caller's baby via their JWT (exactly one row)
+        thread check: in the caller's family, shared or their own private → else 404
         [voice] Content-Length + size + WAV header checks → Muse Voice Transcribe
-        Muse Spark 1.3 agent, ≤ 4 model calls, tools:
-          log_feed · log_sleep · end_sleep · log_diaper   → validated proposals
-          get_recent_events                               → read via caller's JWT (RLS)
-          get_next_windows                                → prediction engine (docs/predictions.md)
-◀── { transcript?, caption, proposals[], source } ──
-app: confirm card → insertEvent / endSleep with the parent's session (RLS, realtime)
+        context: age in weeks, last 48 h of events, computed windows, last 10 messages
+        store the parent's message (caller's JWT, RLS)
+        in parallel:
+          Muse Spark 1.3 agent, ≤ 4 model calls, tools:
+            log_feed · log_sleep · end_sleep · log_diaper   → validated proposals
+            get_recent_events                               → read via caller's JWT (RLS)
+            get_next_windows                                → prediction engine (docs/predictions.md)
+          health classifier (Muse Spark, structured output) + keyword check
+        store the reply (service role, after the thread check)
+◀── { transcript?, caption | null, escalation | null, proposals[], source, thread_id } ──
+app: escalation card, or caption + confirm cards → insertEvent / endSleep (RLS, realtime)
 ```
 
 ## Rules the code enforces
@@ -34,11 +42,60 @@ app: confirm card → insertEvent / endSleep with the parent's session (RLS, rea
   - An invalid call is returned as a proposal with per-field errors, never dropped.
     Confirm stays disabled until the parent edits the flagged fields.
 - **Privacy.** The model sees only the baby's age in weeks, the parent's message or
-  transcript, and recent events: type, time and details, with no ids or authors.
-  Audio is forwarded to Muse Voice Transcribe and never stored. The app deletes the
-  local WAV after upload, also when the upload fails. Logs carry error codes only.
-- **Medical questions** get a fixed referral to the paediatrician or 112 and no tool
-  calls. The Day 6 escalation card replaces this.
+  transcript, recent events (type, local time, details) and the computed windows,
+  plus the thread's recent turns as plain text. No names, ids, authors or couple
+  data (night-feed balance, check-ins). Audio is forwarded to Muse Voice Transcribe
+  and never stored. The app deletes the local WAV after upload, also when the upload
+  fails. Logs carry error codes only. Tests: `_shared/agent.test.ts` ("buddy context").
+
+## Health gate (no medical advice)
+
+Every turn, typed or a voice transcript, is checked twice (`_shared/health-gate.ts`):
+
+1. **Keywords** (`_shared/health-keywords.ts`), English and Romanian, on normalised
+   text (no diacritics, lower case), with an urgent subset (not breathing, blue lips,
+   seizure, choking, a fall from the bed, swallowed a battery, …). Known traps are left
+   out or narrowed and have negative tests: "ill feed her at 3", "o vom culca la 8",
+   "pe 3 februarie", "laptele s-a răcit", "a căzut lată la 8", "cold milk", "112 ml",
+   "vârstă".
+2. **Classifier**: a Muse Spark 1.3 call with strict structured output
+   `{health, urgent}`, `reasoning_effort: "low"`, 10 s timeout, validated with zod. It
+   runs in parallel with the agent, so it adds no latency. The prompt is
+   `CLASSIFIER_PROMPT` in `health-gate.ts`. It treats the message as data and covers
+   the baby's and a parent's health, feeding amounts and medicine.
+
+Rules:
+- Either check positive → the reply carries `escalation: { urgent }` and **no model
+  text**. `urgent` is true if either check says so. Proposals from the same turn still
+  show: logging is not advice.
+- Classifier failure with no keyword hit → the normal reply. With a keyword hit → the
+  escalation.
+- The agent's system prompt keeps the no-advice rule and its fixed referral sentence;
+  a caption containing that sentence also escalates.
+- If the agent fails on a health turn, the escalation still goes out.
+- The card text is static in the app (`components/escalation-card.tsx`): contact your
+  paediatrician or doctor; urgent: call 112 now, with a Call 112 button.
+- An escalated turn is dropped from the history the model sees on later turns.
+- Measured with the safety set: `docs/safety.md`.
+
+Tests: `_shared/health-gate.test.ts`; `supabase/tests/functions/chat.test.ts`
+(`RUN_MODEL_TESTS=1` for the real-model paths).
+
+## Threads
+
+- One shared thread per family and one private thread per parent, created on first
+  use by `ensure_chat_threads()`. Unique indexes stop duplicates when both phones open
+  the chat at once. The app has a Shared / Private switch.
+- `chat_messages` RLS: the partner can't read a private thread or its messages;
+  clients insert only `role = 'user'` rows with their own `author_id` and no
+  escalation or summary. Tests: `supabase/tests/02_private_threads.test.sql`.
+- The function stores the parent's message (text or transcript, never audio) with
+  the caller's JWT, and the assistant's message (caption or escalation flag, plus a
+  proposal summary built by the server from validated proposals) with the service
+  role, only after checking the thread is the caller's. "Not yours" and "doesn't
+  exist" are the same `404 thread_not_found`.
+- The shared thread updates live on the partner's phone (realtime, RLS-scoped).
+  Proposal cards stay on the phone that asked; the partner sees the summary.
 
 ## Voice upload size
 

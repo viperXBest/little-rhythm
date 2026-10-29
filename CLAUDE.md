@@ -55,6 +55,8 @@ Roadmap only: relationship nudges, pumping, growth charts, medication tracking, 
 
 `log_feed`, `log_sleep`, `end_sleep`, `log_diaper`, `get_recent_events`, `get_next_windows` (the same engine as `predict`, bound to the session baby, no arguments read). Write tools return proposals that the app shows as confirm cards; nothing is saved until the user confirms. `end_sleep` closes the open sleep the server finds, never one the model names. Muse Spark runs with `reasoning_effort: "low"` (measured faster and as accurate, see `docs/chat.md`). Chat feed ranges match the app: bottle 5–400 ml, breast 1–90 min.
 
+Each turn also gets a server-built context (age in weeks, last 48 h of events, the computed windows, the thread's last 10 messages minus escalated turns) and passes the health gate: `_shared/health-keywords.ts` (EN/RO) plus a Muse Spark structured-output classifier run in parallel with the agent. Either positive → `escalation`, no model text; the card text is static in the app. Requests carry `thread_id`; the function checks the thread is the caller's before storing anything. See `docs/chat.md` and `docs/safety.md`.
+
 ## Data model
 
 Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_member(family_id)`, protects all of it.
@@ -68,7 +70,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 | events | id, baby_id, type (feed/sleep/diaper), started_at, ended_at, details (jsonb), created_by, source (tap/chat/voice) |
 | invites | family_id, code_hash, expires_at, used_at, created_by |
 | chat_threads | id, family_id, owner_id (set = private) |
-| chat_messages | thread_id, role, content, author_id, created_at |
+| chat_messages | thread_id, role, content (null on escalation), escalation, proposal_summary, author_id, created_at |
 | checkins | family_id, user_id, day, answers (jsonb) |
 | api_usage | user_id, function, window_start, count |
 
@@ -84,15 +86,16 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 - Session tokens in expo-secure-store, never AsyncStorage.
 - The APK contains only the public Supabase URL and anon key. Never commit: `.env` files, the service_role key, `MODEL_API_KEY`, keystores, real personal data.
 - Per-user rate limits on `chat`, `pair` and `predict` via `api_usage`.
-- Prediction reminders use the fixed ids `predict-feed`, `predict-nap` and `predict-routine`, and only those are ever cancelled. Never call `cancelAllScheduledNotificationsAsync` (it would wipe the check-in reminder).
+- Prediction reminders use the fixed ids `predict-feed`, `predict-nap` and `predict-routine`; the check-in reminder uses `checkin-daily`. Each sync cancels only its own ids. Never call `cancelAllScheduledNotificationsAsync`.
+- Couple data (check-ins, night-feed balance) never goes to the AI.
 - Every security control gets a test (pgTAP for RLS, function tests for pair/chat).
 
 ## Conventions
 
 - TypeScript strict everywhere; no `any`.
 - Database changes only through migrations in `/supabase/migrations`.
-  - A new migration's timestamp must be later than the latest applied one (currently `20261029090000`).
-  - Until 2026-10-29 09:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
+  - A new migration's timestamp must be later than the latest one (currently `20261029100000`, local only until pushed).
+  - Until 2026-10-29 10:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
   - Never use `supabase db push --include-all`.
 - Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Day 4 build swapped expo-audio for @siteed/audio-studio (plugin: device detection, background audio, notifications and phone-state handling all off; only RECORD_AUDIO). Rebuild only when a native module changes.
 - Deno is not installed globally: run it as `npx -y deno@2 ...` (2.9.6 in use). Format with `deno fmt --line-width 110`. App files named `*.test.ts` run under Deno and are excluded from the app's tsc and eslint. Commands: `docs/predictions.md` ("Running the tests").
@@ -105,7 +108,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 3. Oct 29 · Tracking and real-time sync; add expo-audio and rebuild (done)
 4. Oct 30 · Agentic chat and voice logging (Muse Spark + Muse Voice Transcribe, confirm cards) (done; see `docs/chat.md`)
 5. Oct 31 · Predictions engine, predict function, "Next up" card, notifications (done, deployed, verified on both phones; see `docs/predictions.md`)
-6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance
+6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance (built and tested on the local stack; not yet pushed, deployed or tried on the phones; safety set awaiting curation; see `docs/chat.md`, `docs/couple.md`, `docs/safety.md`)
 7. Nov 2 · delete-account, rate limits, security review, safety prompts, CI green
 8. Nov 3 · Polish, seed-demo, README, rehearse
    - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and the brand accent colour (`#208AEF`, theme `primary`), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
