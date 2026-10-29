@@ -229,3 +229,32 @@ Deno.test({
     }
   },
 });
+
+Deno.test({
+  name: "chat: clients can't insert messages directly; only the function writes them (after the gate)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const parent = await createUser("chat-direct");
+    let familyId: string | null = null;
+    try {
+      familyId = await createFamily([parent]);
+      const { shared_id, private_id } = await threads(parent);
+      for (const threadId of [shared_id, private_id]) {
+        const { error } = await parent.client
+          .from("chat_messages")
+          .insert({
+            thread_id: threadId,
+            role: "user",
+            content: "what dose of paracetamol?",
+            author_id: parent.id,
+          });
+        assertEquals(error?.code, "42501");
+        assertEquals(await messageCount(threadId), 0);
+      }
+    } finally {
+      if (familyId) await admin.from("families").delete().eq("id", familyId);
+      await admin.auth.admin.deleteUser(parent.id);
+    }
+  },
+});

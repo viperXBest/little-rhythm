@@ -10,11 +10,11 @@
 // and a Muse classifier running beside the agent. A positive turn returns an
 // escalation with no model text; the app shows a static card.
 //
-// The turn is stored in the thread after the gate has decided: the parent's
-// message (text or transcript, never audio) with the caller's JWT, or, when the
-// turn escalated, with the service role and gated = true; then the assistant's
-// (caption or escalation flag, plus a server-built proposal summary) with the
-// service role. Both only after the thread was checked to be the caller's.
+// The turn is stored in the thread after the gate has decided, with the service
+// role and only after the thread was checked to be the caller's: the parent's
+// message (text or transcript, never audio; gated = true when the turn escalated),
+// then the assistant's (caption or escalation flag, plus a server-built proposal
+// summary, linked by reply_to). Clients can't insert messages at all.
 // After the response, older messages may be folded into the thread's summary
 // (_shared/thread-memory.ts). Text, transcripts,
 // audio and tool arguments are never logged.
@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
       // A non-health turn that failed stores nothing: the parent sees an error and retries.
       const escalation = applyHealthGate({ keyword, classifier: verdict, caption: null });
       if (!escalation) return museFailure(agent.reason);
-      const replyTo = await storeUserMessage(db, admin, { threadId, userId: user.id, text, gated: true });
+      const replyTo = await storeUserMessage(admin, { threadId, userId: user.id, text, gated: true });
       await storeReply(admin, { threadId, replyTo, caption: null, escalation, summary: null });
       foldMemory();
       return json(reply({ transcript, caption: null, escalation, proposals: [], source, threadId }));
@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
     const caption = escalation ? null : result.caption;
     // Stored only now that the gate has decided, so a health question is never
     // stored ungated, not even for a moment.
-    const replyTo = await storeUserMessage(db, admin, {
+    const replyTo = await storeUserMessage(admin, {
       threadId,
       userId: user.id,
       text,
@@ -246,20 +246,21 @@ function reply(input: {
 
 /**
  * The parent's message (text or transcript, never audio), stored after the gate.
- * Not gated: inserted as the caller, so RLS checks role, author and thread.
- * Gated: inserted with the service role (clients can't set gated), author = the
- * caller; checkThread has already passed. Returns the row id for the reply's
- * reply_to, or null: a failure is logged and the reply still goes out.
+ * Inserted with the service role (clients have no INSERT on chat_messages), with
+ * author = the verified caller and gated as the gate decided; checkThread has
+ * already passed. Returns the row id for the reply's reply_to, or null: a failure
+ * is logged and the reply still goes out.
  */
 async function storeUserMessage(
-  db: ReturnType<typeof userClient>,
   admin: ReturnType<typeof adminClient>,
   input: { threadId: string; userId: string; text: string; gated: boolean },
 ): Promise<string | null> {
   const row = { thread_id: input.threadId, role: "user", content: input.text, author_id: input.userId };
-  const { data, error } = input.gated
-    ? await admin.from("chat_messages").insert({ ...row, gated: true }).select("id").single()
-    : await db.from("chat_messages").insert(row).select("id").single();
+  const { data, error } = await admin
+    .from("chat_messages")
+    .insert({ ...row, gated: input.gated })
+    .select("id")
+    .single();
   if (error) {
     console.error("chat: message_insert_failed", error.code);
     return null;

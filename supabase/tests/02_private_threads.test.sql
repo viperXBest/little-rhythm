@@ -67,9 +67,9 @@ select plan(29);
 select tests.as_user('aaaaaaaa-0000-0000-0000-000000000001');
 select is((select count(*)::int from public.chat_threads), 2, 'A1 sees the shared and their private thread');
 select is((select count(*)::int from public.chat_messages), 3, 'A1 sees all messages in both threads');
-select lives_ok(
+select throws_ok(
   $$insert into public.chat_messages (thread_id, role, content, author_id) values ('aaaaaaaa-7000-0000-0000-000000000002', 'user', 'more', 'aaaaaaaa-0000-0000-0000-000000000001')$$,
-  'A1 can post into their private thread');
+  '42501', null, 'A1 cannot insert even into their own thread: the chat function writes every message');
 select throws_ok(
   $$insert into public.chat_messages (thread_id, role, content, author_id) values ('aaaaaaaa-7000-0000-0000-000000000002', 'assistant', 'fake', 'aaaaaaaa-0000-0000-0000-000000000001')$$,
   '42501', null, 'clients cannot write assistant messages');

@@ -232,8 +232,9 @@ Deno.test({
       )
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "checkins" }, record("checkins"));
 
+    // Messages are written by the chat function (service role); clients can't insert.
     const post = (threadId: string, content: string) =>
-      a1.client
+      admin
         .from("chat_messages")
         .insert({ thread_id: threadId, role: "user", content, author_id: a1.id })
         .select("id")

@@ -21,8 +21,8 @@ app ──JSON {text, thread_id} or multipart {audio WAV, thread_id}──▶ ch
             get_next_windows                                → prediction engine (docs/predictions.md)
             search_chat_history                             → this thread only (RLS RPC)
           health classifier (Muse Spark, structured output) + keyword check
-        store the parent's message (caller's JWT; gated turns: service role, gated = true)
-        store the reply (service role, after the thread check)
+        store the parent's message (service role, gated as decided, after the thread check)
+        store the reply (service role, reply_to = the parent's message)
 ◀── { transcript?, caption | null, escalation | null, proposals[], source, thread_id } ──
         after the response: maybe fold older messages into the thread summary
 app: escalation card, or caption + confirm cards → insertEvent / endSleep (RLS, realtime)
@@ -94,13 +94,14 @@ Tests: `_shared/health-gate.test.ts`; `supabase/tests/functions/chat.test.ts`
 - One shared thread per family and one private thread per parent, created on first
   use by `ensure_chat_threads()`. Unique indexes stop duplicates when both phones open
   the chat at once. The app has a Shared / Private switch.
-- `chat_messages` RLS: the partner can't read a private thread or its messages;
-  clients insert only `role = 'user'` rows with their own `author_id` and no
-  escalation or summary. Tests: `supabase/tests/02_private_threads.test.sql`.
-- The function stores the parent's message (text or transcript, never audio) with
-  the caller's JWT, and the assistant's message (caption or escalation flag, plus a
-  proposal summary built by the server from validated proposals) with the service
-  role, only after checking the thread is the caller's. "Not yours" and "doesn't
+- `chat_messages` RLS: the partner can't read a private thread or its messages.
+  Clients can't insert messages at all (no insert policy, INSERT revoked since
+  `20261030100000`): a direct insert would skip the health gate. Tests:
+  `supabase/tests/02_private_threads.test.sql`, `supabase/tests/functions/chat.test.ts`.
+- The function stores the parent's message (text or transcript, never audio; author =
+  the verified caller) and the assistant's message (caption or escalation flag, plus a
+  proposal summary built by the server from validated proposals, linked by
+  `reply_to`) with the service role, only after checking the thread is the caller's. "Not yours" and "doesn't
   exist" are the same `404 thread_not_found`.
 - The shared thread updates live on the partner's phone (realtime, RLS-scoped).
   Proposal cards stay on the phone that asked; the partner sees the summary.
@@ -171,8 +172,8 @@ Each thread remembers on its own; shared and private threads never mix.
   an escalation reply.
 - **Gated turns:**
   - The parent's message is stored only after the gate has decided. When the turn
-    escalated, the function inserts it with the service role and `gated = true`.
-    Clients can't set `gated` or update messages.
+    escalated, it is inserted with `gated = true`. Clients can't insert or update
+    messages.
   - Gated rows and escalation rows are never used as history, summary input or
     search results.
 - **Summary** (`_shared/thread-memory.ts`, table `thread_memory`):

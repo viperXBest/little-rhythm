@@ -63,9 +63,11 @@ UPDATE), which goes through RLS like any other update.
   summary. No names, ids or emails go with them, and gated turns never do. The
   summary is rejected before storage if it holds a health keyword, an email, a UUID
   or a family name. Names are read through RLS only for that check.
-- **`chat_messages.gated`:** set only by the chat function. Clients insert plain user
-  rows (the insert policy requires `gated = false`), and `UPDATE` on `chat_messages`
-  is revoked from `authenticated`. A health question is stored gated from the start,
+- **`chat_messages` writes:** only the chat function writes messages, with the service
+  role after the thread check and the health gate. Clients have no insert policy and no
+  INSERT or UPDATE privilege (`20261030100000_chat_messages_server_insert.sql`), so a
+  health question can't be stored ungated by going around the function. `gated` is set
+  by the function. A health question is stored gated from the start,
   so there is no window where it sits ungated.
 - **`thread_memory`:**
   - The select policy mirrors thread visibility: a private thread's summary is its

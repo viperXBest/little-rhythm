@@ -88,9 +88,9 @@ select throws_ok(
 select throws_ok(
   $$update public.chat_messages set gated = false where thread_id = 'aaaaaaaa-7000-0000-0000-000000000001'$$,
   '42501', null, 'clients cannot update messages (gated included)');
-select lives_ok(
+select throws_ok(
   $$insert into public.chat_messages (thread_id, role, content, author_id) values ('aaaaaaaa-7000-0000-0000-000000000001', 'user', 'plain', 'aaaaaaaa-0000-0000-0000-000000000001')$$,
-  'clients can still insert a plain user row');
+  '42501', null, 'clients cannot insert a plain user row either (it would skip the health gate)');
 
 -- ---- thread_memory visibility ------------------------------------------------
 select set_eq(
