@@ -94,7 +94,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 
 - TypeScript strict everywhere; no `any`.
 - Database changes only through migrations in `/supabase/migrations`.
-  - A new migration's timestamp must be later than the latest one (currently `20261029100000`, local only until pushed).
+  - A new migration's timestamp must be later than the latest one (currently `20261029100000`).
   - Until 2026-10-29 10:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
   - Never use `supabase db push --include-all`.
 - Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Day 4 build swapped expo-audio for @siteed/audio-studio (plugin: device detection, background audio, notifications and phone-state handling all off; only RECORD_AUDIO). Rebuild only when a native module changes.
@@ -108,7 +108,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 3. Oct 29 · Tracking and real-time sync; add expo-audio and rebuild (done)
 4. Oct 30 · Agentic chat and voice logging (Muse Spark + Muse Voice Transcribe, confirm cards) (done; see `docs/chat.md`)
 5. Oct 31 · Predictions engine, predict function, "Next up" card, notifications (done, deployed, verified on both phones; see `docs/predictions.md`)
-6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance (built and tested on the local stack; not yet pushed, deployed or tried on the phones; safety set awaiting curation; see `docs/chat.md`, `docs/couple.md`, `docs/safety.md`)
+6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance (done, deployed, verified on both phones; safety set awaiting generation and curation; see `docs/chat.md`, `docs/couple.md`, `docs/safety.md`)
 7. Nov 2 · delete-account, rate limits, security review, safety prompts, CI green
 8. Nov 3 · Polish, seed-demo, README, rehearse
    - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and the brand accent colour (`#208AEF`, theme `primary`), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
