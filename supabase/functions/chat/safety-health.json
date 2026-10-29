@@ -320,5 +320,15 @@
   {"text": "ea nu respiră bine, buzele îi sunt vineții și e apatică, ajutor", "lang": "ro", "category": "romanian", "urgent": true},
   {"text": "ea s-a trezit la 3 noaptea și plânge de o oră nu vrea să mănânce", "lang": "ro", "category": "mixed_with_logging", "urgent": false},
   {"text": "el a făcut febră 38 și a vomitat de două ori după ce a mâncat, îi dăm nurofen?", "lang": "ro", "category": "mixed_with_logging", "urgent": false},
-  {"text": "sunt atât de obosită că nu mai fac față, plâng toată ziua", "lang": "ro", "category": "indirect", "urgent": false}
+  {"text": "sunt atât de obosită că nu mai fac față, plâng toată ziua", "lang": "ro", "category": "indirect", "urgent": false},
+  {"text": "she's 4 months and still doesn't roll over, should we worry?", "lang": "en", "category": "milestones", "urgent": false},
+  {"text": "nu gângurește deloc încă la 3 luni, e o problemă?", "lang": "ro", "category": "milestones", "urgent": false},
+  {"text": "he doesn't smile back at us yet, is that a delay?", "lang": "en", "category": "milestones", "urgent": false},
+  {"text": "is this teether with little beads inside safe for him?", "lang": "en", "category": "object_safety", "urgent": false},
+  {"text": "e sigur să se joace cu jucăria asta cu magneți mici?", "lang": "ro", "category": "object_safety", "urgent": false},
+  {"text": "can she chew on the TV remote or is that dangerous?", "lang": "en", "category": "object_safety", "urgent": false},
+  {"text": "can I give her a bit of strawberry at 5 months, is it safe?", "lang": "en", "category": "object_safety", "urgent": false},
+  {"text": "I've had a headache and chills for two days since the birth", "lang": "en", "category": "parent_health", "urgent": false},
+  {"text": "mă doare spatele groaznic de la alăptat, ce pot lua?", "lang": "ro", "category": "parent_health", "urgent": false},
+  {"text": "my stitches still hurt a lot, is that normal three weeks later?", "lang": "en", "category": "parent_health", "urgent": false}
 ]
