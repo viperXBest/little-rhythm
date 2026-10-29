@@ -17,6 +17,9 @@ export type NullReason =
   | 'not_asleep';
 export type Slot = { window: PredictWindow; reason: null } | { window: null; reason: NullReason };
 
+/** Feeds logged 22:00–06:00 over the last 7 nights, by who logged them. Null partner: not paired yet. */
+export type NightFeeds = { nights: number; you: number; partner: number | null };
+
 export type Prediction = {
   ageWeeks: number;
   feed: Slot;
@@ -24,6 +27,7 @@ export type Prediction = {
   routine: Slot;
   bedtime: Slot;
   wake: Slot;
+  nightFeeds: NightFeeds | null;
 };
 
 export type PredictError = 'rate_limited' | 'not_in_family' | 'multiple_babies' | 'unknown';
@@ -68,6 +72,14 @@ function parseSlot(value: unknown): Slot | null {
   };
 }
 
+function parseNightFeeds(value: unknown): NightFeeds | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  const count = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 0;
+  if (!count(v.nights) || !count(v.you) || !(v.partner === null || count(v.partner))) return null;
+  return { nights: v.nights as number, you: v.you as number, partner: v.partner as number | null };
+}
+
 function parsePrediction(data: unknown): Prediction | null {
   if (!data || typeof data !== 'object') return null;
   const body = data as Record<string, unknown>;
@@ -77,7 +89,7 @@ function parsePrediction(data: unknown): Prediction | null {
   const bedtime = parseSlot(body.bedtime);
   const wake = parseSlot(body.wake);
   if (!feed || !nap || !routine || !bedtime || !wake || typeof body.age_weeks !== 'number') return null;
-  return { ageWeeks: body.age_weeks, feed, nap, routine, bedtime, wake };
+  return { ageWeeks: body.age_weeks, feed, nap, routine, bedtime, wake, nightFeeds: parseNightFeeds(body.night_feeds) };
 }
 
 export async function fetchPrediction(): Promise<PredictResult> {

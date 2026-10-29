@@ -12,6 +12,7 @@ import { formatTime } from '@/lib/events';
 import {
   fetchPrediction,
   type Basis,
+  type NightFeeds,
   type NullReason,
   type Prediction,
   type PredictError,
@@ -51,7 +52,8 @@ type State =
   | { status: 'ready'; prediction: Prediction }
   | { status: 'error'; error: PredictError; last: Prediction | null };
 
-export function NextUp() {
+/** The predict call also returns the night-feed balance; it is handed up for its own card. */
+export function NextUp({ onNightFeeds }: { onNightFeeds?: (value: NightFeeds | null) => void }) {
   const { events, status: eventsStatus } = useTodayEvents();
   const [state, setState] = useState<State>({ status: 'loading' });
   const requestId = useRef(0);
@@ -63,6 +65,7 @@ export function NextUp() {
     if (id !== requestId.current) return;
     if (result.ok) {
       setState({ status: 'ready', prediction: result.prediction });
+      onNightFeeds?.(result.prediction.nightFeeds);
       // Each fresh prediction replaces this phone's prediction reminders (if on).
       void syncReminders(result.prediction);
     } else {
@@ -72,7 +75,7 @@ export function NextUp() {
         last: prev.status === 'ready' ? prev.prediction : prev.status === 'error' ? prev.last : null,
       }));
     }
-  }, []);
+  }, [onNightFeeds]);
 
   // On mount and whenever home comes back into focus.
   useFocusEffect(

@@ -5,6 +5,7 @@ import { Share, StyleSheet, View } from 'react-native';
 import { CheckinCard } from '@/components/checkin-card';
 import { Button, ErrorText, Screen } from '@/components/form';
 import { NextUp } from '@/components/next-up';
+import { NightFeedsCard } from '@/components/night-feeds-card';
 import { QuickLog } from '@/components/quick-log';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -12,6 +13,7 @@ import { Timeline } from '@/components/timeline';
 import { Fonts, Spacing } from '@/constants/theme';
 import { ageInWeeks } from '@/lib/dates';
 import { createPairCode, pairErrorMessage } from '@/lib/pair';
+import type { NightFeeds } from '@/lib/predict';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
@@ -19,6 +21,7 @@ type Invite = { code: string; expiresAt: Date };
 
 export default function Home() {
   const { family } = useSession();
+  const [nightFeeds, setNightFeeds] = useState<NightFeeds | null>(null);
   if (!family) return null;
 
   const weeks = ageInWeeks(family.baby.birthDate);
@@ -34,9 +37,10 @@ export default function Home() {
       ) : (
         <ThemedText themeColor="textSecondary">You and your partner are both here.</ThemedText>
       )}
-      <NextUp />
+      <NextUp onNightFeeds={setNightFeeds} />
       <QuickLog />
       <CheckinCard />
+      {nightFeeds ? <NightFeedsCard value={nightFeeds} /> : null}
       <Button title="Chat" variant="secondary" onPress={() => router.push('/chat')} />
       <Timeline />
       <Button title="Sign out" variant="secondary" onPress={() => void supabase.auth.signOut()} />
