@@ -17,3 +17,7 @@ scripts/day4-scratch/
 
 # Local-only predict seed (never against hosted)
 scripts/day5-scratch/
+
+# Safety set generator: API key and raw model output (curated fixtures live in supabase/functions/chat/)
+scripts/safety/.env
+scripts/safety/out/
