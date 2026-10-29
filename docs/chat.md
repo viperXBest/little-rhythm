@@ -11,6 +11,7 @@ app ──JSON {text} or multipart {audio WAV}──▶ chat function
         Muse Spark 1.3 agent, ≤ 4 model calls, tools:
           log_feed · log_sleep · end_sleep · log_diaper   → validated proposals
           get_recent_events                               → read via caller's JWT (RLS)
+          get_next_windows                                → prediction engine (docs/predictions.md)
 ◀── { transcript?, caption, proposals[], source } ──
 app: confirm card → insertEvent / endSleep with the parent's session (RLS, realtime)
 ```
