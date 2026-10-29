@@ -51,3 +51,20 @@ Deno.test("size and media type are capped", async () => {
     error: "unsupported_media_type",
   });
 });
+
+Deno.test("tz_offset_minutes outside -840..840 is a 400", async () => {
+  const invalid = { ok: false, status: 400, error: "invalid_request" } as const;
+  for (const offset of [841, -841, 10000, -10000]) {
+    assertEquals(
+      await parsePredictRequest(post(JSON.stringify({ tz_offset_minutes: offset }))),
+      invalid,
+      `${offset}`,
+    );
+  }
+  for (const offset of [840, -840]) {
+    assertEquals(await parsePredictRequest(post(JSON.stringify({ tz_offset_minutes: offset }))), {
+      ok: true,
+      zone: { kind: "offset", minutes: offset },
+    });
+  }
+});

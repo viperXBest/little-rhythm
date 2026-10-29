@@ -170,3 +170,29 @@ Deno.test("multipart needs the audio file, a valid offset and a thread id", asyn
     });
   }
 });
+
+// Review false positive (docs/security.md): resolveTimestamp trusts an offset that
+// was already range-checked here, so the 2-minute and 48-hour checks hold.
+Deno.test("tz_offset_minutes outside -840..840 is a 400, for JSON and multipart", async () => {
+  const invalid = { ok: false, status: 400, error: "invalid_request" } as const;
+  for (const offset of [841, -841, 10000, -10000]) {
+    assertEquals(
+      await parseChatRequest(jsonRequest({ text: "wet", thread_id: THREAD, tz_offset_minutes: offset })),
+      invalid,
+      `json ${offset}`,
+    );
+    assertEquals(
+      await parseChatRequest(await multipartRequest({ audio: wav(500), offset: String(offset) })),
+      invalid,
+      `multipart ${offset}`,
+    );
+  }
+  for (const offset of [840, -840]) {
+    const json = await parseChatRequest(
+      jsonRequest({ text: "wet", thread_id: THREAD, tz_offset_minutes: offset }),
+    );
+    assertEquals(json.ok, true, `json ${offset}`);
+    const voice = await parseChatRequest(await multipartRequest({ audio: wav(500), offset: String(offset) }));
+    assertEquals(voice.ok, true, `multipart ${offset}`);
+  }
+});

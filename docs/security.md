@@ -152,3 +152,41 @@ Re-run this check after any change to the hosted Auth settings.
 
 **What a stolen session can still do:** read and delete the family's events and send
 messages through RLS, as the user could. Deleting the account needs the password.
+
+## Independent review (Muse Spark Open)
+
+`scripts/review/review.ts` sends the tracked files (no lockfiles, binaries, env files
+or fixtures) to Muse Spark Open in two passes: a security audit and a judge's review
+against the hackathon rubric. Output goes to `scripts/review/out/` (gitignored), and
+every finding is triaged by hand before anything changes.
+
+**Accepted:** the realtime DELETE broadcast of primary keys, described above under
+"Known caveat: DELETE".
+
+### Review false positives
+
+- **"tz_offset_minutes is never range-checked, so a huge offset bypasses the time
+  checks"** (`_shared/agent-schemas.ts:131`).
+  - The offset is checked against -840..840 when the request is parsed, before
+    `resolveTimestamp` sees it: `chat/request.ts` (JSON and multipart) and
+    `predict/request.ts`. Out of range is a 400.
+  - Even without that, a proposal is saved only by the parent's own session through
+    RLS, and that session could insert any time anyway.
+  - Tests: "tz_offset_minutes outside -840..840 is a 400" in `chat/request.test.ts`
+    and `predict/request.test.ts`.
+- **"An escalated turn still returns proposals, which can carry health advice"**
+  (`chat/index.ts`).
+  - Deliberate: logging is not advice (`docs/chat.md`, "Health gate").
+  - A proposal holds only enums, numbers and timestamps: feed kind, ml, side, minutes,
+    wet/dirty, start and end (`agent-schemas.ts`), so there is no free-text field for
+    advice to travel in.
+  - The stored `proposal_summary` is built by the server from those fields
+    (`buddy-context.ts`, `proposalSummary`), not by the model.
+- **"`supabase/.gitignore` doesn't ignore `.env`"**. The root `.gitignore` has `.env`,
+  which applies at every depth. `git check-ignore -v supabase/.env
+  supabase/functions/.env` matches `.gitignore:2`.
+
+### Fixed after the review
+
+- **Client inserts into `chat_messages` skipped the health gate.** Found by the Claude
+  Code security review. Only the chat function writes messages now; see "Chat memory".
