@@ -62,7 +62,9 @@ Every turn, typed or a voice transcript, is checked twice (`_shared/health-gate.
    `{health, urgent}`, `reasoning_effort: "low"`, 10 s timeout, validated with zod. It
    runs in parallel with the agent, so it adds no latency. The prompt is
    `CLASSIFIER_PROMPT` in `health-gate.ts`. It treats the message as data and covers
-   the baby's and a parent's health, feeding amounts and medicine.
+   the baby's and a parent's health, feeding amounts and medicine. It gets only the
+   baby's age ("Baby age: N weeks.", for the under-13-weeks fever rule) and the
+   message: no name, no ids. The urgent list is mirrored in `docs/safety.md`.
 
 Rules:
 - Either check positive → the reply carries `escalation: { urgent }` and **no model

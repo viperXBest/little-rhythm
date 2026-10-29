@@ -132,13 +132,48 @@ Deno.test("classifier: sends the fixed prompt and the fenced text, parses strict
     seen.push(messages);
     return Promise.resolve('{"health": true, "urgent": false}');
   };
-  assertEquals(await classifyHealth("she feels hot", call), HEALTH);
+  assertEquals(await classifyHealth("she feels hot", 6, call), HEALTH);
   assertEquals(seen[0][0], { role: "system", content: CLASSIFIER_PROMPT });
-  assertEquals(seen[0][1].content, "Parent's message:\n<<<\nshe feels hot\n>>>");
+  assertEquals(seen[0][1].content, "Baby age: 6 weeks.\nParent's message:\n<<<\nshe feels hot\n>>>");
+});
+
+Deno.test("classifier request: the baby's age line and the message, no name or ids", async () => {
+  const seen: ClassifierMessage[][] = [];
+  const call: ClassifyCall = (messages) => {
+    seen.push(messages);
+    return Promise.resolve('{"health": true, "urgent": true}');
+  };
+  await classifyHealth("she feels hot, 38.1", 9, call);
+  // Only the fixed system prompt and one user message: nothing else about the family.
+  assertEquals(seen[0].length, 2);
+  assertEquals(seen[0][0].content, CLASSIFIER_PROMPT);
+  assertEquals(seen[0][1], {
+    role: "user",
+    content: "Baby age: 9 weeks.\nParent's message:\n<<<\nshe feels hot, 38.1\n>>>",
+  });
+  // classifyHealth takes no name, id or family argument, so none can be sent.
+  assertEquals(classifyHealth.length, 3);
+});
+
+Deno.test("classifier prompt lists the widened emergencies", () => {
+  for (
+    const phrase of [
+      "doesn't fade when pressed",
+      "feeling hot in a baby under 13 weeks old",
+      "swelling of the lips, face or tongue, or a sudden allergic reaction",
+      "a bulging soft spot (fontanelle)",
+      "green or bloody vomit, or vomiting with a swollen belly",
+    ]
+  ) {
+    assertEquals(CLASSIFIER_PROMPT.includes(phrase), true, phrase);
+  }
 });
 
 Deno.test("classifier: urgent implies health", async () => {
-  assertEquals(await classifyHealth("x", () => Promise.resolve('{"health": false, "urgent": true}')), URGENT);
+  assertEquals(
+    await classifyHealth("x", 20, () => Promise.resolve('{"health": false, "urgent": true}')),
+    URGENT,
+  );
 });
 
 Deno.test("classifier: any failure is null, never a throw", async () => {
@@ -149,5 +184,5 @@ Deno.test("classifier: any failure is null, never a throw", async () => {
     () => Promise.resolve('{"health": "yes", "urgent": false}'),
     () => Promise.resolve('{"health": true, "urgent": false, "advice": "give calpol"}'),
   ];
-  for (const call of cases) assertEquals(await classifyHealth("x", call), null);
+  for (const call of cases) assertEquals(await classifyHealth("x", 20, call), null);
 });

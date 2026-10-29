@@ -164,6 +164,7 @@ Deno.serve(async (req) => {
       }),
       classifyHealth(
         text,
+        ageWeeks,
         sparkJson(apiKey, { name: "health_check", schema: CLASSIFIER_SCHEMA }, REASONING_EFFORT),
       ),
     ]);
