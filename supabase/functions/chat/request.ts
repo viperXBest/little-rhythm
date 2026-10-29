@@ -1,8 +1,9 @@
 // Parses a chat request without reading more than the caps allow.
-// JSON:      { text, tz_offset_minutes, tz? }
-// multipart: audio (WAV file) + tz_offset_minutes + tz?
+// JSON:      { text, thread_id, tz_offset_minutes, tz? }
+// multipart: audio (WAV file) + thread_id + tz_offset_minutes + tz?
 // tz is the phone's IANA zone; an unknown name is dropped, not rejected.
-// The body never names a baby or family; those come from the session.
+// The body never names a baby or family; those come from the session. The
+// thread id is checked against the caller's family before anything is stored.
 
 import { z } from "npm:zod@4.6.6";
 
@@ -18,15 +19,24 @@ export const MAX_MULTIPART_BYTES = VOICE_MAX_BYTES + 16 * 1024;
 
 const Offset = z.int().min(TZ_OFFSET.min).max(TZ_OFFSET.max);
 const TimeZone = z.string().max(MAX_TZ_NAME);
+const ThreadId = z.uuid();
 const TextBody = z.strictObject({
   text: z.string().trim().min(1).max(MAX_TEXT),
+  thread_id: ThreadId,
   tz_offset_minutes: Offset,
   tz: TimeZone.optional(),
 });
 
 export type ChatRequest =
-  | { ok: true; kind: "text"; text: string; offsetMinutes: number; tz?: string }
-  | { ok: true; kind: "voice"; wav: Uint8Array<ArrayBuffer>; offsetMinutes: number; tz?: string }
+  | { ok: true; kind: "text"; text: string; threadId: string; offsetMinutes: number; tz?: string }
+  | {
+    ok: true;
+    kind: "voice";
+    wav: Uint8Array<ArrayBuffer>;
+    threadId: string;
+    offsetMinutes: number;
+    tz?: string;
+  }
   | { ok: false; status: number; error: string };
 
 const fail = (status: number, error: string): ChatRequest => ({ ok: false, status, error });
@@ -69,6 +79,7 @@ export async function parseChatRequest(req: Request): Promise<ChatRequest> {
       ok: true,
       kind: "text",
       text: parsed.data.text,
+      threadId: parsed.data.thread_id,
       offsetMinutes: parsed.data.tz_offset_minutes,
       ...knownZone(parsed.data.tz),
     };
@@ -82,16 +93,26 @@ export async function parseChatRequest(req: Request): Promise<ChatRequest> {
   }
   const audio = form.get("audio");
   const offset = Offset.safeParse(Number(form.get("tz_offset_minutes") ?? Number.NaN));
+  const thread = ThreadId.safeParse(form.get("thread_id"));
   const tzField = form.get("tz");
   const tz = tzField === null ? { success: true as const, data: undefined } : TimeZone.safeParse(tzField);
-  if (!(audio instanceof File) || !offset.success || !tz.success) return fail(400, "invalid_request");
+  if (!(audio instanceof File) || !thread.success || !offset.success || !tz.success) {
+    return fail(400, "invalid_request");
+  }
   if (audio.size > VOICE_MAX_BYTES) return fail(413, "too_large");
   const wav = new Uint8Array(await audio.arrayBuffer());
   const check = checkVoiceWav(wav);
   if (!check.ok) {
     return fail(check.reason === "too_large" || check.reason === "too_long" ? 413 : 415, check.reason);
   }
-  return { ok: true, kind: "voice", wav, offsetMinutes: offset.data, ...knownZone(tz.data) };
+  return {
+    ok: true,
+    kind: "voice",
+    wav,
+    threadId: thread.data,
+    offsetMinutes: offset.data,
+    ...knownZone(tz.data),
+  };
 }
 
 function knownZone(tz: string | undefined): { tz?: string } {

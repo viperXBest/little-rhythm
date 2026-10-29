@@ -4,10 +4,20 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 import type { RecentEventsQuery } from "./agent-schemas.ts";
 import { type AgentInput, type Completion, MAX_ITERATIONS, type Message, runAgent } from "./agent.ts";
 import {
+  buildContext,
+  buildHistory,
+  HISTORY_LIMIT,
+  proposalSummary,
+  type StoredMessage,
+} from "./buddy-context.ts";
+import {
   ageInWeeks,
+  checkThread,
+  readContextEvents,
   readOpenSleep,
   readPredictionEvents,
   readRecentEvents,
+  readThreadHistory,
   resolveBaby,
 } from "./chat-data.ts";
 import { BUCHAREST, feedAt } from "./predict.fixtures.ts";
@@ -51,6 +61,8 @@ function input(text: string, complete: AgentInput["complete"], over: Partial<Age
     nextWindows: () =>
       Promise.resolve(predict({ now: NOW, zone: BUCHAREST, birthDate: "2026-09-16", events: [] })),
     zone: BUCHAREST,
+    context: { age_weeks: 6, events: [], next_windows: {} },
+    history: [],
     ...over,
   };
 }
@@ -263,9 +275,10 @@ Deno.test("no chat content or arguments reach the console", async () => {
 
 Deno.test("resolveBaby requires exactly one row", async () => {
   assertEquals(await resolveBaby(recordingDb([]).client), { ok: false, error: "not_in_family" });
-  const one = { id: SESSION_BABY, birth_date: "2026-09-16" };
+  const one = { id: SESSION_BABY, birth_date: "2026-09-16", family_id: OTHER_FAMILY };
   assertEquals(await resolveBaby(recordingDb([one]).client), { ok: true, baby: one });
-  assertEquals(await resolveBaby(recordingDb([one, { id: OTHER_BABY, birth_date: "2026-09-01" }]).client), {
+  const two = [one, { id: OTHER_BABY, birth_date: "2026-09-01", family_id: OTHER_FAMILY }];
+  assertEquals(await resolveBaby(recordingDb(two).client), {
     ok: false,
     error: "multiple_babies",
   });
@@ -276,6 +289,146 @@ Deno.test("ageInWeeks uses the parent's local day", () => {
   assertEquals(ageInWeeks("2026-09-16", new Date("2026-10-13T23:30:00Z"), 180), 4);
   assertEquals(ageInWeeks("2026-09-16", new Date("2026-10-13T23:30:00Z"), 0), 3);
   assertEquals(ageInWeeks("2026-10-30", NOW, 120), 0);
+});
+
+// ---------------------------------------------------------------------------
+// Buddy context and thread history
+// ---------------------------------------------------------------------------
+
+const SECRET_USER = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
+const THREAD = "bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb";
+
+Deno.test("buddy context and history hold no names, ids, authors or night feeds", async () => {
+  // Rows as the database could return them, with extra fields that must not reach the model.
+  const eventsDb = recordingDb([
+    {
+      id: "e0e0e0e0-0000-4000-8000-000000000002",
+      baby_id: SESSION_BABY,
+      created_by: SECRET_USER,
+      type: "sleep",
+      started_at: "2026-10-27T22:00:00Z",
+      ended_at: null,
+      details: {},
+    },
+    {
+      id: "e0e0e0e0-0000-4000-8000-000000000001",
+      baby_id: SESSION_BABY,
+      created_by: SECRET_USER,
+      type: "feed",
+      started_at: "2026-10-27T21:00:00Z",
+      ended_at: null,
+      details: { kind: "bottle", ml: 90, name: "Mara", note: "parent@example.com" },
+    },
+  ]);
+  // Newest first, as the query orders them.
+  const historyDb = recordingDb([
+    {
+      id: "m0m0",
+      thread_id: THREAD,
+      author_id: SECRET_USER,
+      role: "user",
+      content: "how long has she slept?",
+      escalation: null,
+      proposal_summary: null,
+    },
+  ]);
+  const events = await readContextEvents(eventsDb.client, SESSION_BABY, NOW);
+  const historyRows = await readThreadHistory(historyDb.client, THREAD);
+  const prediction = predict({ now: NOW, zone: BUCHAREST, birthDate: "2026-09-16", events: [] });
+  const context = buildContext({ ageWeeks: 6, events, prediction, zone: BUCHAREST });
+  const model = scripted([]);
+  await runAgent(input("is she asleep?", model.complete, { context, history: buildHistory(historyRows) }));
+
+  const sent = JSON.stringify(model.seen[0]);
+  for (
+    const secret of ["Mara", "parent@example.com", SECRET_USER, SESSION_BABY, THREAD, "e0e0e0e0", "m0m0"]
+  ) {
+    assertEquals(sent.includes(secret), false, secret);
+  }
+  assertEquals(/night/i.test(JSON.stringify(context)), false);
+  // The reads never ask for authors or ids.
+  const selects = [...eventsDb.calls, ...historyDb.calls].filter((c) => c.method === "select");
+  assertEquals(selects.length, 2);
+  assertEquals(selects.some((c) => /author|created_by|\bid\b/.test(String(c.args[0]))), false);
+  // The context is the second system message, oldest event first, local times.
+  assertEquals(model.seen[0][1].role, "system");
+  assertEquals(context.events, [
+    { type: "feed", start: "2026-10-27T23:00", kind: "bottle", ml: 90 },
+    { type: "sleep", start: "2026-10-28T00:00", end: "in progress" },
+  ]);
+  assertEquals(model.seen[0].at(-2), { role: "user", content: "how long has she slept?" });
+  assertEquals(model.seen[0].at(-1), { role: "user", content: "is she asleep?" });
+});
+
+Deno.test("context events: last 48 h of the session baby", async () => {
+  const db = recordingDb([]);
+  await readContextEvents(db.client, SESSION_BABY, NOW);
+  assertEquals(db.calls.find((c) => c.method === "eq" && c.args[0] === "baby_id")?.args[1], SESSION_BABY);
+  assertEquals(
+    db.calls.find((c) => c.method === "gte" && c.args[0] === "started_at")?.args[1],
+    "2026-10-26T00:00:00.000Z",
+  );
+});
+
+const msg = (
+  role: "user" | "assistant",
+  content: string | null,
+  extra: Partial<StoredMessage> = {},
+): StoredMessage => ({ role, content, escalation: null, proposal_summary: null, ...extra });
+
+Deno.test("history drops escalated turns, so an old health question is never answered later", () => {
+  const history = buildHistory([
+    msg("user", "90 ml at 3"),
+    msg("assistant", "Proposed a bottle.", { proposal_summary: "Proposed: bottle 90 ml at 15:00" }),
+    msg("user", "how much calpol can she have?"),
+    msg("assistant", null, { escalation: "health" }),
+    msg("user", "when is her next nap?"),
+    msg("assistant", "Between 16:00 and 16:30."),
+  ]);
+  assertEquals(history, [
+    { role: "user", content: "90 ml at 3" },
+    { role: "assistant", content: "Proposed a bottle.\nProposed: bottle 90 ml at 15:00" },
+    { role: "user", content: "when is her next nap?" },
+    { role: "assistant", content: "Between 16:00 and 16:30." },
+  ]);
+  assertEquals(JSON.stringify(history).includes("calpol"), false);
+});
+
+Deno.test("history keeps the last HISTORY_LIMIT messages", () => {
+  const rows = Array.from({ length: 20 }, (_, i) => msg(i % 2 === 0 ? "user" : "assistant", `m${i}`));
+  const history = buildHistory(rows);
+  assertEquals(history.length, HISTORY_LIMIT);
+  assertEquals(history[0].content, "m10");
+  assertEquals(history.at(-1)?.content, "m19");
+});
+
+Deno.test("proposal summary is built from validated proposals, in local time", () => {
+  assertEquals(
+    proposalSummary([
+      {
+        id: "1",
+        type: "feed",
+        started_at: "2026-10-27T13:00:00Z",
+        details: { kind: "bottle", ml: 90 },
+        errors: [],
+      },
+      { id: "2", type: "sleep", started_at: "2026-10-27T13:40:00Z", ended_at: null, errors: [] },
+      { id: "3", type: "diaper", started_at: "2026-10-27T14:00:00Z", details: { wet: true }, errors: [] },
+    ], BUCHAREST),
+    "Proposed: bottle 90 ml at 15:00; sleep from 15:40; wet diaper at 16:00",
+  );
+  assertEquals(proposalSummary([], BUCHAREST), null);
+});
+
+Deno.test("checkThread: shared or own private thread in the caller's family, otherwise not found", async () => {
+  const caller = { userId: SECRET_USER, familyId: OTHER_FAMILY };
+  const row = (family_id: string, owner_id: string | null) => recordingDb([{ family_id, owner_id }]).client;
+  assertEquals(await checkThread(row(OTHER_FAMILY, null), THREAD, caller), { ok: true });
+  assertEquals(await checkThread(row(OTHER_FAMILY, SECRET_USER), THREAD, caller), { ok: true });
+  const notFound = { ok: false, error: "thread_not_found" } as const;
+  assertEquals(await checkThread(row(OTHER_FAMILY, OTHER_BABY), THREAD, caller), notFound);
+  assertEquals(await checkThread(row(SESSION_BABY, null), THREAD, caller), notFound);
+  assertEquals(await checkThread(recordingDb([]).client, THREAD, caller), notFound);
 });
 
 /** A stand-in for supabase-js's query builder: records every call, resolves with `rows`. */

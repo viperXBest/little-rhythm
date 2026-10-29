@@ -4,6 +4,7 @@ import { VOICE_MAX_BYTES, VOICE_SAMPLE_RATE } from "../_shared/voice.ts";
 import { MAX_MULTIPART_BYTES, MAX_TEXT, parseChatRequest } from "./request.ts";
 
 const URL = "http://localhost/chat";
+const THREAD = "7a7a7a7a-0000-4000-8000-000000000001";
 
 function jsonRequest(body: unknown): Request {
   return new Request(URL, {
@@ -36,13 +37,14 @@ function wav(ms: number): Uint8Array<ArrayBuffer> {
 
 /** A multipart request with an explicit Content-Length, like the app sends. */
 async function multipartRequest(
-  fields: { audio?: Uint8Array<ArrayBuffer>; offset?: string; tz?: string },
+  fields: { audio?: Uint8Array<ArrayBuffer>; offset?: string; tz?: string; thread?: string | null },
   length: "actual" | "missing" | number = "actual",
 ): Promise<Request> {
   const form = new FormData();
   if (fields.audio) form.append("audio", new Blob([fields.audio], { type: "audio/wav" }), "clip.wav");
   if (fields.offset !== undefined) form.append("tz_offset_minutes", fields.offset);
   if (fields.tz !== undefined) form.append("tz", fields.tz);
+  if (fields.thread !== null) form.append("thread_id", fields.thread ?? THREAD);
   const encoded = new Response(form);
   const type = encoded.headers.get("Content-Type") ?? "";
   const body = new Uint8Array(await encoded.arrayBuffer());
@@ -53,25 +55,31 @@ async function multipartRequest(
 }
 
 Deno.test("JSON text request", async () => {
-  assertEquals(await parseChatRequest(jsonRequest({ text: " wet diaper ", tz_offset_minutes: 120 })), {
-    ok: true,
-    kind: "text",
-    text: "wet diaper",
-    offsetMinutes: 120,
-  });
+  assertEquals(
+    await parseChatRequest(jsonRequest({ text: " wet diaper ", thread_id: THREAD, tz_offset_minutes: 120 })),
+    {
+      ok: true,
+      kind: "text",
+      text: "wet diaper",
+      threadId: THREAD,
+      offsetMinutes: 120,
+    },
+  );
 });
 
 Deno.test("tz: a known IANA zone is passed on, an unknown one is dropped, an over-long one rejected", async () => {
   const known = await parseChatRequest(
-    jsonRequest({ text: "wet", tz_offset_minutes: 120, tz: "Europe/Bucharest" }),
+    jsonRequest({ text: "wet", thread_id: THREAD, tz_offset_minutes: 120, tz: "Europe/Bucharest" }),
   );
   assertEquals(known.ok && known.kind === "text" && known.tz, "Europe/Bucharest");
   const unknown = await parseChatRequest(
-    jsonRequest({ text: "wet", tz_offset_minutes: 120, tz: "Atlantis/Lost" }),
+    jsonRequest({ text: "wet", thread_id: THREAD, tz_offset_minutes: 120, tz: "Atlantis/Lost" }),
   );
   assertEquals(unknown.ok && "tz" in unknown, false);
   assertEquals(
-    await parseChatRequest(jsonRequest({ text: "wet", tz_offset_minutes: 120, tz: "x".repeat(65) })),
+    await parseChatRequest(
+      jsonRequest({ text: "wet", thread_id: THREAD, tz_offset_minutes: 120, tz: "x".repeat(65) }),
+    ),
     { ok: false, status: 400, error: "invalid_request" },
   );
   const voice = await parseChatRequest(
@@ -80,14 +88,18 @@ Deno.test("tz: a known IANA zone is passed on, an unknown one is dropped, an ove
   assertEquals(voice.ok && voice.kind === "voice" && voice.tz, "Europe/Bucharest");
 });
 
-Deno.test("JSON rejects extra keys such as baby_id, bad offsets and over-long text", async () => {
+Deno.test("JSON rejects extra keys such as baby_id, bad offsets and threads, and over-long text", async () => {
   const bad = [
-    { text: "wet", tz_offset_minutes: 120, baby_id: "x" },
-    { text: "wet", tz_offset_minutes: 900 },
-    { text: "wet", tz_offset_minutes: 1.5 },
-    { text: "", tz_offset_minutes: 0 },
-    { text: "a".repeat(MAX_TEXT + 1), tz_offset_minutes: 0 },
-    { text: "wet" },
+    { text: "wet", thread_id: THREAD, tz_offset_minutes: 120, baby_id: "x" },
+    { text: "wet", thread_id: THREAD, tz_offset_minutes: 120, family_id: "x" },
+    { text: "wet", thread_id: THREAD, tz_offset_minutes: 900 },
+    { text: "wet", thread_id: THREAD, tz_offset_minutes: 1.5 },
+    { text: "", thread_id: THREAD, tz_offset_minutes: 0 },
+    { text: "a".repeat(MAX_TEXT + 1), thread_id: THREAD, tz_offset_minutes: 0 },
+    { text: "wet", thread_id: THREAD },
+    { text: "wet", tz_offset_minutes: 120 },
+    { text: "wet", thread_id: "not-a-uuid", tz_offset_minutes: 120 },
+    { text: "wet", thread_id: "x".repeat(5000), tz_offset_minutes: 120 },
   ];
   for (const body of bad) {
     assertEquals(await parseChatRequest(jsonRequest(body)), {
@@ -106,10 +118,10 @@ Deno.test("unsupported content type", async () => {
 Deno.test("multipart voice request", async () => {
   const clip = wav(1500);
   const result = await parseChatRequest(await multipartRequest({ audio: clip, offset: "-240" }));
-  assertEquals(result.ok && result.kind === "voice" && [result.wav.byteLength, result.offsetMinutes], [
-    clip.byteLength,
-    -240,
-  ]);
+  assertEquals(
+    result.ok && result.kind === "voice" && [result.wav.byteLength, result.threadId, result.offsetMinutes],
+    [clip.byteLength, THREAD, -240],
+  );
 });
 
 Deno.test("multipart without Content-Length is refused before reading", async () => {
@@ -141,8 +153,16 @@ Deno.test("audio that is not WAV is rejected", async () => {
   });
 });
 
-Deno.test("multipart needs both the audio file and a valid offset", async () => {
-  for (const fields of [{ offset: "120" }, { audio: wav(500) }, { audio: wav(500), offset: "abc" }]) {
+Deno.test("multipart needs the audio file, a valid offset and a thread id", async () => {
+  for (
+    const fields of [
+      { offset: "120" },
+      { audio: wav(500) },
+      { audio: wav(500), offset: "abc" },
+      { audio: wav(500), offset: "120", thread: null },
+      { audio: wav(500), offset: "120", thread: "nope" },
+    ]
+  ) {
     assertEquals(await parseChatRequest(await multipartRequest(fields)), {
       ok: false,
       status: 400,
