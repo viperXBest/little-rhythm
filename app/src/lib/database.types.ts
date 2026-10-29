@@ -59,14 +59,14 @@ isOneToOne: false
                   ]
                 },"chat_messages": {
                   Row: {
-                    "author_id": string | null,"content": string | null,"created_at": string,"escalation": string | null,"id": string,"proposal_summary": string | null,"role": string,"thread_id": string
+                    "author_id": string | null,"content": string | null,"created_at": string,"escalation": string | null,"gated": boolean,"id": string,"proposal_summary": string | null,"role": string,"search": unknown,"thread_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"id"?: string,"proposal_summary"?: string | null,"role": string,"thread_id": string
+                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"gated"?: boolean,"id"?: string,"proposal_summary"?: string | null,"role": string,"search"?: never,"thread_id": string
                   }
                   Update: {
-                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"id"?: string,"proposal_summary"?: string | null,"role"?: string,"thread_id"?: string
+                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"gated"?: boolean,"id"?: string,"proposal_summary"?: string | null,"role"?: string,"search"?: never,"thread_id"?: string
                   }
                   Relationships: [
                     {
@@ -205,6 +205,26 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"thread_memory": {
+                  Row: {
+                    "covered_until": string,"summary": string,"thread_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "covered_until": string,"summary": string,"thread_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "covered_until"?: string,"summary"?: string,"thread_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "thread_memory_thread_id_fkey"
+      columns: ["thread_id"]
+isOneToOne: true
+      referencedRelation: "chat_threads"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
@@ -225,6 +245,9 @@ isOneToOne: false
               "private_id": string,"shared_id": string
             }[]
                            },
+"f_unaccent":
+{ Args: { "p_text": string }; Returns: string
+                           },
 "has_checked_in":
 { Args: { "p_day": string,"p_family_id": string }; Returns: boolean
                            },
@@ -233,6 +256,11 @@ isOneToOne: false
                            },
 "redeem_invite":
 { Args: { "p_code_hash": string,"p_user_id": string }; Returns: string
+                           },
+"search_thread_messages":
+{ Args: { "p_limit"?: number,"p_query": string,"p_thread_id": string }; Returns: {
+              "content": string,"created_at": string,"role": string
+            }[]
                            }
           }
           Enums: {

@@ -158,9 +158,9 @@ select throws_ok(
 select throws_ok(
   $$insert into public.chat_messages (thread_id, role, content, author_id, proposal_summary) values ('aaaaaaaa-7000-0000-0000-000000000002', 'user', 'hi', 'aaaaaaaa-0000-0000-0000-000000000001', 'Proposed: bottle 90 ml')$$,
   '42501', null, 'clients cannot attach a proposal summary');
-select is_empty(
-  $$update public.chat_messages set content = 'edited' where thread_id = 'aaaaaaaa-7000-0000-0000-000000000002' returning id$$,
-  'messages cannot be edited');
+select throws_ok(
+  $$update public.chat_messages set content = 'edited' where thread_id = 'aaaaaaaa-7000-0000-0000-000000000002'$$,
+  '42501', null, 'messages cannot be edited (no UPDATE privilege)');
 
 select tests.as_postgres();
 select lives_ok(

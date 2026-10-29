@@ -23,8 +23,8 @@ select is(
 
 select is(
   (select count(*)::int from pg_tables where schemaname = 'public'),
-  10,
-  'the schema has the ten spec tables'
+  11,
+  'the schema has the eleven spec tables'
 );
 
 select is(

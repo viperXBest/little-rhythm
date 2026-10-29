@@ -159,7 +159,7 @@ select set_eq(
 select is_empty(
   $$select 1 from pg_publication_tables
     where pubname = 'supabase_realtime' and schemaname = 'public'
-      and tablename in ('chat_threads', 'invites', 'api_usage', 'profiles', 'babies', 'families')$$,
+      and tablename in ('chat_threads', 'invites', 'api_usage', 'profiles', 'babies', 'families', 'thread_memory')$$,
   'other tables are not in the realtime publication');
 
 select * from finish();
