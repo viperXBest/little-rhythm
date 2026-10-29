@@ -44,6 +44,7 @@ export default function Home() {
       <Button title="Chat" variant="secondary" onPress={() => router.push('/chat')} />
       <Timeline />
       <Button title="Sign out" variant="secondary" onPress={() => void supabase.auth.signOut()} />
+      <Button title="Delete account" variant="secondary" onPress={() => router.push('/delete-account')} />
     </Screen>
   );
 }

@@ -59,17 +59,23 @@ isOneToOne: false
                   ]
                 },"chat_messages": {
                   Row: {
-                    "author_id": string | null,"content": string | null,"created_at": string,"escalation": string | null,"gated": boolean,"id": string,"proposal_summary": string | null,"role": string,"search": unknown,"thread_id": string
+                    "author_id": string | null,"content": string | null,"created_at": string,"escalation": string | null,"gated": boolean,"id": string,"proposal_summary": string | null,"reply_to": string | null,"role": string,"search": unknown,"thread_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"gated"?: boolean,"id"?: string,"proposal_summary"?: string | null,"role": string,"search"?: never,"thread_id": string
+                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"gated"?: boolean,"id"?: string,"proposal_summary"?: string | null,"reply_to"?: string | null,"role": string,"search"?: never,"thread_id": string
                   }
                   Update: {
-                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"gated"?: boolean,"id"?: string,"proposal_summary"?: string | null,"role"?: string,"search"?: never,"thread_id"?: string
+                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"gated"?: boolean,"id"?: string,"proposal_summary"?: string | null,"reply_to"?: string | null,"role"?: string,"search"?: never,"thread_id"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "chat_messages_reply_to_fkey"
+      columns: ["reply_to"]
+isOneToOne: false
+      referencedRelation: "chat_messages"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "chat_messages_thread_id_fkey"
       columns: ["thread_id"]
 isOneToOne: false
@@ -240,6 +246,9 @@ isOneToOne: true
 "create_invite":
 { Args: { "p_code_hash": string,"p_user_id": string }; Returns: string
                            },
+"delete_account_data":
+{ Args: { "p_user_id": string }; Returns: string
+                           },
 "ensure_chat_threads":
 { Args: Record<PropertyKey, never>; Returns: {
               "private_id": string,"shared_id": string
@@ -253,6 +262,9 @@ isOneToOne: true
                            },
 "is_family_member":
 { Args: { "p_family_id": string }; Returns: boolean
+                           },
+"link_unlinked_replies":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "redeem_invite":
 { Args: { "p_code_hash": string,"p_user_id": string }; Returns: string
