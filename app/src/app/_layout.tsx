@@ -5,9 +5,11 @@ import { useColorScheme } from 'react-native';
 
 import { Button, Screen } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
+import { configureNotifications } from '@/lib/reminders';
 import { SessionProvider, useSession } from '@/lib/session';
 
 SplashScreen.preventAutoHideAsync();
+configureNotifications();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

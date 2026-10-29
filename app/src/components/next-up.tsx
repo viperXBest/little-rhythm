@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/form';
+import { ReminderToggle } from '@/components/reminder-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -16,6 +17,7 @@ import {
   type PredictError,
   type Slot,
 } from '@/lib/predict';
+import { syncReminders } from '@/lib/reminders';
 import { useTodayEvents } from '@/lib/today-events';
 
 /** Wait for a burst of changes (both breast sides, a partner's edits) to settle. */
@@ -49,14 +51,10 @@ type State =
   | { status: 'ready'; prediction: Prediction }
   | { status: 'error'; error: PredictError; last: Prediction | null };
 
-export function NextUp({ onPrediction }: { onPrediction?: (prediction: Prediction) => void }) {
+export function NextUp() {
   const { events, status: eventsStatus } = useTodayEvents();
   const [state, setState] = useState<State>({ status: 'loading' });
   const requestId = useRef(0);
-  const onPredictionRef = useRef(onPrediction);
-  useEffect(() => {
-    onPredictionRef.current = onPrediction;
-  }, [onPrediction]);
 
   const load = useCallback(async () => {
     const id = ++requestId.current;
@@ -65,7 +63,8 @@ export function NextUp({ onPrediction }: { onPrediction?: (prediction: Predictio
     if (id !== requestId.current) return;
     if (result.ok) {
       setState({ status: 'ready', prediction: result.prediction });
-      onPredictionRef.current?.(result.prediction);
+      // Each fresh prediction replaces this phone's prediction reminders (if on).
+      void syncReminders(result.prediction);
     } else {
       setState((prev) => ({
         status: 'error',
@@ -112,6 +111,7 @@ export function NextUp({ onPrediction }: { onPrediction?: (prediction: Predictio
         </View>
       ) : null}
       {prediction ? <Rows prediction={prediction} /> : null}
+      <ReminderToggle prediction={prediction} />
     </ThemedView>
   );
 }
