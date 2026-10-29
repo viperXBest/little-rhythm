@@ -97,7 +97,7 @@ Eleven tables, all with RLS. Every row hangs off a family; one helper, `is_famil
 
 - TypeScript strict everywhere; no `any`.
 - Database changes only through migrations in `/supabase/migrations`.
-  - A new migration's timestamp must be later than the latest one (currently `20261029120000`).
+  - A new migration's timestamp must be later than the latest one (currently `20261030090000`).
   - Until 2026-10-29 10:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
   - Never use `supabase db push --include-all`.
 - Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Day 4 build swapped expo-audio for @siteed/audio-studio (plugin: device detection, background audio, notifications and phone-state handling all off; only RECORD_AUDIO). Rebuild only when a native module changes.
