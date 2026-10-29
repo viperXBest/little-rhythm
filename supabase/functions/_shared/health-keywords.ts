@@ -196,9 +196,13 @@ const HEALTH_RE = compile(HEALTH);
 // word character, so the shared trailing \b would not match after it.
 const TEMPERATURE_RE = /\b3[6-9](?:[.,]\d)? ?(?:°|℃|c\b|degrees\b)/;
 
-/** Lower case, no diacritics (ă→a, ș→s, ț→t, î→i), straight apostrophes, single spaces. */
+/**
+ * Lower case, no diacritics (ă→a, ș→s, ț→t, î→i), no invisible format characters
+ * (zero-width spaces and joiners, soft hyphens, BOM), straight apostrophes, single spaces.
+ */
 export function normalise(text: string): string {
   return text
+    .replace(/\p{Cf}/gu, "")
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()

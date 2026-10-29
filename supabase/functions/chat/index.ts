@@ -189,11 +189,16 @@ Deno.serve(async (req) => {
     ]);
     // classifyHealth never rejects; treat a rejection as a classifier error anyway.
     const verdict = classifier.status === "fulfilled" ? classifier.value : null;
+    // The gate fails closed: a turn whose classifier failed escalates.
+    if (verdict === null) console.error("health_gate: classifier_failed");
 
     if (agent.status === "rejected") {
-      // The agent failed, but a health turn still gets its card.
-      // A non-health turn that failed stores nothing: the parent sees an error and retries.
-      const escalation = applyHealthGate({ keyword, classifier: verdict, caption: null });
+      // The agent failed, but a health turn still gets its card. When both calls failed
+      // (an outage) and no keyword hit, there is no model text either way: the parent
+      // gets an error and retries, and nothing is stored.
+      const escalation = verdict === null && !keyword.health
+        ? null
+        : applyHealthGate({ keyword, classifier: verdict, caption: null });
       if (!escalation) return museFailure(agent.reason);
       const replyTo = await storeUserMessage(admin, { threadId, userId: user.id, text, gated: true });
       await storeReply(admin, { threadId, replyTo, caption: null, escalation, summary: null });

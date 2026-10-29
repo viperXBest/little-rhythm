@@ -115,7 +115,11 @@ export function classifierMessages(text: string, ageWeeks: number): ClassifierMe
     { role: "system", content: CLASSIFIER_PROMPT },
     {
       role: "user",
-      content: `Baby age: ${age} weeks.\nParent's message:\n<<<\n${text.slice(0, MAX_CLASSIFIER_INPUT)}\n>>>`,
+      // A JSON string rather than a fenced block, so the text can't close a delimiter
+      // and append instructions of its own.
+      content: `Baby age: ${age} weeks.\nParent's message (JSON string): ${
+        JSON.stringify(text.slice(0, MAX_CLASSIFIER_INPUT))
+      }`,
     },
   ];
 }
@@ -138,16 +142,18 @@ export async function classifyHealth(
   }
 }
 
-/** Combines both checks and the agent's own referral. Returns the escalation, or null for a normal reply. */
+/**
+ * Combines both checks and the agent's own referral. Returns the escalation, or null
+ * for a normal reply. Fails closed: a failed classifier (null) escalates the turn.
+ */
 export function applyHealthGate(input: {
   keyword: KeywordVerdict;
   classifier: HealthVerdict | null;
   caption: string | null;
 }): Escalation | null {
   const { keyword, classifier } = input;
-  if (keyword.health || classifier?.health) {
-    return { urgent: keyword.urgent || (classifier?.urgent ?? false) };
-  }
+  if (classifier === null) return { urgent: keyword.urgent };
+  if (keyword.health || classifier.health) return { urgent: keyword.urgent || classifier.urgent };
   if (input.caption?.includes(REFERRAL_SENTENCE)) return { urgent: false };
   return null;
 }

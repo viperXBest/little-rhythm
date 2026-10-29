@@ -70,14 +70,22 @@ Every turn, typed or a voice transcript, is checked twice (`_shared/health-gate.
    `CLASSIFIER_PROMPT` in `health-gate.ts`. It treats the message as data and covers
    the baby's and a parent's health, feeding amounts and medicine. It gets only the
    baby's age ("Baby age: N weeks.", for the under-13-weeks fever rule) and the
-   message: no name, no ids. The urgent list is mirrored in `docs/safety.md`.
+   message as one JSON string, so the text can't close a delimiter and add
+   instructions. No name, no ids. The urgent list is mirrored in `docs/safety.md`.
+
+Before the keyword check, the text is normalised: lower case, no diacritics, and no
+invisible format characters (`\p{Cf}`: zero-width spaces and joiners, soft hyphens),
+so "fe​ver" with a zero-width space still matches "fever".
 
 Rules:
 - Either check positive → the reply carries `escalation: { urgent }` and **no model
   text**. `urgent` is true if either check says so. Proposals from the same turn still
   show: logging is not advice.
-- Classifier failure with no keyword hit → the normal reply. With a keyword hit → the
-  escalation.
+- **Fails closed.** A classifier failure (error, timeout, bad JSON) escalates the turn:
+  the static card, no model text, proposals still shown. The function logs the fixed
+  code `health_gate: classifier_failed`. Exception: if the agent failed too (an
+  outage) and no keyword hit, the parent gets an error and no text, and nothing is
+  stored.
 - The agent's system prompt keeps the no-advice rule and its fixed referral sentence;
   a caption containing that sentence also escalates.
 - If the agent fails on a health turn, the escalation still goes out.
