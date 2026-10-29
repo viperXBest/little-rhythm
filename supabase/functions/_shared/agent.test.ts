@@ -20,6 +20,8 @@ import {
   readThreadHistory,
   resolveBaby,
 } from "./chat-data.ts";
+import { applyHealthGate, REFERRAL_SENTENCE } from "./health-gate.ts";
+import { keywordHit } from "./health-keywords.ts";
 import { BUCHAREST, feedAt } from "./predict.fixtures.ts";
 import { predict } from "./predict.ts";
 
@@ -429,6 +431,65 @@ Deno.test("checkThread: shared or own private thread in the caller's family, oth
   assertEquals(await checkThread(row(OTHER_FAMILY, OTHER_BABY), THREAD, caller), notFound);
   assertEquals(await checkThread(row(SESSION_BABY, null), THREAD, caller), notFound);
   assertEquals(await checkThread(recordingDb([]).client, THREAD, caller), notFound);
+});
+
+// ---------------------------------------------------------------------------
+// Family-life companion prompt
+// ---------------------------------------------------------------------------
+
+Deno.test("system prompt: family-life scope, health rule that still logs, decline, language and length", async () => {
+  const model = scripted([]);
+  await runAgent(input("ideas for a rainy afternoon?", model.complete));
+  const text = model.seen[0][0].content ?? "";
+  for (
+    const phrase of [
+      "play and activities that suit a 6-week-old",
+      "home and family logistics",
+      "the couple: sharing the load fairly",
+      "parent self-care",
+      "development or milestone concerns, safe-sleep rules",
+      "You are not a therapist or counsellor.",
+      `still log any feeds, sleeps or diapers in the message with the tools; give no other reply than: "${REFERRAL_SENTENCE}`,
+      "Topics unrelated to family life: decline politely in one sentence",
+      "don't ask for or use names",
+      "reply in the language the parent wrote in (English or Romanian)",
+      "Match the question: a sentence or two for quick ones",
+      "search_chat_history",
+    ]
+  ) {
+    assertEquals(text.includes(phrase), true, phrase);
+  }
+  assertEquals(text.includes("call no tools"), false);
+});
+
+Deno.test("a health question mixed with a log still returns the log's proposal", async () => {
+  const model = scripted([
+    {
+      content: null,
+      tool_calls: [call("log_feed", { kind: "bottle", started_at: "2026-10-28T01:30", ml: 90 })],
+    },
+    {
+      content: `${REFERRAL_SENTENCE} Please call your paediatrician, or 112 in an emergency.`,
+      tool_calls: [],
+    },
+  ]);
+  const result = await runAgent(
+    input("90 ml at 1:30 and now she feels hot, can I give calpol?", model.complete),
+  );
+  assertEquals(result.proposals.map((p) => [p.type, p.errors.length]), [["feed", 0]]);
+  // The gate turns the referral into an escalation card; the proposal is kept.
+  assertEquals(
+    applyHealthGate({ keyword: keywordHit("can I give calpol?"), classifier: null, caption: result.caption }),
+    { urgent: false },
+  );
+});
+
+Deno.test("long answers fit: the caption keeps up to 1500 characters", async () => {
+  const long = "x".repeat(2000);
+  const result = await runAgent(
+    input("give me a packing list", scripted([{ content: long, tool_calls: [] }]).complete),
+  );
+  assertEquals(result.caption.length, 1500);
 });
 
 /** A stand-in for supabase-js's query builder: records every call, resolves with `rows`. */
