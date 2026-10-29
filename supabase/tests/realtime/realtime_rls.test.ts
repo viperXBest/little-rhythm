@@ -11,7 +11,7 @@
 //
 // The second test applies the same ordering to chat_messages (A1's private
 // thread vs the shared one) and checkins (hidden until the partner answered).
-import { assert, assertEquals } from "jsr:@std/assert@1";
+import { assert, assertEquals } from "jsr:@std/assert@1.0.13";
 import { createClient, type RealtimeChannel, type SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
 function env(name: string): string {

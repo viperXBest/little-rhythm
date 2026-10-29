@@ -7,6 +7,8 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.13";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
+import { fillWindow } from "./rate-limit.ts";
+
 function env(name: string): string {
   const value = Deno.env.get(name);
   if (!value) throw new Error(`missing env ${name}`);
@@ -206,6 +208,23 @@ Deno.test({
       assertEquals(data?.[1].reply_to, data?.[0].id);
     } finally {
       if (familyId) await admin.from("families").delete().eq("id", familyId);
+      await admin.auth.admin.deleteUser(parent.id);
+    }
+  },
+});
+
+Deno.test({
+  name: "chat: 429 once the hourly window (60) is full, before any model call",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const parent = await createUser("chat-limit");
+    try {
+      await fillWindow(admin, parent.id, "chat", 3600, 60);
+      const res = await call({ text: "wet diaper", thread_id: crypto.randomUUID(), ...ZONE }, parent.token);
+      assertEquals(res.status, 429);
+      assertEquals(await res.json(), { error: "rate_limited" });
+    } finally {
       await admin.auth.admin.deleteUser(parent.id);
     }
   },

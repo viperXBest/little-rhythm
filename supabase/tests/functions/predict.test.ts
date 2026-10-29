@@ -5,6 +5,8 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.13";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 
+import { fillWindow } from "./rate-limit.ts";
+
 import { recentNights } from "../../functions/_shared/night-feeds.ts";
 
 function env(name: string): string {
@@ -142,6 +144,23 @@ Deno.test({
     } finally {
       if (familyId) await admin.from("families").delete().eq("id", familyId);
       for (const user of [lonely, parent]) await admin.auth.admin.deleteUser(user.id);
+    }
+  },
+});
+
+Deno.test({
+  name: "predict: 429 once the hourly window (240) is full",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const parent = await createUser("predict-limit");
+    try {
+      await fillWindow(admin, parent.id, "predict", 3600, 240);
+      const res = await call(ZONE, parent.token);
+      assertEquals(res.status, 429);
+      assertEquals(await res.json(), { error: "rate_limited" });
+    } finally {
+      await admin.auth.admin.deleteUser(parent.id);
     }
   },
 });
