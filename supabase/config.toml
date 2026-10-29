@@ -420,3 +420,6 @@ verify_jwt = true
 
 [functions.chat]
 verify_jwt = true
+
+[functions.predict]
+verify_jwt = true

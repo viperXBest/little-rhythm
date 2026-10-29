@@ -6,6 +6,7 @@
 import { z } from "npm:zod@4.6.6";
 
 import { TZ_OFFSET } from "../_shared/agent-schemas.ts";
+import { readCapped } from "../_shared/body.ts";
 import { checkVoiceWav, VOICE_MAX_BYTES } from "../_shared/voice.ts";
 
 export const MAX_TEXT = 1000;
@@ -79,23 +80,4 @@ export async function parseChatRequest(req: Request): Promise<ChatRequest> {
     return fail(check.reason === "too_large" || check.reason === "too_long" ? 413 : 415, check.reason);
   }
   return { ok: true, kind: "voice", wav, offsetMinutes: offset.data };
-}
-
-/** Reads the body up to `max` bytes; null when it is longer (Content-Length may be absent or wrong). */
-async function readCapped(req: Request, max: number): Promise<Uint8Array | null> {
-  if (!req.body) return new Uint8Array();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for await (const chunk of req.body) {
-    total += chunk.byteLength;
-    if (total > max) return null;
-    chunks.push(chunk);
-  }
-  const out = new Uint8Array(total);
-  let at = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, at);
-    at += chunk.byteLength;
-  }
-  return out;
 }

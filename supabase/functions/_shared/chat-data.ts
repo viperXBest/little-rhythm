@@ -6,8 +6,12 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
 import type { OpenSleep, RecentEventsQuery } from "./agent-schemas.ts";
 import type { EventSummary } from "./agent.ts";
+import type { PredictEvent } from "./predict.ts";
+import { HISTORY_DAYS } from "./predict-constants.ts";
 
 const MAX_EVENTS = 50;
+/** 7 days at a busy newborn pace is ~250 rows. */
+const MAX_WEEK_EVENTS = 500;
 
 export type SessionBaby = { id: string; birth_date: string };
 export type BabyResult =
@@ -57,6 +61,36 @@ export async function readRecentEvents(
     ended_at: row.ended_at,
     details: pickDetails(row.details),
   }));
+}
+
+/** The last 7 days of the session baby's events, oldest first, for the prediction engine. */
+export async function readWeekEvents(db: SupabaseClient, babyId: string, now: Date): Promise<PredictEvent[]> {
+  const since = new Date(now.getTime() - HISTORY_DAYS * 86_400_000).toISOString();
+  const { data, error } = await db
+    .from("events")
+    .select("type, started_at, ended_at")
+    .eq("baby_id", babyId)
+    .gte("started_at", since)
+    .order("started_at", { ascending: true })
+    .limit(MAX_WEEK_EVENTS);
+  if (error) throw new Error("week_events_failed");
+  return (data ?? []) as PredictEvent[];
+}
+
+/**
+ * The engine's input for the session baby: 7 days of events plus the open
+ * sleep, which may have started before the window.
+ */
+export async function readPredictionEvents(
+  db: SupabaseClient,
+  babyId: string,
+  now: Date,
+): Promise<PredictEvent[]> {
+  const [events, open] = await Promise.all([readWeekEvents(db, babyId, now), readOpenSleep(db, babyId)]);
+  if (open && !events.some((e) => e.type === "sleep" && e.ended_at === null)) {
+    events.unshift({ type: "sleep", started_at: open.started_at, ended_at: null });
+  }
+  return events;
 }
 
 // Only the fields the app writes; anything else in the jsonb stays out of the prompt.
