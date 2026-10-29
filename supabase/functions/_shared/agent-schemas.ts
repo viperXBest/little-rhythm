@@ -38,6 +38,14 @@ export const RecentEventsArgs = z.object({
 });
 export type RecentEventsQuery = z.infer<typeof RecentEventsArgs>;
 
+export const SEARCH_LIMIT = { min: 1, max: 10, default: 5 } as const;
+/** search_chat_history: a query and an optional limit. The thread comes from the session. */
+export const SearchHistoryArgs = z.object({
+  query: z.string().trim().min(1).max(200),
+  limit: z.int().min(SEARCH_LIMIT.min).max(SEARCH_LIMIT.max).optional(),
+});
+export type SearchHistoryQuery = z.infer<typeof SearchHistoryArgs>;
+
 export const WRITE_TOOLS = ["log_feed", "log_sleep", "end_sleep", "log_diaper"] as const;
 export type WriteTool = (typeof WRITE_TOOLS)[number];
 
@@ -374,6 +382,23 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         properties: {
           hours: { type: "integer", minimum: 1, maximum: 48 },
           type: { type: "string", enum: ["feed", "sleep", "diaper"] },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_chat_history",
+      description:
+        "Search earlier messages in this conversation (both parents' and yours) by words, newest first. Use it to recall something specific said before.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        required: ["query"],
+        properties: {
+          query: { type: "string", maxLength: 200 },
+          limit: { type: "integer", minimum: SEARCH_LIMIT.min, maximum: SEARCH_LIMIT.max },
         },
       },
     },

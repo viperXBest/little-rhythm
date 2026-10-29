@@ -11,7 +11,7 @@ import { toZoneLocalTime, type Zone } from "./zone.ts";
 
 export const CONTEXT_HOURS = 48;
 export const MAX_CONTEXT_EVENTS = 150;
-export const HISTORY_LIMIT = 10;
+export const HISTORY_LIMIT = 30;
 const MAX_HISTORY_CHARS = 1000;
 
 export type BuddyContext = {
@@ -44,32 +44,41 @@ export function buildContext(input: {
   };
 }
 
-/** A chat_messages row as read for history (no author, no ids). */
+/** A chat_messages row as read for history or the summary (no author, no ids). */
 export type StoredMessage = {
   role: "user" | "assistant";
   content: string | null;
   escalation: "health" | "urgent" | null;
   proposal_summary: string | null;
+  /** A parent message whose turn escalated (health). */
+  gated: boolean;
 };
 
 export type HistoryMessage = { role: "user" | "assistant"; content: string };
 
+/** Gated questions and escalation replies never reach the model again. */
+export function usable(row: StoredMessage): boolean {
+  return !row.gated && row.escalation === null;
+}
+
+/** A message as plain text for the model: content, plus the proposal summary on replies. */
+export function messageText(row: StoredMessage): string {
+  return [row.content, row.role === "assistant" ? row.proposal_summary : null]
+    .filter((part): part is string => !!part && part.trim().length > 0)
+    .join("\n")
+    .slice(0, MAX_HISTORY_CHARS);
+}
+
 /**
  * The thread's recent turns for the model, oldest first, at most HISTORY_LIMIT.
- * An escalated turn (the escalation row and the user message just before it)
- * is dropped, so an earlier health question can't be answered later.
+ * The query already skips gated and escalation rows; they are filtered here too,
+ * so an earlier health question can't be answered later.
  */
 export function buildHistory(rows: StoredMessage[]): HistoryMessage[] {
   const keep: HistoryMessage[] = [];
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const next = rows[i + 1];
-    if (row.escalation !== null) continue;
-    if (row.role === "user" && next?.role === "assistant" && next.escalation !== null) continue;
-    const text = [row.content, row.role === "assistant" ? row.proposal_summary : null]
-      .filter((part): part is string => !!part && part.trim().length > 0)
-      .join("\n")
-      .slice(0, MAX_HISTORY_CHARS);
+  for (const row of rows) {
+    if (!usable(row)) continue;
+    const text = messageText(row);
     if (text) keep.push({ role: row.role, content: text });
   }
   return keep.slice(-HISTORY_LIMIT);

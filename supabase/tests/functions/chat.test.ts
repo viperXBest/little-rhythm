@@ -159,11 +159,13 @@ Deno.test({
       assert(Array.isArray(body.proposals));
       const { data } = await admin
         .from("chat_messages")
-        .select("role, content, escalation, author_id")
+        .select("role, content, escalation, author_id, gated")
         .eq("thread_id", threadId)
         .order("created_at");
       assertEquals(data?.map((m) => m.role), ["user", "assistant"]);
       assertEquals(data?.[0].author_id, parent.id);
+      // Stored after the gate, already gated: never part of history, summary or search.
+      assertEquals(data?.[0].gated, true);
       assertEquals(data?.[1].content, null);
       assert(data?.[1].escalation === "health" || data?.[1].escalation === "urgent");
     } finally {
@@ -192,11 +194,12 @@ Deno.test({
       assertEquals(body.proposals.map((p: { type: string }) => p.type), ["diaper"]);
       const { data } = await admin
         .from("chat_messages")
-        .select("role, content, escalation, proposal_summary")
+        .select("role, content, escalation, proposal_summary, gated")
         .eq("thread_id", threadId)
         .order("created_at");
       assertEquals(data?.map((m) => [m.role, m.escalation]), [["user", null], ["assistant", null]]);
       assertEquals(data?.[0].content, "wet diaper just now");
+      assertEquals(data?.[0].gated, false);
       assertEquals(data?.[1].content, body.caption);
       assert(String(data?.[1].proposal_summary).startsWith("Proposed: wet diaper at "));
     } finally {

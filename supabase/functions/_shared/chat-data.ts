@@ -4,8 +4,13 @@
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
-import type { OpenSleep, RecentEventsQuery } from "./agent-schemas.ts";
-import type { EventSummary } from "./agent.ts";
+import {
+  type OpenSleep,
+  type RecentEventsQuery,
+  SEARCH_LIMIT,
+  type SearchHistoryQuery,
+} from "./agent-schemas.ts";
+import type { EventSummary, FoundMessage } from "./agent.ts";
 import { CONTEXT_HOURS, HISTORY_LIMIT, MAX_CONTEXT_EVENTS, type StoredMessage } from "./buddy-context.ts";
 import type { NightFeedRow } from "./night-feeds.ts";
 import type { PredictEvent } from "./predict.ts";
@@ -115,16 +120,40 @@ export async function checkThread(
   return { ok: true };
 }
 
-/** The thread's latest messages, oldest first, read as the caller (RLS). No authors or ids. */
+/**
+ * The thread's latest usable messages, oldest first, read as the caller (RLS).
+ * Gated questions and escalation replies are skipped in the query. No authors or ids.
+ */
 export async function readThreadHistory(db: SupabaseClient, threadId: string): Promise<StoredMessage[]> {
   const { data, error } = await db
     .from("chat_messages")
-    .select("role, content, escalation, proposal_summary")
+    .select("role, content, escalation, proposal_summary, gated")
     .eq("thread_id", threadId)
+    .eq("gated", false)
+    .is("escalation", null)
     .order("created_at", { ascending: false })
-    .limit(HISTORY_LIMIT * 2);
+    .limit(HISTORY_LIMIT);
   if (error) throw new Error("history_failed");
   return ((data ?? []) as StoredMessage[]).reverse();
+}
+
+/**
+ * Full-text search in one thread through search_thread_messages() (SECURITY
+ * INVOKER, so the caller's RLS applies). The thread is the session's, never the
+ * model's; gated and escalation rows are excluded in SQL.
+ */
+export async function searchThread(
+  db: SupabaseClient,
+  threadId: string,
+  query: SearchHistoryQuery,
+): Promise<FoundMessage[]> {
+  const { data, error } = await db.rpc("search_thread_messages", {
+    p_thread_id: threadId,
+    p_query: query.query,
+    p_limit: query.limit ?? SEARCH_LIMIT.default,
+  });
+  if (error) throw new Error("search_failed");
+  return ((data ?? []) as FoundMessage[]).filter((m) => typeof m.content === "string");
 }
 
 /** The last 7 days of the session baby's events, oldest first, for the prediction engine. */

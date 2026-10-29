@@ -10,10 +10,11 @@
 // and a Muse classifier running beside the agent. A positive turn returns an
 // escalation with no model text; the app shows a static card.
 //
-// The turn is stored in the thread: the parent's message (text or transcript,
-// never audio) with the caller's JWT, then the assistant's (caption or
-// escalation flag, plus a server-built proposal summary) with the service role,
-// only after the thread was checked to be the caller's. Text, transcripts,
+// The turn is stored in the thread after the gate has decided: the parent's
+// message (text or transcript, never audio) with the caller's JWT, or, when the
+// turn escalated, with the service role and gated = true; then the assistant's
+// (caption or escalation flag, plus a server-built proposal summary) with the
+// service role. Both only after the thread was checked to be the caller's. Text, transcripts,
 // audio and tool arguments are never logged.
 
 import { runAgent } from "../_shared/agent.ts";
@@ -27,6 +28,7 @@ import {
   readRecentEvents,
   readThreadHistory,
   resolveBaby,
+  searchThread,
 } from "../_shared/chat-data.ts";
 import {
   applyHealthGate,
@@ -50,7 +52,7 @@ const KNOWN_FAILURES = new Set([
   "week_events_failed",
   "context_events_failed",
   "history_failed",
-  "message_insert_failed",
+  "search_failed",
 ]);
 
 Deno.serve(async (req) => {
@@ -141,12 +143,6 @@ Deno.serve(async (req) => {
     ]);
     const prediction = predict({ now, zone, birthDate, events: predictionEvents });
 
-    // The parent's message, as the caller: RLS allows only role 'user' by them.
-    const stored = await db
-      .from("chat_messages")
-      .insert({ thread_id: threadId, role: "user", content: text, author_id: user.id });
-    if (stored.error) throw new Error("message_insert_failed");
-
     const keyword = keywordHit(text);
     const [agent, classifier] = await Promise.allSettled([
       runAgent({
@@ -161,6 +157,8 @@ Deno.serve(async (req) => {
         zone,
         context: buildContext({ ageWeeks, events: contextEvents, prediction, zone }),
         history: buildHistory(historyRows),
+        memory: null,
+        searchHistory: (query) => searchThread(db, threadId, query),
       }),
       classifyHealth(
         text,
@@ -173,8 +171,10 @@ Deno.serve(async (req) => {
 
     if (agent.status === "rejected") {
       // The agent failed, but a health turn still gets its card.
+      // A non-health turn that failed stores nothing: the parent sees an error and retries.
       const escalation = applyHealthGate({ keyword, classifier: verdict, caption: null });
       if (!escalation) return museFailure(agent.reason);
+      await storeUserMessage(db, admin, { threadId, userId: user.id, text, gated: true });
       await storeReply(admin, threadId, null, escalation, null);
       return json(reply({ transcript, caption: null, escalation, proposals: [], source, threadId }));
     }
@@ -182,6 +182,9 @@ Deno.serve(async (req) => {
     const result = agent.value;
     const escalation = applyHealthGate({ keyword, classifier: verdict, caption: result.caption });
     const caption = escalation ? null : result.caption;
+    // Stored only now that the gate has decided, so a health question is never
+    // stored ungated, not even for a moment.
+    await storeUserMessage(db, admin, { threadId, userId: user.id, text, gated: escalation !== null });
     await storeReply(admin, threadId, caption, escalation, proposalSummary(result.proposals, zone));
     return json(reply({ transcript, caption, escalation, proposals: result.proposals, source, threadId }));
   } catch (error) {
@@ -205,6 +208,24 @@ function reply(input: {
     source: input.source,
     thread_id: input.threadId,
   };
+}
+
+/**
+ * The parent's message (text or transcript, never audio), stored after the gate.
+ * Not gated: inserted as the caller, so RLS checks role, author and thread.
+ * Gated: inserted with the service role (clients can't set gated), author = the
+ * caller; checkThread has already passed. A failure is logged; the reply still goes out.
+ */
+async function storeUserMessage(
+  db: ReturnType<typeof userClient>,
+  admin: ReturnType<typeof adminClient>,
+  input: { threadId: string; userId: string; text: string; gated: boolean },
+): Promise<void> {
+  const row = { thread_id: input.threadId, role: "user", content: input.text, author_id: input.userId };
+  const { error } = input.gated
+    ? await admin.from("chat_messages").insert({ ...row, gated: true })
+    : await db.from("chat_messages").insert(row);
+  if (error) console.error("chat: message_insert_failed", error.code);
 }
 
 /**
