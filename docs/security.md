@@ -80,3 +80,49 @@ UPDATE), which goes through RLS like any other update.
   `public.f_unaccent` is an immutable wrapper around `extensions.unaccent` with a
   fixed dictionary.
 - **Tests:** `supabase/tests/06_chat_memory.test.sql`.
+
+## Account deletion
+
+`delete-account` (F8) requires a valid JWT and the password, re-entered and checked
+server-side by signing in on a throwaway client; the result must be the caller's own
+user id. It is rate-limited to 5 attempts an hour, and it then runs
+`delete_account_data` (service role only) and deletes the auth user.
+
+- **Last member of the family:** the family and everything under it.
+- **One parent of two:**
+  - their private thread (messages and summary cascade);
+  - their shared-thread turns, with the replies linked through `chat_messages.reply_to`;
+  - the shared thread's summary (it re-folds without them);
+  - their check-ins, pending invites, membership, rate-limit rows and profile.
+
+  Their events stay, with `created_by = null`. The partner's rows are untouched.
+- **Tests:** `supabase/tests/07_delete_account.test.sql`, `supabase/tests/functions/delete-account.test.ts`.
+
+### What the password check protects against
+
+Re-entering the password stops someone holding only a stolen session from deleting
+the account, **unless they can also change the password**. Auth lets a signed-in
+session set a new password. With **secure password change** on (`[auth.email]
+secure_password_change = true` in `supabase/config.toml`; on hosted, the "Secure
+password change" toggle in the Email provider settings), Auth asks for a
+reauthentication code only when the session is missing or more than 24 hours old.
+From `internal/api/user.go` in supabase/auth at commit
+[`3afa027`](https://github.com/supabase/auth/blob/3afa027c5cd0709ae82b46b461c8addbfd527be9/internal/api/user.go#L154-L157):
+
+```go
+if config.Security.UpdatePasswordRequireReauthentication {
+    ...
+    // we require reauthentication if the user hasn't signed in recently in the current session
+    if session == nil || now.After(session.CreatedAt.Add(24*time.Hour)) {
+```
+
+`secure_password_change` maps to that setting: in Supabase CLI v2.122.0,
+`pkg/config/auth.go` sets `SecurityUpdatePasswordRequireReauthentication` from
+`SecurePasswordChange`.
+
+- **Residual risk:** a stolen session less than 24 hours old can change the password,
+  then delete the account. The damage is the account itself and, for the last member,
+  the family cascade. A stolen token can already read and delete the family's events
+  and messages through RLS, so this is the only extra damage.
+- **Roadmap:** an emailed one-time code checked by `delete-account`. This needs custom
+  SMTP, because the built-in mailer is limited to 2 emails an hour.

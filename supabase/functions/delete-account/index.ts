@@ -1,5 +1,8 @@
 // Account deletion (F8). The caller re-enters their password, checked here
-// against Auth, so a stolen session alone can't delete the account.
+// against Auth. A stolen session alone can't delete the account unless the
+// attacker can also change the password; with secure password change on, Auth
+// allows that without reauthentication only for sessions under 24 h old
+// (residual risk, see docs/security.md "Account deletion").
 // POST { password } -> { deleted: true }
 // Last member of the family: the family and everything under it goes.
 // One parent of two: their own data and shared-thread turns go; the partner's stay
