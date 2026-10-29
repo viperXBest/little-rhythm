@@ -153,6 +153,63 @@ Re-run this check after any change to the hosted Auth settings.
 **What a stolen session can still do:** read and delete the family's events and send
 messages through RLS, as the user could. Deleting the account needs the password.
 
+## Rate limits
+
+Every function counts calls per user in fixed windows (`api_usage`, through
+`consume_rate_limit`, which only the service role can call). Over the limit, the call
+returns `429 rate_limited` before any model call, password check or code lookup.
+
+| Function | Limit | Why | Test |
+|---|---|---|---|
+| `chat` | 60 an hour | Each turn makes 2 or more model calls | `tests/functions/chat.test.ts` |
+| `predict` | 240 an hour | Cheap, but called on every app focus | `tests/functions/predict.test.ts` |
+| `pair` create | 10 an hour | New codes | `tests/functions/pair.test.ts` |
+| `pair` redeem | 5 per 15 min | Each attempt is a guess at a code | `tests/functions/pair.test.ts` |
+| `delete-account` | 5 an hour | Each attempt is a password guess | `tests/functions/delete-account.test.ts` |
+
+The tests fill the caller's current window and check that the next call gets 429.
+Auth's own sign-in limit applies to the password check too; `delete-account` reports it
+as 429, not as a wrong password.
+
+## Logging
+
+- **What functions log:** a fixed code and, at most, an HTTP status or Postgres error
+  code (`chat: rate limit failed 42501`, `chat: model_failed 502`).
+- **What they never log:** message text, transcripts, audio, tool arguments,
+  passwords, tokens or emails.
+- **Error codes are safe:** `MuseError.code` is a two-value union, and unknown errors
+  are logged as `unexpected` because their message might echo input.
+- **Hosted audit, 29 Oct 2026, last 24 h:**
+  - Read-only, through the Management API's unified logs endpoint. The old `logs.all`
+    endpoint returns 410.
+  - 50 console lines (chat 28, predict 18, delete-account 4) and 29 request lines.
+  - All console lines were runtime boot or shutdown messages.
+  - No hits for emails, JWT-shaped strings, keys, base64 audio, query strings or free
+    text.
+  - The request logs that Supabase itself keeps include the client IP, coarse location,
+    user agent, user id and a JWT signature prefix. That is the platform's own
+    logging, not ours, and it is kept under Supabase's log retention.
+
+## Dependencies
+
+- **Edge Functions:** every import is pinned to an exact version
+  (`npm:zod@4.6.6`, `npm:@supabase/supabase-js@2.49.4`, `npm:openai@7.32.0`,
+  `jsr:@std/assert@1.0.13`). zod 4.6.6 is the fixed version for GHSA-mrhx-c7xc-m3w5.
+- **App: `npm audit`, 29 Oct 2026:** 3 high and 7 low. All come from build and lint
+  tooling.
+  - **Accepted, high:** `zod@3.25.76` (GHSA-mrhx-c7xc-m3w5, memory use while
+    validating oversized collections).
+    - It comes only through `@expo/cli` (the build CLI) and `eslint-plugin-react-hooks`
+      (lint).
+    - Nothing in `app/src` imports zod, so it is not in the APK. It only validates the
+      developer's own config.
+    - The fix is zod 4, a major version the Expo CLI doesn't support. Forcing it with an
+      override could break builds.
+    - The other two highs, `expo` and `@expo/cli`, are this same advisory reported
+      through the dependency chain.
+  - **Accepted, low:** `deepmerge` (prototype pollution) through `@expo/config`, which is
+    also build-time only. The rest are the same chain reported again.
+
 ## Independent review (Muse Spark Open)
 
 `scripts/review/review.ts` sends the tracked files (no lockfiles, binaries, env files
