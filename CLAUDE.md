@@ -104,7 +104,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 2. Oct 28 · Auth, schema, all RLS, pairing, RLS tests (done)
 3. Oct 29 · Tracking and real-time sync; add expo-audio and rebuild (done)
 4. Oct 30 · Agentic chat and voice logging (Muse Spark + Muse Voice Transcribe, confirm cards) (done; see `docs/chat.md`)
-5. Oct 31 · Predictions engine, predict function, "Next up" card, notifications (done, deployed; phone check pending; see `docs/predictions.md`)
+5. Oct 31 · Predictions engine, predict function, "Next up" card, notifications (done, deployed, verified on both phones; see `docs/predictions.md`)
 6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance
 7. Nov 2 · delete-account, rate limits, security review, safety prompts, CI green
 8. Nov 3 · Polish, seed-demo, README, rehearse
