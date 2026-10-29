@@ -30,7 +30,7 @@ Android app (sideloaded APK) where two parents share one baby, log by tap, chat 
 /supabase
   /migrations        schema + RLS policies
   /functions         chat, predict, pair, delete-account, _shared
-  /tests             RLS tests (pgTAP)
+  /tests             RLS tests (pgTAP); realtime and function tests (Deno, local stack)
 /scripts             seed-demo (runs locally only)
 /docs                architecture, security, demo script
 README.md  SECURITY.md  LICENSE  .env.example
@@ -53,7 +53,7 @@ Roadmap only: relationship nudges, pumping, growth charts, medication tracking, 
 
 ## Agent tools (chat function)
 
-`log_feed`, `log_sleep`, `end_sleep`, `log_diaper`, `get_recent_events`, `get_next_windows` (Day 5). Write tools return proposals that the app shows as confirm cards; nothing is saved until the user confirms. `end_sleep` closes the open sleep the server finds, never one the model names. Muse Spark runs with `reasoning_effort: "low"` (measured faster and as accurate, see `docs/chat.md`). Chat feed ranges match the app: bottle 5–400 ml, breast 1–90 min.
+`log_feed`, `log_sleep`, `end_sleep`, `log_diaper`, `get_recent_events`, `get_next_windows` (the same engine as `predict`, bound to the session baby, no arguments read). Write tools return proposals that the app shows as confirm cards; nothing is saved until the user confirms. `end_sleep` closes the open sleep the server finds, never one the model names. Muse Spark runs with `reasoning_effort: "low"` (measured faster and as accurate, see `docs/chat.md`). Chat feed ranges match the app: bottle 5–400 ml, breast 1–90 min.
 
 ## Data model
 
@@ -83,7 +83,8 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 - Only age in weeks and recent events go to the AI. No names, no emails. Voice clips are transcribed and not stored. No chat content, audio or tokens in logs.
 - Session tokens in expo-secure-store, never AsyncStorage.
 - The APK contains only the public Supabase URL and anon key. Never commit: `.env` files, the service_role key, `MODEL_API_KEY`, keystores, real personal data.
-- Per-user rate limits on `chat` and `pair` via `api_usage`.
+- Per-user rate limits on `chat`, `pair` and `predict` via `api_usage`.
+- Prediction reminders use the fixed ids `predict-feed`, `predict-nap` and `predict-routine`, and only those are ever cancelled. Never call `cancelAllScheduledNotificationsAsync` (it would wipe the check-in reminder).
 - Every security control gets a test (pgTAP for RLS, function tests for pair/chat).
 
 ## Conventions
@@ -94,15 +95,16 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
   - Until 2026-10-29 09:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
   - Never use `supabase db push --include-all`.
 - Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Day 4 build swapped expo-audio for @siteed/audio-studio (plugin: device detection, background audio, notifications and phone-state handling all off; only RECORD_AUDIO). Rebuild only when a native module changes.
+- Deno is not installed globally: run it as `npx -y deno@2 ...` (2.9.6 in use). Format with `deno fmt --line-width 110`. App files named `*.test.ts` run under Deno and are excluded from the app's tsc and eslint. Commands: `docs/predictions.md` ("Running the tests").
 - CI (GitHub Actions) on every push: typecheck + lint, prediction unit tests, RLS tests against local Supabase, gitleaks.
 
 ## Day plan
 
 1. Oct 27–28 · Setup (done): Muse test call, repo, Supabase, Expo scaffold, dev build, this file
-2. Oct 28 · Auth, schema, all RLS, pairing, RLS tests
-3. Oct 29 · Tracking and real-time sync; add expo-audio and rebuild
-4. Oct 30 · Agentic chat and voice logging (Muse Spark + Muse Voice Transcribe, confirm cards)
-5. Oct 31 · Predictions engine, predict function, "Next up" card, notifications
+2. Oct 28 · Auth, schema, all RLS, pairing, RLS tests (done)
+3. Oct 29 · Tracking and real-time sync; add expo-audio and rebuild (done)
+4. Oct 30 · Agentic chat and voice logging (Muse Spark + Muse Voice Transcribe, confirm cards) (done; see `docs/chat.md`)
+5. Oct 31 · Predictions engine, predict function, "Next up" card, notifications (done, deployed; phone check pending; see `docs/predictions.md`)
 6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance
 7. Nov 2 · delete-account, rate limits, security review, safety prompts, CI green
 8. Nov 3 · Polish, seed-demo, README, rehearse
