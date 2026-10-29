@@ -1,0 +1,25 @@
+# Gitleaks: the default rules plus the keys this project uses. No path is
+# allowlisted (scripts/ included); a hit is fixed, not silenced.
+title = "Little Rhythm"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "little-rhythm-env-secret"
+description = "A secret this project keeps out of git, assigned a value"
+regex = '''(?i)\b(MODEL_API_KEY|SAFETY_GEN_API_KEY|PAIR_CODE_PEPPER|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ACCESS_TOKEN)[ \t]*[=:][ \t]*["']?([A-Za-z0-9_\-\.]{16,})'''
+secretGroup = 2
+keywords = ["model_api_key", "safety_gen_api_key", "pair_code_pepper", "service_role_key", "supabase_access_token"]
+
+[[rules]]
+id = "supabase-personal-access-token"
+description = "Supabase personal access token"
+regex = '''\bsbp_[a-f0-9]{40}\b'''
+keywords = ["sbp_"]
+
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase secret API key"
+regex = '''\bsb_secret_[A-Za-z0-9_\-]{20,}\b'''
+keywords = ["sb_secret_"]

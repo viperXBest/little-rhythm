@@ -1,0 +1,114 @@
+# Typecheck and lint the app, Deno unit tests, RLS / realtime / function tests
+# against a local Supabase stack, and a secret scan. No secrets in CI: the model
+# key is a dummy and RUN_MODEL_TESTS stays unset, so nothing calls the Muse API.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App typecheck and lint
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+
+  deno-unit:
+    name: Deno unit tests and format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Format
+        run: deno fmt --check --line-width 110 $(git ls-files 'supabase/*.ts' 'scripts/*.ts')
+      - name: Edge Function units (predictions, agent, health gate, voice, memory)
+        run: deno test -A supabase/functions/
+      - name: App reminder ids
+        run: deno test app/src/lib/reminder-plan.test.ts
+
+  supabase:
+    name: RLS, realtime and function tests (local stack)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - name: Function env (dummy values, not secrets)
+        env:
+          DUMMY_MODEL_KEY: ci-dummy-not-a-key
+        run: |
+          {
+            echo "MODEL_API_KEY=$DUMMY_MODEL_KEY"
+            echo "PAIR_CODE_PEPPER=$(openssl rand -hex 32)"
+          } > supabase/functions/.env
+      - name: Start Supabase
+        run: supabase start -x studio,imgproxy,vector,logflare,supavisor
+      - run: supabase db reset
+      - name: RLS tests (pgTAP)
+        run: supabase test db
+      - name: Wait for the Edge Functions
+        run: |
+          eval "$(supabase status -o env | grep -E '^API_URL=')"
+          wait_for_functions() {
+            for _ in $(seq 1 30); do
+              # Any answer from the function itself (401 without a JWT) means it is served.
+              code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API_URL/functions/v1/predict" || true)
+              if [ "$code" = "401" ]; then return 0; fi
+              sleep 2
+            done
+            return 1
+          }
+          if wait_for_functions; then exit 0; fi
+          echo "Functions not served by supabase start; starting supabase functions serve"
+          nohup supabase functions serve --env-file supabase/functions/.env > functions-serve.log 2>&1 &
+          wait_for_functions || { tail -50 functions-serve.log; exit 1; }
+      - name: Realtime and function tests (no model calls)
+        run: |
+          eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
+          SUPABASE_URL=$API_URL SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY \
+            deno test -A supabase/tests/realtime/ supabase/tests/functions/
+
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    env:
+      GITLEAKS_VERSION: 8.30.1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o checksums.txt \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz\$" checksums.txt | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+      - name: Scan the full history
+        run: ./gitleaks git . --config .gitleaks.toml --redact --no-banner -v
