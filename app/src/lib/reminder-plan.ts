@@ -3,7 +3,8 @@
 // (reminder-plan.test.ts). The expo-notifications binding is in reminders.ts.
 //
 // Prediction reminders use fixed identifiers and only those are ever
-// cancelled, so other reminders (the daily check-in) are never touched.
+// cancelled, so other reminders (the daily check-in) are never touched. The
+// check-in reminder has its own id, and its sync cancels only that id.
 
 export const PREDICTION_REMINDER_IDS = ['predict-feed', 'predict-nap', 'predict-routine'] as const;
 export type PredictionReminderId = (typeof PREDICTION_REMINDER_IDS)[number];
@@ -11,7 +12,12 @@ export type PredictionReminderId = (typeof PREDICTION_REMINDER_IDS)[number];
 /** Feed and nap reminders fire this long before the window opens. */
 export const LEAD_MINUTES = 10;
 
-export type Reminder = { identifier: PredictionReminderId; date: Date; title: string; body: string };
+export const CHECKIN_REMINDER_ID = 'checkin-daily';
+/** The check-in reminder fires at 21:00 local. */
+export const CHECKIN_HOUR = 21;
+
+export type ReminderId = PredictionReminderId | typeof CHECKIN_REMINDER_ID;
+export type Reminder = { identifier: ReminderId; date: Date; title: string; body: string };
 
 /** The parts of a prediction the reminders need (structurally a Prediction). */
 export type ReminderWindows = {
@@ -66,4 +72,37 @@ export async function syncPredictionReminders(
   const plan = planReminders(windows, now);
   for (const reminder of plan) await scheduler.schedule(reminder);
   return plan;
+}
+
+// ---------------------------------------------------------------------------
+// Daily check-in
+// ---------------------------------------------------------------------------
+
+const CHECKIN_TEXT = { title: 'Daily check-in', body: 'Two quick questions for you and your partner.' };
+
+/**
+ * 21:00 today in the phone's local time if today's check-in is unanswered and
+ * 21:00 hasn't passed; otherwise 21:00 tomorrow. Built with local Date fields,
+ * so a DST change in between keeps it at 21:00 on the clock.
+ */
+export function planCheckinReminder(now: Date, answeredToday: boolean): Reminder {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), CHECKIN_HOUR, 0, 0, 0);
+  const date =
+    !answeredToday && today.getTime() > now.getTime()
+      ? today
+      : new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, CHECKIN_HOUR, 0, 0, 0);
+  return { identifier: CHECKIN_REMINDER_ID, date, ...CHECKIN_TEXT };
+}
+
+/** Cancels the check-in reminder, and nothing else. */
+export async function clearCheckinReminder(scheduler: Scheduler): Promise<void> {
+  await scheduler.cancel(CHECKIN_REMINDER_ID);
+}
+
+/** Replaces the check-in reminder. Never touches the prediction reminders. */
+export async function syncCheckinReminder(scheduler: Scheduler, now: Date, answeredToday: boolean): Promise<Reminder> {
+  await clearCheckinReminder(scheduler);
+  const reminder = planCheckinReminder(now, answeredToday);
+  await scheduler.schedule(reminder);
+  return reminder;
 }

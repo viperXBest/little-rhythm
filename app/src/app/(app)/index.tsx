@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 
+import { CheckinCard } from '@/components/checkin-card';
 import { Button, ErrorText, Screen } from '@/components/form';
 import { NextUp } from '@/components/next-up';
 import { QuickLog } from '@/components/quick-log';
@@ -35,6 +36,7 @@ export default function Home() {
       )}
       <NextUp />
       <QuickLog />
+      <CheckinCard />
       <Button title="Chat" variant="secondary" onPress={() => router.push('/chat')} />
       <Timeline />
       <Button title="Sign out" variant="secondary" onPress={() => void supabase.auth.signOut()} />

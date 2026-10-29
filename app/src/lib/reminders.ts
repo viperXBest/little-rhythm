@@ -4,15 +4,18 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 import {
+  clearCheckinReminder,
   clearPredictionReminders,
+  syncCheckinReminder,
   syncPredictionReminders,
   type ReminderWindows,
   type Scheduler,
 } from '@/lib/reminder-plan';
 
-// Local reminders before predicted windows. One toggle per phone, stored on the
-// device (not a secret; secure-store because AsyncStorage isn't in the build).
-// Only the prediction reminders' own ids are ever cancelled (reminder-plan.ts).
+// Local reminders before predicted windows and for the daily check-in (21:00).
+// One toggle per phone, stored on the device (not a secret; secure-store
+// because AsyncStorage isn't in the build). Only the reminders' own ids are
+// ever cancelled (reminder-plan.ts); never cancelAll.
 
 const ENABLED_KEY = 'reminders_enabled';
 const CHANNEL_ID = 'reminders';
@@ -71,6 +74,7 @@ export async function enableReminders(): Promise<'enabled' | 'denied'> {
 export async function disableReminders(): Promise<void> {
   await SecureStore.deleteItemAsync(ENABLED_KEY);
   await clearPredictionReminders(scheduler);
+  await clearCheckinReminder(scheduler);
 }
 
 /** Reschedules the prediction reminders if this phone has them on. Never throws. */
@@ -82,5 +86,32 @@ export async function syncReminders(windows: ReminderWindows): Promise<void> {
     await syncPredictionReminders(scheduler, windows, new Date());
   } catch {
     // Reminders are best effort; the card still shows the windows.
+  }
+}
+
+// The check-in card reports whether today is answered; the toggle reuses it
+// when reminders are switched on.
+let checkinAnsweredDay: string | null = null;
+
+function localDay(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * Reschedules the check-in reminder (21:00 today, or tomorrow once answered) if
+ * this phone has reminders on. Pass whether today's check-in is answered, or
+ * omit it to reuse what the check-in card last reported. Never throws.
+ */
+export async function syncCheckin(answeredToday?: boolean): Promise<void> {
+  const now = new Date();
+  if (answeredToday !== undefined) checkinAnsweredDay = answeredToday ? localDay(now) : null;
+  try {
+    if (!(await remindersEnabled())) return;
+    if (!(await Notifications.getPermissionsAsync()).granted) return;
+    await ensureChannel();
+    await syncCheckinReminder(scheduler, now, checkinAnsweredDay === localDay(now));
+  } catch {
+    // Best effort, like the prediction reminders.
   }
 }

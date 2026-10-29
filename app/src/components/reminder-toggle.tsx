@@ -4,9 +4,12 @@ import { StyleSheet, Switch, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import type { Prediction } from '@/lib/predict';
-import { disableReminders, enableReminders, remindersEnabled, syncReminders } from '@/lib/reminders';
+import { disableReminders, enableReminders, remindersEnabled, syncCheckin, syncReminders } from '@/lib/reminders';
 
-/** One toggle per phone: reminders 10 min before feed and nap windows, and at routine start. */
+/**
+ * One toggle per phone: reminders 10 min before feed and nap windows, at routine
+ * start, and for the daily check-in at 21:00.
+ */
 export function ReminderToggle({ prediction }: { prediction: Prediction | null }) {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,6 +38,7 @@ export function ReminderToggle({ prediction }: { prediction: Prediction | null }
         }
         setEnabled(true);
         if (prediction) await syncReminders(prediction);
+        await syncCheckin();
       } else {
         await disableReminders();
         setEnabled(false);
@@ -50,7 +54,7 @@ export function ReminderToggle({ prediction }: { prediction: Prediction | null }
     <View style={styles.wrap}>
       <View style={styles.row}>
         <ThemedText type="small" style={styles.label}>
-          Remind me before feeds, naps and the bedtime routine
+          Remind me before feeds, naps and the bedtime routine, and about the check-in at 21:00
         </ThemedText>
         <Switch
           value={enabled === true}

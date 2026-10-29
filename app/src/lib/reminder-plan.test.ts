@@ -4,12 +4,16 @@
 import { assertEquals } from 'jsr:@std/assert@1.0.13';
 
 import {
+  CHECKIN_REMINDER_ID,
+  clearCheckinReminder,
   clearPredictionReminders,
+  planCheckinReminder,
   planReminders,
   PREDICTION_REMINDER_IDS,
   type Reminder,
   type ReminderWindows,
   type Scheduler,
+  syncCheckinReminder,
   syncPredictionReminders,
 } from './reminder-plan.ts';
 
@@ -96,4 +100,50 @@ Deno.test('no reminder text carries a name or personal data', () => {
     assertEquals(/\b(she|he|her|his)\b/i.test(`${r.title} ${r.body}`), false);
   }
   assertEquals(new Set(plan.map((r) => r.body)).size, 3);
+});
+
+// ---- Daily check-in ---------------------------------------------------------
+// Local-time Dates (new Date(y, m, d, h)), so these pass in any machine zone.
+
+const local = (day: number, hour: number, minute = 0) => new Date(2026, 9, day, hour, minute);
+
+Deno.test('check-in: 21:00 today while unanswered and before 21:00', () => {
+  const r = planCheckinReminder(local(29, 12), false);
+  assertEquals([r.identifier, r.date.getTime()], [CHECKIN_REMINDER_ID, local(29, 21).getTime()]);
+});
+
+Deno.test('check-in: tomorrow 21:00 once answered, or once 21:00 has passed', () => {
+  assertEquals(planCheckinReminder(local(29, 12), true).date.getTime(), local(30, 21).getTime());
+  assertEquals(planCheckinReminder(local(29, 21), false).date.getTime(), local(30, 21).getTime());
+  assertEquals(planCheckinReminder(local(29, 23, 30), false).date.getTime(), local(30, 21).getTime());
+});
+
+Deno.test('check-in: no names in the text', () => {
+  const r = planCheckinReminder(local(29, 12), false);
+  assertEquals([r.title, r.body], ['Daily check-in', 'Two quick questions for you and your partner.']);
+});
+
+Deno.test('check-in sync cancels only checkin-daily and keeps the prediction reminders', async () => {
+  const fake = fakeScheduler({
+    'predict-feed': 'x',
+    'predict-nap': 'y',
+    'predict-routine': 'z',
+    [CHECKIN_REMINDER_ID]: 'old',
+  });
+  await syncCheckinReminder(fake.scheduler, local(29, 12), true);
+  assertEquals(fake.cancelled, [CHECKIN_REMINDER_ID]);
+  for (const id of PREDICTION_REMINDER_IDS) assertEquals(fake.scheduled.has(id), true);
+  assertEquals(fake.scheduled.get(CHECKIN_REMINDER_ID), local(30, 21).toISOString());
+
+  await clearCheckinReminder(fake.scheduler);
+  assertEquals(fake.cancelled, [CHECKIN_REMINDER_ID, CHECKIN_REMINDER_ID]);
+  for (const id of PREDICTION_REMINDER_IDS) assertEquals(fake.scheduled.has(id), true);
+});
+
+Deno.test('prediction sync and clear never cancel checkin-daily', async () => {
+  const fake = fakeScheduler({ [CHECKIN_REMINDER_ID]: 'keep' });
+  await syncPredictionReminders(fake.scheduler, windows('2026-10-29T13:40:00Z', null, null), NOW);
+  await clearPredictionReminders(fake.scheduler);
+  assertEquals(fake.cancelled.includes(CHECKIN_REMINDER_ID), false);
+  assertEquals(fake.scheduled.get(CHECKIN_REMINDER_ID), 'keep');
 });
