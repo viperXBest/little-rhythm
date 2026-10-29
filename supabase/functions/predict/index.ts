@@ -1,11 +1,14 @@
 // Next feed, nap, bedtime-routine start and bedtime for the session baby.
 // POST application/json { tz?, tz_offset_minutes? }
-//   -> { age_weeks, feed, nap, routine, bedtime, wake, zone: "iana" | "offset" }
+//   -> { age_weeks, feed, nap, routine, bedtime, wake, zone: "iana" | "offset",
+//        night_feeds: { nights, you, partner } }
 // Computed by code from the last 7 days (_shared/predict.ts), never stored.
-// The chat agent's get_next_windows calls the same engine. Events and windows
-// are never logged.
+// The chat agent's get_next_windows calls the same engine. night_feeds is the
+// couple layer's balance (_shared/night-feeds.ts); it carries counts only, no
+// ids, and never goes to the chat model. Events and windows are never logged.
 
-import { readPredictionEvents, resolveBaby } from "../_shared/chat-data.ts";
+import { readNightFeeds, readPartnerId, readPredictionEvents, resolveBaby } from "../_shared/chat-data.ts";
+import { countNightFeeds, nightFeedsSince } from "../_shared/night-feeds.ts";
 import { predict } from "../_shared/predict.ts";
 import { adminClient, getCaller, json, userClient } from "../_shared/supabase.ts";
 import { parsePredictRequest } from "./request.ts";
@@ -47,9 +50,20 @@ Deno.serve(async (req) => {
 
   const now = new Date();
   try {
-    const events = await readPredictionEvents(db, baby.baby.id, now);
+    const [events, nightFeeds, partner] = await Promise.all([
+      readPredictionEvents(db, baby.baby.id, now),
+      readNightFeeds(db, baby.baby.id, nightFeedsSince(now, request.zone)),
+      readPartnerId(db, user.id),
+    ]);
     const prediction = predict({ now, zone: request.zone, birthDate: baby.baby.birth_date, events });
-    return json({ ...prediction, zone: request.zone.kind });
+    const night_feeds = countNightFeeds({
+      feeds: nightFeeds,
+      now,
+      zone: request.zone,
+      you: user.id,
+      partner,
+    });
+    return json({ ...prediction, zone: request.zone.kind, night_feeds });
   } catch (error) {
     // Our own errors carry a code as their message.
     const code = error instanceof Error && /^[a-z_]+$/.test(error.message) ? error.message : "unexpected";

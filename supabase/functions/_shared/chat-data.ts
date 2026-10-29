@@ -7,6 +7,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 import type { OpenSleep, RecentEventsQuery } from "./agent-schemas.ts";
 import type { EventSummary } from "./agent.ts";
 import { CONTEXT_HOURS, HISTORY_LIMIT, MAX_CONTEXT_EVENTS, type StoredMessage } from "./buddy-context.ts";
+import type { NightFeedRow } from "./night-feeds.ts";
 import type { PredictEvent } from "./predict.ts";
 import { HISTORY_DAYS } from "./predict-constants.ts";
 
@@ -154,6 +155,32 @@ export async function readPredictionEvents(
     events.unshift({ type: "sleep", started_at: open.started_at, ended_at: null });
   }
   return events;
+}
+
+/** The session baby's feeds since `since`, with who logged them, for the night-feed balance. */
+export async function readNightFeeds(
+  db: SupabaseClient,
+  babyId: string,
+  since: Date,
+): Promise<NightFeedRow[]> {
+  const { data, error } = await db
+    .from("events")
+    .select("started_at, created_by")
+    .eq("baby_id", babyId)
+    .eq("type", "feed")
+    .gte("started_at", since.toISOString())
+    .order("started_at", { ascending: false })
+    .limit(MAX_WEEK_EVENTS);
+  if (error) throw new Error("night_feeds_failed");
+  return (data ?? []) as NightFeedRow[];
+}
+
+/** The caller's co-parent, read through RLS (family members only), or null. */
+export async function readPartnerId(db: SupabaseClient, userId: string): Promise<string | null> {
+  const { data, error } = await db.from("family_members").select("user_id").neq("user_id", userId).limit(1);
+  if (error) throw new Error("partner_failed");
+  const rows = (data ?? []) as { user_id: string }[];
+  return rows[0]?.user_id ?? null;
 }
 
 // Only the fields the app writes; anything else in the jsonb stays out of the prompt.

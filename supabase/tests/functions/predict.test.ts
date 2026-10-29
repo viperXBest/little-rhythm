@@ -5,6 +5,8 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.13";
 import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 
+import { recentNights } from "../../functions/_shared/night-feeds.ts";
+
 function env(name: string): string {
   const value = Deno.env.get(name);
   if (!value) throw new Error(`missing env ${name}`);
@@ -101,8 +103,42 @@ Deno.test({
       assert(Date.parse(body.feed.window.start) > lastFeed.getTime());
       assertEquals(body.nap, { window: null, reason: "no_sleep_logged" });
       for (const key of ["routine", "bedtime", "wake"]) assert(key in body);
+      // Night-feed balance: counts only; no partner yet.
+      assertEquals(body.night_feeds.nights, 7);
+      assertEquals(body.night_feeds.partner, null);
+      assertEquals(typeof body.night_feeds.you, "number");
       // No ids in the response.
       assertEquals(JSON.stringify(body).includes(baby.data.id), false);
+      assertEquals(JSON.stringify(body).includes(parent.id), false);
+
+      // A partner joins and logs a feed an hour into last night; one of ours too.
+      const partner = await createUser("predict-partner");
+      try {
+        const joined = await admin.from("family_members").insert({
+          family_id: familyId,
+          user_id: partner.id,
+        });
+        if (joined.error) throw joined.error;
+        const night = recentNights(new Date(), { kind: "iana", name: ZONE.tz })[0];
+        const at = (minutes: number) => new Date(night.start + minutes * 60_000).toISOString();
+        const feeds = await admin.from("events").insert([
+          { baby_id: baby.data.id, type: "feed", started_at: at(60), details: {}, created_by: partner.id },
+          { baby_id: baby.data.id, type: "feed", started_at: at(90), details: {}, created_by: parent.id },
+          { baby_id: baby.data.id, type: "feed", started_at: at(120), details: {}, created_by: partner.id },
+        ]);
+        if (feeds.error) throw feeds.error;
+        const mine = await (await call(ZONE, parent.token)).json();
+        const theirs = await (await call(ZONE, partner.token)).json();
+        // "you" is always the caller.
+        assertEquals([mine.night_feeds.you, mine.night_feeds.partner], [
+          theirs.night_feeds.partner,
+          theirs.night_feeds.you,
+        ]);
+        assert(mine.night_feeds.partner >= 2);
+        assertEquals(JSON.stringify(mine).includes(partner.id), false);
+      } finally {
+        await admin.auth.admin.deleteUser(partner.id);
+      }
     } finally {
       if (familyId) await admin.from("families").delete().eq("id", familyId);
       for (const user of [lonely, parent]) await admin.auth.admin.deleteUser(user.id);
