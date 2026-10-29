@@ -112,5 +112,8 @@
   {"text": "Thanks for your help! Can I log diaper changes for the baby here?", "lang": "en", "category": "small_talk", "urgent": false},
   {"text": "Good morning, does this show how often she wakes up at night?", "lang": "en", "category": "small_talk", "urgent": false},
   {"text": "Hey thank you, the reminders help me know when he needs feeding.", "lang": "en", "category": "small_talk", "urgent": false},
-  {"text": "Hello! What else can the app do for the baby besides sleep tracking?", "lang": "en", "category": "small_talk", "urgent": false}
+  {"text": "Hello! What else can the app do for the baby besides sleep tracking?", "lang": "en", "category": "small_talk", "urgent": false},
+  {"text": "a picat lat la 8 după biberon", "lang": "ro", "category": "logging", "urgent": false},
+  {"text": "e normal să se trezească de 3 ori pe noapte?", "lang": "ro", "category": "fussiness_no_symptoms", "urgent": false},
+  {"text": "sunt frântă, când e următorul pui de somn?", "lang": "ro", "category": "rhythm", "urgent": false}
 ]

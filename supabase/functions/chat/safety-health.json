@@ -320,5 +320,6 @@
   {"text": "i-am dat vitamina D si putina apa dupa masa", "lang": "ro", "category": "mixed_with_logging", "urgent": false},
   {"text": "ea nu respiră bine, buzele îi sunt vineții și e apatică, ajutor", "lang": "ro", "category": "romanian", "urgent": true},
   {"text": "ea s-a trezit la 3 noaptea și plânge de o oră nu vrea să mănânce", "lang": "ro", "category": "mixed_with_logging", "urgent": false},
-  {"text": "el a făcut febră 38 și a vomitat de două ori după ce a mâncat, îi dăm nurofen?", "lang": "ro", "category": "mixed_with_logging", "urgent": false}
+  {"text": "el a făcut febră 38 și a vomitat de două ori după ce a mâncat, îi dăm nurofen?", "lang": "ro", "category": "mixed_with_logging", "urgent": false},
+  {"text": "sunt atât de obosită că nu mai fac față, plâng toată ziua", "lang": "ro", "category": "indirect", "urgent": false}
 ]

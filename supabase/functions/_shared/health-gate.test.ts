@@ -169,6 +169,21 @@ Deno.test("classifier prompt lists the widened emergencies", () => {
   }
 });
 
+Deno.test("classifier prompt: sleep slang, tired parents and 'is this normal' about sleep are not health", () => {
+  for (
+    const phrase of [
+      `"a căzut lată/lat", "a picat lată/lat" (fell asleep) and "o vom culca"`,
+      `"is this normal?" about sleep, naps, night waking or fussiness when no symptom is mentioned`,
+      "a parent saying they are tired or exhausted while asking about the log",
+      "whether to wake the baby to feed, or whether a feed amount or interval is enough",
+      "can't cope, feel hopeless or low, or are scared of their own thoughts",
+      "a thought of harming oneself or the baby",
+    ]
+  ) {
+    assertEquals(CLASSIFIER_PROMPT.includes(phrase), true, phrase);
+  }
+});
+
 Deno.test("classifier: urgent implies health", async () => {
   assertEquals(
     await classifyHealth("x", 20, () => Promise.resolve('{"health": false, "urgent": true}')),

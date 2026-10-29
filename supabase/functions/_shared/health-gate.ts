@@ -30,13 +30,18 @@ health = true if the message asks about, describes or mentions:
 - refusing feeds, weight or growth, or how much or how often the baby should eat or drink;
 - medicine, doses, supplements, vitamins, vaccines or remedies;
 - whether to see or call a doctor, nurse or hospital, or whether something is "normal" or "safe" for the baby's health;
-- a parent's own physical or mental health.
+- a parent's own physical or mental health;
+- whether to wake the baby to feed, or whether a feed amount or interval is enough, ok or too much;
+- a parent who says they can't cope, feel hopeless or low, or are scared of their own thoughts.
 Also health = true when a health question is mixed with logging ("90 ml at 3, and she feels hot").
 
 health = false for:
 - logging feeds, sleeps and diapers;
 - questions about the logged data, times, patterns, or the next feed, nap or bedtime;
 - fussiness, short naps or night waking when no symptom is mentioned;
+- "is this normal?" about sleep, naps, night waking or fussiness when no symptom is mentioned;
+- a parent saying they are tired or exhausted while asking about the log, the rhythm or the next windows;
+- Romanian sleep slang: "a căzut lată/lat", "a picat lată/lat" (fell asleep) and "o vom culca" (we'll put her down) are not a fall and not health;
 - greetings and small talk.
 
 urgent = true only for possible emergencies:
