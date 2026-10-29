@@ -35,7 +35,7 @@ export default function Home() {
       )}
       <NextUp />
       <QuickLog />
-      <Button title="Log by chat or voice" variant="secondary" onPress={() => router.push('/chat')} />
+      <Button title="Chat" variant="secondary" onPress={() => router.push('/chat')} />
       <Timeline />
       <Button title="Sign out" variant="secondary" onPress={() => void supabase.auth.signOut()} />
     </Screen>

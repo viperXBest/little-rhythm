@@ -59,14 +59,14 @@ isOneToOne: false
                   ]
                 },"chat_messages": {
                   Row: {
-                    "author_id": string | null,"content": string,"created_at": string,"id": string,"role": string,"thread_id": string
+                    "author_id": string | null,"content": string | null,"created_at": string,"escalation": string | null,"id": string,"proposal_summary": string | null,"role": string,"thread_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string | null,"content": string,"created_at"?: string,"id"?: string,"role": string,"thread_id": string
+                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"id"?: string,"proposal_summary"?: string | null,"role": string,"thread_id": string
                   }
                   Update: {
-                    "author_id"?: string | null,"content"?: string,"created_at"?: string,"id"?: string,"role"?: string,"thread_id"?: string
+                    "author_id"?: string | null,"content"?: string | null,"created_at"?: string,"escalation"?: string | null,"id"?: string,"proposal_summary"?: string | null,"role"?: string,"thread_id"?: string
                   }
                   Relationships: [
                     {
@@ -219,6 +219,11 @@ isOneToOne: false
                            },
 "create_invite":
 { Args: { "p_code_hash": string,"p_user_id": string }; Returns: string
+                           },
+"ensure_chat_threads":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "private_id": string,"shared_id": string
+            }[]
                            },
 "has_checked_in":
 { Args: { "p_day": string,"p_family_id": string }; Returns: boolean

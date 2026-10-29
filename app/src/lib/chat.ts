@@ -1,4 +1,4 @@
-import { FunctionsHttpError } from '@supabase/supabase-js';
+import { FunctionsHttpError, type RealtimeChannel } from '@supabase/supabase-js';
 import { randomUUID } from 'expo-crypto';
 import { File } from 'expo-file-system';
 
@@ -48,11 +48,16 @@ export type DiaperProposal = {
 export type Proposal = FeedProposal | SleepProposal | SleepEndProposal | DiaperProposal;
 
 export type ChatSource = Extract<EventSource, 'chat' | 'voice'>;
+/** A health question: the app shows a static card, never model text. */
+export type Escalation = { urgent: boolean };
 export type ChatReply = {
   transcript?: string;
-  caption: string;
+  /** Null when the turn escalated. */
+  caption: string | null;
+  escalation: Escalation | null;
   proposals: Proposal[];
   source: ChatSource;
+  threadId: string;
 };
 
 export type ChatError =
@@ -66,6 +71,7 @@ export type ChatError =
   | 'wrong_format'
   | 'transcribe_failed'
   | 'model_failed'
+  | 'thread_not_found'
   | 'unknown';
 
 const KNOWN: readonly ChatError[] = [
@@ -79,6 +85,7 @@ const KNOWN: readonly ChatError[] = [
   'wrong_format',
   'transcribe_failed',
   'model_failed',
+  'thread_not_found',
 ];
 
 export const chatErrorMessage: Record<ChatError, string> = {
@@ -92,6 +99,7 @@ export const chatErrorMessage: Record<ChatError, string> = {
   wrong_format: 'The recording could not be read. Try again.',
   transcribe_failed: 'Voice transcription is unavailable right now. Try typing instead.',
   model_failed: 'The assistant is unavailable right now. Use the quick log buttons instead.',
+  thread_not_found: 'This conversation isn’t available. Go back and open the chat again.',
   unknown: 'Something went wrong. Check your connection and try again.',
 };
 
@@ -102,8 +110,13 @@ const PROPOSAL_TYPES = new Set(['feed', 'sleep', 'sleep_end', 'diaper']);
 function parseReply(data: unknown): ChatReply | null {
   if (!data || typeof data !== 'object') return null;
   const body = data as Record<string, unknown>;
-  if (typeof body.caption !== 'string' || !Array.isArray(body.proposals)) return null;
+  if (!(typeof body.caption === 'string' || body.caption === null) || !Array.isArray(body.proposals)) return null;
   if (body.source !== 'chat' && body.source !== 'voice') return null;
+  if (typeof body.thread_id !== 'string') return null;
+  const escalation = parseEscalation(body.escalation);
+  if (escalation === undefined) return null;
+  // A reply is either a caption or an escalation, never neither.
+  if (body.caption === null && escalation === null) return null;
   const proposals = body.proposals.filter(
     (p): p is Proposal =>
       !!p &&
@@ -114,10 +127,21 @@ function parseReply(data: unknown): ChatReply | null {
   );
   return {
     ...(typeof body.transcript === 'string' ? { transcript: body.transcript } : {}),
-    caption: body.caption,
+    caption: escalation ? null : body.caption,
+    escalation,
     proposals,
     source: body.source,
+    threadId: body.thread_id,
   };
+}
+
+/** null for no escalation, undefined for a malformed value. */
+function parseEscalation(value: unknown): Escalation | null | undefined {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'object' && typeof (value as { urgent?: unknown }).urgent === 'boolean') {
+    return { urgent: (value as { urgent: boolean }).urgent };
+  }
+  return undefined;
 }
 
 async function invokeChat(body: ArrayBuffer | Record<string, unknown>, headers?: Record<string, string>) {
@@ -141,9 +165,9 @@ async function invokeChat(body: ArrayBuffer | Record<string, unknown>, headers?:
   return { ok: false, error: 'unknown' } as const;
 }
 
-export function sendText(text: string): Promise<ChatResult> {
+export function sendText(text: string, threadId: string): Promise<ChatResult> {
   const tz = timeZoneName();
-  return invokeChat({ text, tz_offset_minutes: tzOffsetMinutes(), ...(tz ? { tz } : {}) });
+  return invokeChat({ text, thread_id: threadId, tz_offset_minutes: tzOffsetMinutes(), ...(tz ? { tz } : {}) });
 }
 
 /**
@@ -151,7 +175,7 @@ export function sendText(text: string): Promise<ChatResult> {
  * FormData, so it goes out with a Content-Length: the function refuses
  * multipart requests without one, and React Native streams FormData files chunked.
  */
-export async function sendVoice(uri: string): Promise<ChatResult> {
+export async function sendVoice(uri: string, threadId: string): Promise<ChatResult> {
   const audio = await new File(uri).bytes();
   const boundary = `lr-${randomUUID()}`;
   const encoder = new TextEncoder();
@@ -159,7 +183,8 @@ export async function sendVoice(uri: string): Promise<ChatResult> {
   const field = (name: string, value: string) =>
     `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`;
   const head = encoder.encode(
-    field('tz_offset_minutes', String(tzOffsetMinutes())) +
+    field('thread_id', threadId) +
+      field('tz_offset_minutes', String(tzOffsetMinutes())) +
       (tz ? field('tz', tz) : '') +
       `--${boundary}\r\nContent-Disposition: form-data; name="audio"; filename="clip.wav"\r\n` +
       'Content-Type: audio/wav\r\n\r\n',
@@ -195,4 +220,86 @@ export function proposalToRow(input: {
     details: input.type === 'feed' ? input.feed : input.type === 'diaper' ? input.diaper : undefined,
     source: input.source,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Threads: one shared per family, one private per parent (RLS keeps it theirs)
+// ---------------------------------------------------------------------------
+
+export type ThreadIds = { shared: string; private: string };
+export type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string | null;
+  escalation: 'health' | 'urgent' | null;
+  proposal_summary: string | null;
+  author_id: string | null;
+  created_at: string;
+};
+
+const MESSAGE_COLUMNS = 'id, role, content, escalation, proposal_summary, author_id, created_at';
+const HISTORY_SIZE = 50;
+
+/** The family's shared thread and the caller's private one, created on first use. */
+export async function ensureThreads(): Promise<ThreadIds | null> {
+  const { data, error } = await supabase.rpc('ensure_chat_threads').single();
+  if (error || !data) return null;
+  return { shared: data.shared_id, private: data.private_id };
+}
+
+function toMessage(row: Record<string, unknown>): ChatMessage | null {
+  if (typeof row.id !== 'string' || (row.role !== 'user' && row.role !== 'assistant')) return null;
+  const escalation = row.escalation === 'health' || row.escalation === 'urgent' ? row.escalation : null;
+  return {
+    id: row.id,
+    role: row.role,
+    content: typeof row.content === 'string' ? row.content : null,
+    escalation,
+    proposal_summary: typeof row.proposal_summary === 'string' ? row.proposal_summary : null,
+    author_id: typeof row.author_id === 'string' ? row.author_id : null,
+    created_at: typeof row.created_at === 'string' ? row.created_at : new Date().toISOString(),
+  };
+}
+
+/** The thread's latest messages, oldest first, or null on failure. */
+export async function fetchMessages(threadId: string): Promise<ChatMessage[] | null> {
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select(MESSAGE_COLUMNS)
+    .eq('thread_id', threadId)
+    .order('created_at', { ascending: false })
+    .limit(HISTORY_SIZE);
+  if (error) return null;
+  return (data ?? [])
+    .map((row) => toMessage(row as Record<string, unknown>))
+    .filter((m): m is ChatMessage => m !== null)
+    .reverse();
+}
+
+/**
+ * New messages in a thread, live. Realtime checks RLS per subscriber, so the
+ * partner gets shared-thread messages only. Returns an unsubscribe function.
+ */
+export function subscribeMessages(threadId: string, onInsert: (message: ChatMessage) => void): () => void {
+  let channel: RealtimeChannel | null = null;
+  let cancelled = false;
+  void (async () => {
+    await supabase.realtime.setAuth();
+    if (cancelled) return;
+    channel = supabase
+      .channel(`chat_messages:${threadId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` },
+        (payload) => {
+          const message = toMessage(payload.new as Record<string, unknown>);
+          if (message) onInsert(message);
+        },
+      )
+      .subscribe();
+  })();
+  return () => {
+    cancelled = true;
+    if (channel) void supabase.removeChannel(channel);
+  };
 }
