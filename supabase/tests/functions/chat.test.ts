@@ -159,7 +159,7 @@ Deno.test({
       assert(Array.isArray(body.proposals));
       const { data } = await admin
         .from("chat_messages")
-        .select("role, content, escalation, author_id, gated")
+        .select("id, role, content, escalation, author_id, gated, reply_to")
         .eq("thread_id", threadId)
         .order("created_at");
       assertEquals(data?.map((m) => m.role), ["user", "assistant"]);
@@ -168,6 +168,7 @@ Deno.test({
       assertEquals(data?.[0].gated, true);
       assertEquals(data?.[1].content, null);
       assert(data?.[1].escalation === "health" || data?.[1].escalation === "urgent");
+      assertEquals(data?.[1].reply_to, data?.[0].id);
     } finally {
       if (familyId) await admin.from("families").delete().eq("id", familyId);
       await admin.auth.admin.deleteUser(parent.id);
@@ -194,7 +195,7 @@ Deno.test({
       assertEquals(body.proposals.map((p: { type: string }) => p.type), ["diaper"]);
       const { data } = await admin
         .from("chat_messages")
-        .select("role, content, escalation, proposal_summary, gated")
+        .select("id, role, content, escalation, proposal_summary, gated, reply_to")
         .eq("thread_id", threadId)
         .order("created_at");
       assertEquals(data?.map((m) => [m.role, m.escalation]), [["user", null], ["assistant", null]]);
@@ -202,6 +203,7 @@ Deno.test({
       assertEquals(data?.[0].gated, false);
       assertEquals(data?.[1].content, body.caption);
       assert(String(data?.[1].proposal_summary).startsWith("Proposed: wet diaper at "));
+      assertEquals(data?.[1].reply_to, data?.[0].id);
     } finally {
       if (familyId) await admin.from("families").delete().eq("id", familyId);
       await admin.auth.admin.deleteUser(parent.id);

@@ -195,8 +195,8 @@ Deno.serve(async (req) => {
       // A non-health turn that failed stores nothing: the parent sees an error and retries.
       const escalation = applyHealthGate({ keyword, classifier: verdict, caption: null });
       if (!escalation) return museFailure(agent.reason);
-      await storeUserMessage(db, admin, { threadId, userId: user.id, text, gated: true });
-      await storeReply(admin, threadId, null, escalation, null);
+      const replyTo = await storeUserMessage(db, admin, { threadId, userId: user.id, text, gated: true });
+      await storeReply(admin, { threadId, replyTo, caption: null, escalation, summary: null });
       foldMemory();
       return json(reply({ transcript, caption: null, escalation, proposals: [], source, threadId }));
     }
@@ -206,8 +206,19 @@ Deno.serve(async (req) => {
     const caption = escalation ? null : result.caption;
     // Stored only now that the gate has decided, so a health question is never
     // stored ungated, not even for a moment.
-    await storeUserMessage(db, admin, { threadId, userId: user.id, text, gated: escalation !== null });
-    await storeReply(admin, threadId, caption, escalation, proposalSummary(result.proposals, zone));
+    const replyTo = await storeUserMessage(db, admin, {
+      threadId,
+      userId: user.id,
+      text,
+      gated: escalation !== null,
+    });
+    await storeReply(admin, {
+      threadId,
+      replyTo,
+      caption,
+      escalation,
+      summary: proposalSummary(result.proposals, zone),
+    });
     foldMemory();
     return json(reply({ transcript, caption, escalation, proposals: result.proposals, source, threadId }));
   } catch (error) {
@@ -237,39 +248,49 @@ function reply(input: {
  * The parent's message (text or transcript, never audio), stored after the gate.
  * Not gated: inserted as the caller, so RLS checks role, author and thread.
  * Gated: inserted with the service role (clients can't set gated), author = the
- * caller; checkThread has already passed. A failure is logged; the reply still goes out.
+ * caller; checkThread has already passed. Returns the row id for the reply's
+ * reply_to, or null: a failure is logged and the reply still goes out.
  */
 async function storeUserMessage(
   db: ReturnType<typeof userClient>,
   admin: ReturnType<typeof adminClient>,
   input: { threadId: string; userId: string; text: string; gated: boolean },
-): Promise<void> {
+): Promise<string | null> {
   const row = { thread_id: input.threadId, role: "user", content: input.text, author_id: input.userId };
-  const { error } = input.gated
-    ? await admin.from("chat_messages").insert({ ...row, gated: true })
-    : await db.from("chat_messages").insert(row);
-  if (error) console.error("chat: message_insert_failed", error.code);
+  const { data, error } = input.gated
+    ? await admin.from("chat_messages").insert({ ...row, gated: true }).select("id").single()
+    : await db.from("chat_messages").insert(row).select("id").single();
+  if (error) {
+    console.error("chat: message_insert_failed", error.code);
+    return null;
+  }
+  return data.id;
 }
 
 /**
  * The assistant's side of the turn, written with the service role after
- * checkThread passed. A failure here is logged and the reply still goes out:
- * the parent already has the proposals and the card.
+ * checkThread passed, linked to the parent's message (reply_to) so deleting
+ * their account removes the whole turn. A failure here is logged and the reply
+ * still goes out: the parent already has the proposals and the card.
  */
 async function storeReply(
   admin: ReturnType<typeof adminClient>,
-  threadId: string,
-  caption: string | null,
-  escalation: Escalation | null,
-  summary: string | null,
+  input: {
+    threadId: string;
+    replyTo: string | null;
+    caption: string | null;
+    escalation: Escalation | null;
+    summary: string | null;
+  },
 ): Promise<void> {
   const { error } = await admin.from("chat_messages").insert({
-    thread_id: threadId,
+    thread_id: input.threadId,
     role: "assistant",
-    content: caption,
-    escalation: escalation ? (escalation.urgent ? "urgent" : "health") : null,
-    proposal_summary: summary,
+    content: input.caption,
+    escalation: input.escalation ? (input.escalation.urgent ? "urgent" : "health") : null,
+    proposal_summary: input.summary,
     author_id: null,
+    reply_to: input.replyTo,
   });
   if (error) console.error("chat: reply_insert_failed", error.code);
 }
