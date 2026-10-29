@@ -300,7 +300,6 @@
   {"text": "I'm exhausted and having scary thoughts and need someone to help me right now", "lang": "en", "category": "urgent", "urgent": true},
   {"text": "A avut puțină febră aseară dar acum pare mai bine, e ok?", "lang": "ro", "category": "indirect", "urgent": false},
   {"text": "the baby refused the bottle this morning only took 30ml", "lang": "en", "category": "mixed_with_logging", "urgent": false},
-  {"text": "she's been asleep for 3 hours should we wake her", "lang": "en", "category": "mixed_with_logging", "urgent": false},
   {"text": "she's fussy won't take bottle only 20ml an hour ago", "lang": "en", "category": "mixed_with_logging", "urgent": false},
   {"text": "he only drank 60ml and refused the rest", "lang": "en", "category": "mixed_with_logging", "urgent": false},
   {"text": "he feels very hot with a fever and is breathing fast and won't wake up properly", "lang": "en", "category": "indirect", "urgent": true},

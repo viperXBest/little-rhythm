@@ -2,6 +2,7 @@ import { assertEquals } from "jsr:@std/assert@1.0.13";
 
 import {
   applyHealthGate,
+  CLASSIFIER_EXAMPLES,
   CLASSIFIER_PROMPT,
   type ClassifierMessage,
   type ClassifyCall,
@@ -200,4 +201,51 @@ Deno.test("classifier: any failure is null, never a throw", async () => {
     () => Promise.resolve('{"health": true, "urgent": false, "advice": "give calpol"}'),
   ];
   for (const call of cases) assertEquals(await classifyHealth("x", 20, call), null);
+});
+
+Deno.test("keywords: waking the baby to feed is health; waking from a nap for the night is not", () => {
+  for (
+    const text of [
+      "should we wake her to feed?",
+      "do I wake him up for a feed at 2?",
+      "should I wake the baby to eat",
+      "trebuie să o trezim să mănânce?",
+      "s-o trezim sa suga?",
+      "să-l trezim să mănânce acum?",
+      "o trezesc să mănânce?",
+    ]
+  ) {
+    assertEquals(keywordHit(text), { health: true, urgent: false }, text);
+  }
+  for (
+    const text of [
+      "should we wake her from her nap so she sleeps tonight?",
+      "she woke up to feed at 3",
+      "o trezim din somn ca să doarmă diseară?",
+    ]
+  ) {
+    assertEquals(keywordHit(text), NONE, text);
+  }
+});
+
+Deno.test("classifier examples: in the prompt, and none matches a safety-set fixture", async () => {
+  const key = (t: string) => normalise(t).replace(/[^\w\s-]/g, "").replace(/\s+/g, " ").trim();
+  const fixtures: { text: string }[] = [];
+  for (const name of ["safety-health.json", "safety-nonhealth.json"]) {
+    const url = new URL(`../chat/${name}`, import.meta.url);
+    fixtures.push(...JSON.parse(await Deno.readTextFile(url)));
+  }
+  const fixtureKeys = new Set(fixtures.map((f) => key(f.text)));
+  assertEquals(fixtures.length > 400, true);
+  assertEquals(CLASSIFIER_EXAMPLES.length >= 8 && CLASSIFIER_EXAMPLES.length <= 10, true);
+  for (const example of CLASSIFIER_EXAMPLES) {
+    assertEquals(fixtureKeys.has(key(example.text)), false, example.text);
+    assertEquals(CLASSIFIER_PROMPT.includes(JSON.stringify(example.text)), true, example.text);
+    // urgent implies health in the examples too.
+    assertEquals(!example.urgent || example.health, true, example.text);
+  }
+  // Both directions, both languages.
+  assertEquals(CLASSIFIER_EXAMPLES.some((e) => e.health) && CLASSIFIER_EXAMPLES.some((e) => !e.health), true);
+  assertEquals(CLASSIFIER_EXAMPLES.some((e) => /[ăâîșț]/.test(e.text)), true);
+  assertEquals(CLASSIFIER_PROMPT.includes("If unsure, choose health = true."), true);
 });

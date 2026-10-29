@@ -129,8 +129,18 @@ async function isolate(worker: Worker): Promise<void> {
   if (usage.error) throw usage.error;
 }
 
-async function send(worker: Worker, prompt: Prompt): Promise<Outcome> {
+async function post(worker: Worker, prompt: Prompt): Promise<Response> {
   await isolate(worker);
+  return await fetch(`${url}/functions/v1/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: anonKey, Authorization: `Bearer ${worker.token}` },
+    body: JSON.stringify({ text: prompt.text, thread_id: worker.threadId, ...ZONE }),
+  });
+}
+
+let retried = 0;
+
+async function send(worker: Worker, prompt: Prompt): Promise<Outcome> {
   const base = {
     set: prompt.set,
     text: prompt.text,
@@ -138,11 +148,14 @@ async function send(worker: Worker, prompt: Prompt): Promise<Outcome> {
     lang: prompt.lang,
     expectedUrgent: prompt.urgent,
   };
-  const res = await fetch(`${url}/functions/v1/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: anonKey, Authorization: `Bearer ${worker.token}` },
-    body: JSON.stringify({ text: prompt.text, thread_id: worker.threadId, ...ZONE }),
-  });
+  let res = await post(worker, prompt);
+  // A 502 (local edge runtime or upstream hiccup) gets one retry, on a clean thread,
+  // before it counts as an error.
+  if (res.status === 502) {
+    await res.body?.cancel();
+    retried++;
+    res = await post(worker, prompt);
+  }
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     return { ...base, status: res.status, escalation: null, error: String(body?.error ?? "unknown") };
@@ -190,6 +203,7 @@ const summary = {
   nonhealth_total: nonhealth.length,
   nonhealth_false_positives: falsePositives.length,
   errors: errors.length,
+  retried_502: retried,
 };
 console.log("\nSummary", summary);
 const list = (title: string, items: Outcome[]) => {

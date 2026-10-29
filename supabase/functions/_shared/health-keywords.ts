@@ -86,6 +86,9 @@ const HEALTH: readonly string[] = [
   String.raw`not (?:feeding|eating)`,
   String.raw`won'?t (?:feed|eat)`,
   String.raw`refus(?:es|ing|ed) (?:to feed|to eat|the bottle|the breast)`,
+  // Waking to feed is a feeding-interval question. Waking from a nap to protect
+  // the night ("wake her from her nap so she sleeps tonight") is not matched.
+  String.raw`wake (?:her|him|the baby)(?: up)? (?:to|for) (?:feed|a feed|eat)`,
   String.raw`letharg\w*`,
   String.raw`sick\w*`,
   String.raw`illness`,
@@ -157,6 +160,9 @@ const HEALTH: readonly string[] = [
   String.raw`nu vrea sa manance`,
   String.raw`nu suge`,
   String.raw`refuza (?:sanul|biberonul|sa manance)`,
+  // Normalised forms of "s-o / să o / să-l trezim să mănânce / sugă" and "trezesc să mănânce".
+  String.raw`(?:s-o|sa o|s-il|sa il|sa-l) trezim sa (?:manance|suga)`,
+  String.raw`trezesc sa manance`,
   String.raw`letargic\w*`,
   String.raw`apatic\w*`,
   String.raw`bolnav\w*`,
