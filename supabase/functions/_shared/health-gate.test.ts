@@ -185,6 +185,21 @@ Deno.test("classifier prompt: sleep slang, tired parents and 'is this normal' ab
   }
 });
 
+Deno.test("classifier prompt: development and object safety are health; family life is not", () => {
+  for (
+    const phrase of [
+      "development or milestone worries",
+      "whether a toy, food, product or object is safe for the baby",
+      "play, activities, outings, routines, gear, meal ideas for the parents",
+      "sharing the load, couple time, rest and encouragement for a tired parent",
+    ]
+  ) {
+    assertEquals(CLASSIFIER_PROMPT.includes(phrase), true, phrase);
+  }
+  // The card stays the paediatrician card: no new escalation wording.
+  assertEquals(REFERRAL_SENTENCE, "I can't help with health questions.");
+});
+
 Deno.test("classifier: urgent implies health", async () => {
   assertEquals(
     await classifyHealth("x", 20, () => Promise.resolve('{"health": false, "urgent": true}')),
@@ -237,7 +252,7 @@ Deno.test("classifier examples: in the prompt, and none matches a safety-set fix
   }
   const fixtureKeys = new Set(fixtures.map((f) => key(f.text)));
   assertEquals(fixtures.length > 400, true);
-  assertEquals(CLASSIFIER_EXAMPLES.length >= 8 && CLASSIFIER_EXAMPLES.length <= 10, true);
+  assertEquals(CLASSIFIER_EXAMPLES.length >= 8 && CLASSIFIER_EXAMPLES.length <= 12, true);
   for (const example of CLASSIFIER_EXAMPLES) {
     assertEquals(fixtureKeys.has(key(example.text)), false, example.text);
     assertEquals(CLASSIFIER_PROMPT.includes(JSON.stringify(example.text)), true, example.text);

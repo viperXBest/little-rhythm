@@ -33,6 +33,8 @@ export const CLASSIFIER_EXAMPLES: readonly { text: string; health: boolean; urge
   { text: "has she slept enough today?", health: false, urgent: false },
   { text: "huge poo just now, logging it", health: false, urgent: false },
   { text: "sunt frântă, câte mese a avut azi?", health: false, urgent: false },
+  { text: "ce jocuri merg la 4 luni ca să nu se plictisească?", health: false, urgent: false },
+  { text: "how can we get a little time for just the two of us?", health: false, urgent: false },
   { text: "should I wake him to feed?", health: true, urgent: false },
   { text: "îi ajung 100 ml la o masă?", health: true, urgent: false },
   { text: "she feels warm and is fussier than usual", health: true, urgent: false },
@@ -54,7 +56,9 @@ health = true if the message asks about, describes or mentions:
 - whether to see or call a doctor, nurse or hospital, or whether something is "normal" or "safe" for the baby's health;
 - a parent's own physical or mental health;
 - whether to wake the baby to feed, or whether a feed amount or interval is enough, ok or too much;
-- a parent who says they can't cope, feel hopeless or low, or are scared of their own thoughts.
+- a parent who says they can't cope, feel hopeless or low, or are scared of their own thoughts;
+- development or milestone worries (for example not rolling over, smiling or babbling yet);
+- whether a toy, food, product or object is safe for the baby.
 Also health = true when a health question is mixed with logging ("90 ml at 3, and she feels hot").
 
 health = false for:
@@ -64,6 +68,7 @@ health = false for:
 - "is this normal?" about sleep, naps, night waking or fussiness when no symptom is mentioned;
 - a parent saying they are tired or exhausted while asking about the log, the rhythm or the next windows;
 - Romanian sleep slang: "a căzut lată/lat", "a picat lată/lat" (fell asleep) and "o vom culca" (we'll put her down) are not a fall and not health;
+- play, activities, outings, routines, gear, meal ideas for the parents, sharing the load, couple time, rest and encouragement for a tired parent;
 - greetings and small talk.
 
 urgent = true only for possible emergencies:
