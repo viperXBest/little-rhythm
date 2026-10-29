@@ -3,7 +3,7 @@
 
 import OpenAI from "npm:openai@7.32.0";
 
-import type { Complete, ToolCall } from "./agent.ts";
+import type { Complete, Message, ToolCall } from "./agent.ts";
 import type { ClassifyCall } from "./health-gate.ts";
 
 export const MUSE_BASE_URL = "https://api.meta.ai/v1";
@@ -117,6 +117,31 @@ export function sparkJson(
           type: "json_schema",
           json_schema: { name: schema.name, strict: true, schema: schema.schema },
         },
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+      });
+      return res.choices[0]?.message?.content ?? null;
+    } catch (error) {
+      throw new MuseError("model_failed", error instanceof OpenAI.APIError ? error.status : undefined);
+    }
+  };
+}
+
+/** Muse Spark as a plain text completion (no tools), for the thread summary. */
+export function sparkText(
+  apiKey: string,
+  reasoningEffort?: ReasoningEffort,
+): (messages: Message[]) => Promise<string | null> {
+  const client = new OpenAI({
+    apiKey,
+    baseURL: MUSE_BASE_URL,
+    timeout: CHAT_TIMEOUT_MS,
+    maxRetries: 1,
+  });
+  return async (messages) => {
+    try {
+      const res = await client.chat.completions.create({
+        model: SPARK_MODEL,
+        messages,
         ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       });
       return res.choices[0]?.message?.content ?? null;

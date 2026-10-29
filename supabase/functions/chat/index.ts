@@ -14,7 +14,9 @@
 // message (text or transcript, never audio) with the caller's JWT, or, when the
 // turn escalated, with the service role and gated = true; then the assistant's
 // (caption or escalation flag, plus a server-built proposal summary) with the
-// service role. Both only after the thread was checked to be the caller's. Text, transcripts,
+// service role. Both only after the thread was checked to be the caller's.
+// After the response, older messages may be folded into the thread's summary
+// (_shared/thread-memory.ts). Text, transcripts,
 // audio and tool arguments are never logged.
 
 import { runAgent } from "../_shared/agent.ts";
@@ -23,12 +25,16 @@ import {
   ageInWeeks,
   checkThread,
   readContextEvents,
+  readFamilyNames,
+  readFoldMessages,
   readOpenSleep,
   readPredictionEvents,
   readRecentEvents,
   readThreadHistory,
+  readThreadMemory,
   resolveBaby,
   searchThread,
+  writeThreadMemory,
 } from "../_shared/chat-data.ts";
 import {
   applyHealthGate,
@@ -37,8 +43,9 @@ import {
   type Escalation,
 } from "../_shared/health-gate.ts";
 import { keywordHit } from "../_shared/health-keywords.ts";
-import { MuseError, sparkComplete, sparkJson, transcribe } from "../_shared/muse.ts";
+import { MuseError, sparkComplete, sparkJson, sparkText, transcribe } from "../_shared/muse.ts";
 import { predict } from "../_shared/predict.ts";
+import { EMPTY_SUMMARY, maybeFoldMemory, runInBackground } from "../_shared/thread-memory.ts";
 import { parseZone } from "../_shared/zone.ts";
 import { adminClient, getCaller, json, userClient } from "../_shared/supabase.ts";
 import { checkHeaders, parseChatRequest } from "./request.ts";
@@ -135,12 +142,26 @@ Deno.serve(async (req) => {
   const ageWeeks = ageInWeeks(birthDate, now, request.offsetMinutes);
 
   try {
-    const [openSleep, contextEvents, predictionEvents, historyRows] = await Promise.all([
+    const [openSleep, contextEvents, predictionEvents, historyRows, memoryRow] = await Promise.all([
       readOpenSleep(db, babyId),
       readContextEvents(db, babyId, now),
       readPredictionEvents(db, babyId, now),
       readThreadHistory(db, threadId),
+      // Memory is a nice-to-have: a failed read means no summary this turn.
+      readThreadMemory(db, threadId).catch(() => null),
     ]);
+    const memory = memoryRow && memoryRow.summary !== EMPTY_SUMMARY ? memoryRow.summary : null;
+    // After the response: fold older messages into the summary (no added latency).
+    const foldMemory = () =>
+      runInBackground(() =>
+        maybeFoldMemory({
+          readMemory: () => readThreadMemory(db, threadId),
+          readSince: (since, cap) => readFoldMessages(db, threadId, since, cap),
+          readNames: () => readFamilyNames(db),
+          summarize: sparkText(apiKey, REASONING_EFFORT),
+          write: (next, previous) => writeThreadMemory(admin, threadId, next, previous),
+        })
+      );
     const prediction = predict({ now, zone, birthDate, events: predictionEvents });
 
     const keyword = keywordHit(text);
@@ -157,7 +178,7 @@ Deno.serve(async (req) => {
         zone,
         context: buildContext({ ageWeeks, events: contextEvents, prediction, zone }),
         history: buildHistory(historyRows),
-        memory: null,
+        memory,
         searchHistory: (query) => searchThread(db, threadId, query),
       }),
       classifyHealth(
@@ -176,6 +197,7 @@ Deno.serve(async (req) => {
       if (!escalation) return museFailure(agent.reason);
       await storeUserMessage(db, admin, { threadId, userId: user.id, text, gated: true });
       await storeReply(admin, threadId, null, escalation, null);
+      foldMemory();
       return json(reply({ transcript, caption: null, escalation, proposals: [], source, threadId }));
     }
 
@@ -186,6 +208,7 @@ Deno.serve(async (req) => {
     // stored ungated, not even for a moment.
     await storeUserMessage(db, admin, { threadId, userId: user.id, text, gated: escalation !== null });
     await storeReply(admin, threadId, caption, escalation, proposalSummary(result.proposals, zone));
+    foldMemory();
     return json(reply({ transcript, caption, escalation, proposals: result.proposals, source, threadId }));
   } catch (error) {
     return museFailure(error);

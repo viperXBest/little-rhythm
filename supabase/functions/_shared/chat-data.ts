@@ -14,6 +14,7 @@ import type { EventSummary, FoundMessage } from "./agent.ts";
 import { CONTEXT_HOURS, HISTORY_LIMIT, MAX_CONTEXT_EVENTS, type StoredMessage } from "./buddy-context.ts";
 import type { NightFeedRow } from "./night-feeds.ts";
 import type { PredictEvent } from "./predict.ts";
+import type { FoldMessage, MemoryRow } from "./thread-memory.ts";
 import { HISTORY_DAYS } from "./predict-constants.ts";
 
 const MAX_EVENTS = 50;
@@ -232,4 +233,79 @@ export function ageInWeeks(birthDate: string, now: Date, offsetMinutes: number):
   const today = new Date(now.getTime() + offsetMinutes * 60_000).toISOString().slice(0, 10);
   const days = Math.floor((Date.parse(today) - Date.parse(birthDate)) / 86_400_000);
   return Math.max(0, Math.floor(days / 7));
+}
+
+// ---------------------------------------------------------------------------
+// Thread memory
+// ---------------------------------------------------------------------------
+
+/** The thread's summary, read as the caller (RLS: visible exactly when the thread is). */
+export async function readThreadMemory(db: SupabaseClient, threadId: string): Promise<MemoryRow | null> {
+  const { data, error } = await db
+    .from("thread_memory")
+    .select("summary, covered_until")
+    .eq("thread_id", threadId)
+    .maybeSingle();
+  if (error) throw new Error("memory_failed");
+  return (data as MemoryRow | null) ?? null;
+}
+
+/** Usable messages after `since`, oldest first, for folding into the summary (caller's JWT). */
+export async function readFoldMessages(
+  db: SupabaseClient,
+  threadId: string,
+  since: string | null,
+  cap: number,
+): Promise<FoldMessage[]> {
+  let request = db
+    .from("chat_messages")
+    .select("role, content, escalation, proposal_summary, gated, created_at")
+    .eq("thread_id", threadId)
+    .eq("gated", false)
+    .is("escalation", null);
+  if (since) request = request.gt("created_at", since);
+  const { data, error } = await request.order("created_at", { ascending: true }).limit(cap);
+  if (error) throw new Error("fold_read_failed");
+  return (data ?? []) as FoldMessage[];
+}
+
+/** The baby's and the parents' names (RLS), only to keep them out of the summary. */
+export async function readFamilyNames(db: SupabaseClient): Promise<string[]> {
+  const [baby, profiles] = await Promise.all([
+    db.from("babies").select("name"),
+    db.from("profiles").select("display_name"),
+  ]);
+  if (baby.error || profiles.error) throw new Error("names_failed");
+  return [
+    ...((baby.data ?? []) as { name: string }[]).map((r) => r.name),
+    ...((profiles.data ?? []) as { display_name: string }[]).map((r) => r.display_name),
+  ].filter((n) => typeof n === "string" && n.trim().length > 0);
+}
+
+/**
+ * Stores the summary with the service role. Optimistic: the first fold inserts;
+ * later folds update only if covered_until is still what they read, so when both
+ * parents' turns fold at once, one wins and the other changes nothing.
+ */
+export async function writeThreadMemory(
+  admin: SupabaseClient,
+  threadId: string,
+  next: MemoryRow,
+  previous: MemoryRow | null,
+): Promise<void> {
+  const row = {
+    summary: next.summary,
+    covered_until: next.covered_until,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = previous
+    ? await admin
+      .from("thread_memory")
+      .update(row)
+      .eq("thread_id", threadId)
+      .eq("covered_until", previous.covered_until)
+    : await admin
+      .from("thread_memory")
+      .upsert({ thread_id: threadId, ...row }, { onConflict: "thread_id", ignoreDuplicates: true });
+  if (error) throw new Error("memory_write_failed");
 }
