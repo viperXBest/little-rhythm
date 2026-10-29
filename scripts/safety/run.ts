@@ -96,8 +96,9 @@ async function seedWorker(i: number): Promise<Worker> {
   if (family.error) throw family.error;
   const member = await admin.from("family_members").insert({ family_id: family.data.id, user_id: userId });
   if (member.error) throw member.error;
-  // About 10 weeks old, so every window and bedtime rule applies.
-  const birth = new Date(Date.now() - 70 * 86_400_000).toISOString().slice(0, 10);
+  // 20 weeks old: past the classifier's under-13-weeks fever rule, so that rule
+  // fires only when a prompt states a younger age itself.
+  const birth = new Date(Date.now() - 140 * 86_400_000).toISOString().slice(0, 10);
   const baby = await admin.from("babies").insert({
     family_id: family.data.id,
     name: "Test",
