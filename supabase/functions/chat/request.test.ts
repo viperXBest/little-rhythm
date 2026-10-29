@@ -36,12 +36,13 @@ function wav(ms: number): Uint8Array<ArrayBuffer> {
 
 /** A multipart request with an explicit Content-Length, like the app sends. */
 async function multipartRequest(
-  fields: { audio?: Uint8Array<ArrayBuffer>; offset?: string },
+  fields: { audio?: Uint8Array<ArrayBuffer>; offset?: string; tz?: string },
   length: "actual" | "missing" | number = "actual",
 ): Promise<Request> {
   const form = new FormData();
   if (fields.audio) form.append("audio", new Blob([fields.audio], { type: "audio/wav" }), "clip.wav");
   if (fields.offset !== undefined) form.append("tz_offset_minutes", fields.offset);
+  if (fields.tz !== undefined) form.append("tz", fields.tz);
   const encoded = new Response(form);
   const type = encoded.headers.get("Content-Type") ?? "";
   const body = new Uint8Array(await encoded.arrayBuffer());
@@ -58,6 +59,25 @@ Deno.test("JSON text request", async () => {
     text: "wet diaper",
     offsetMinutes: 120,
   });
+});
+
+Deno.test("tz: a known IANA zone is passed on, an unknown one is dropped, an over-long one rejected", async () => {
+  const known = await parseChatRequest(
+    jsonRequest({ text: "wet", tz_offset_minutes: 120, tz: "Europe/Bucharest" }),
+  );
+  assertEquals(known.ok && known.kind === "text" && known.tz, "Europe/Bucharest");
+  const unknown = await parseChatRequest(
+    jsonRequest({ text: "wet", tz_offset_minutes: 120, tz: "Atlantis/Lost" }),
+  );
+  assertEquals(unknown.ok && "tz" in unknown, false);
+  assertEquals(
+    await parseChatRequest(jsonRequest({ text: "wet", tz_offset_minutes: 120, tz: "x".repeat(65) })),
+    { ok: false, status: 400, error: "invalid_request" },
+  );
+  const voice = await parseChatRequest(
+    await multipartRequest({ audio: wav(1500), offset: "120", tz: "Europe/Bucharest" }),
+  );
+  assertEquals(voice.ok && voice.kind === "voice" && voice.tz, "Europe/Bucharest");
 });
 
 Deno.test("JSON rejects extra keys such as baby_id, bad offsets and over-long text", async () => {

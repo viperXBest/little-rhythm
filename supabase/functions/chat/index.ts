@@ -1,6 +1,6 @@
 // Agentic logging: text or a voice clip in, proposals out.
-// POST application/json        { text, tz_offset_minutes }
-// POST multipart/form-data      audio (16 kHz mono PCM16 WAV), tz_offset_minutes
+// POST application/json        { text, tz_offset_minutes, tz? }
+// POST multipart/form-data      audio (16 kHz mono PCM16 WAV), tz_offset_minutes, tz?
 //   -> { transcript?, caption, proposals, source: "chat" | "voice" }
 // Nothing is saved here: the app shows each proposal as a confirm card and
 // inserts it with the parent's own session (RLS). The baby comes from the
@@ -8,15 +8,23 @@
 // tool arguments are never logged.
 
 import { runAgent } from "../_shared/agent.ts";
-import { ageInWeeks, readOpenSleep, readRecentEvents, resolveBaby } from "../_shared/chat-data.ts";
+import {
+  ageInWeeks,
+  readOpenSleep,
+  readPredictionEvents,
+  readRecentEvents,
+  resolveBaby,
+} from "../_shared/chat-data.ts";
 import { MuseError, sparkComplete, transcribe } from "../_shared/muse.ts";
+import { predict } from "../_shared/predict.ts";
+import { parseZone } from "../_shared/zone.ts";
 import { adminClient, getCaller, json, userClient } from "../_shared/supabase.ts";
 import { checkHeaders, parseChatRequest } from "./request.ts";
 
 const LIMIT = { fn: "chat", windowSeconds: 3600, max: 60 } as const;
 // Chosen from the Day 4 latency test (see docs/chat.md).
 const REASONING_EFFORT = "low" as const;
-const KNOWN_FAILURES = new Set(["open_sleep_failed", "recent_events_failed"]);
+const KNOWN_FAILURES = new Set(["open_sleep_failed", "recent_events_failed", "week_events_failed"]);
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -76,6 +84,10 @@ Deno.serve(async (req) => {
 
   const now = new Date();
   const babyId = baby.baby.id;
+  const birthDate = baby.baby.birth_date;
+  // The offset was validated, so a zone always resolves; same engine as predict.
+  const zone = parseZone(request.tz, request.offsetMinutes) ??
+    { kind: "offset", minutes: request.offsetMinutes };
   try {
     const openSleep = await readOpenSleep(db, babyId);
     const result = await runAgent({
@@ -86,6 +98,9 @@ Deno.serve(async (req) => {
       openSleep,
       complete: sparkComplete(apiKey, REASONING_EFFORT),
       recentEvents: (query) => readRecentEvents(db, babyId, query, now),
+      nextWindows: async () =>
+        predict({ now, zone, birthDate, events: await readPredictionEvents(db, babyId, now) }),
+      zone,
     });
     return json({
       ...(transcript !== undefined ? { transcript } : {}),

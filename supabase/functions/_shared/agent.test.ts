@@ -3,7 +3,15 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
 import type { RecentEventsQuery } from "./agent-schemas.ts";
 import { type AgentInput, type Completion, MAX_ITERATIONS, type Message, runAgent } from "./agent.ts";
-import { ageInWeeks, readOpenSleep, readRecentEvents, resolveBaby } from "./chat-data.ts";
+import {
+  ageInWeeks,
+  readOpenSleep,
+  readPredictionEvents,
+  readRecentEvents,
+  resolveBaby,
+} from "./chat-data.ts";
+import { BUCHAREST, feedAt } from "./predict.fixtures.ts";
+import { predict } from "./predict.ts";
 
 // 02:00 on 28 Oct 2026 in Bucharest (UTC+2).
 const NOW = new Date("2026-10-28T00:00:00Z");
@@ -40,6 +48,9 @@ function input(text: string, complete: AgentInput["complete"], over: Partial<Age
     openSleep: null,
     complete,
     recentEvents: () => Promise.resolve([]),
+    nextWindows: () =>
+      Promise.resolve(predict({ now: NOW, zone: BUCHAREST, birthDate: "2026-09-16", events: [] })),
+    zone: BUCHAREST,
     ...over,
   };
 }
@@ -169,6 +180,66 @@ Deno.test("prompt injection: data reads are bound to the session baby", async ()
   const babyFilters = db.calls.filter((c) => c.method === "eq" && c.args[0] === "baby_id");
   assertEquals(babyFilters.map((c) => c.args[1]), [SESSION_BABY, SESSION_BABY]);
   assertEquals(JSON.stringify(db.calls).includes(OTHER_BABY), false);
+});
+
+Deno.test("get_next_windows: the session baby's engine, local times, nothing from the model", async () => {
+  // 6-week-old fed at 01:00 local (23:00Z): age band 2–3 h -> 03:00–04:00 local.
+  const prediction = predict({
+    now: NOW,
+    zone: BUCHAREST,
+    birthDate: "2026-09-16",
+    events: [feedAt("2026-10-27T23:00:00Z")],
+  });
+  const calls: unknown[][] = [];
+  const model = scripted([
+    {
+      content: null,
+      tool_calls: [call("get_next_windows", { baby_id: OTHER_BABY, family_id: OTHER_FAMILY })],
+    },
+    { content: "Next feed between 03:00 and 04:00.", tool_calls: [] },
+  ]);
+  const result = await runAgent(
+    input("when does she eat next?", model.complete, {
+      nextWindows: (...args: unknown[]) => {
+        calls.push(args);
+        return Promise.resolve(prediction);
+      },
+    }),
+  );
+  // The engine was called with nothing from the model.
+  assertEquals(calls, [[]]);
+  assertEquals(result.proposals, []);
+  const reply = JSON.parse(model.seen[1].at(-1)?.content ?? "{}");
+  assertEquals(reply.next_feed, {
+    from: "2026-10-28T03:00",
+    to: "2026-10-28T04:00",
+    basis: "typical for the age",
+  });
+  assertEquals(reply.next_nap, { unavailable: "no sleep logged in the last 7 days" });
+  assertEquals(reply.bedtime, { unavailable: "no set bedtime yet at this age" });
+  const text = JSON.stringify(reply);
+  assertEquals(
+    text.includes(OTHER_BABY) || text.includes(OTHER_FAMILY) || text.includes(SESSION_BABY),
+    false,
+  );
+});
+
+Deno.test("get_next_windows: the engine reads only the session baby's events", async () => {
+  const db = recordingDb([]);
+  await readPredictionEvents(db.client, SESSION_BABY, NOW);
+  const babyFilters = db.calls.filter((c) => c.method === "eq" && c.args[0] === "baby_id");
+  assertEquals(babyFilters.map((c) => c.args[1]), [SESSION_BABY, SESSION_BABY]);
+  // 7 days back from now.
+  const since = db.calls.find((c) => c.method === "gte" && c.args[0] === "started_at");
+  assertEquals(since?.args[1], "2026-10-21T00:00:00.000Z");
+});
+
+Deno.test("system prompt offers get_next_windows and the tool is defined", async () => {
+  const model = scripted([]);
+  await runAgent(input("when is bedtime?", model.complete));
+  const system = model.seen[0][0];
+  assertEquals(system.role === "system" && system.content.includes("get_next_windows"), true);
+  assertEquals(system.role === "system" && system.content.includes("never invent"), true);
 });
 
 Deno.test("no chat content or arguments reach the console", async () => {

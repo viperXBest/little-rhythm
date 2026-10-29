@@ -1,6 +1,7 @@
 // Parses a chat request without reading more than the caps allow.
-// JSON:      { text, tz_offset_minutes }
-// multipart: audio (WAV file) + tz_offset_minutes
+// JSON:      { text, tz_offset_minutes, tz? }
+// multipart: audio (WAV file) + tz_offset_minutes + tz?
+// tz is the phone's IANA zone; an unknown name is dropped, not rejected.
 // The body never names a baby or family; those come from the session.
 
 import { z } from "npm:zod@4.6.6";
@@ -8,6 +9,7 @@ import { z } from "npm:zod@4.6.6";
 import { TZ_OFFSET } from "../_shared/agent-schemas.ts";
 import { readCapped } from "../_shared/body.ts";
 import { checkVoiceWav, VOICE_MAX_BYTES } from "../_shared/voice.ts";
+import { isValidTimeZone, MAX_TZ_NAME } from "../_shared/zone.ts";
 
 export const MAX_TEXT = 1000;
 const MAX_JSON_BYTES = 16 * 1024;
@@ -15,14 +17,16 @@ const MAX_JSON_BYTES = 16 * 1024;
 export const MAX_MULTIPART_BYTES = VOICE_MAX_BYTES + 16 * 1024;
 
 const Offset = z.int().min(TZ_OFFSET.min).max(TZ_OFFSET.max);
+const TimeZone = z.string().max(MAX_TZ_NAME);
 const TextBody = z.strictObject({
   text: z.string().trim().min(1).max(MAX_TEXT),
   tz_offset_minutes: Offset,
+  tz: TimeZone.optional(),
 });
 
 export type ChatRequest =
-  | { ok: true; kind: "text"; text: string; offsetMinutes: number }
-  | { ok: true; kind: "voice"; wav: Uint8Array<ArrayBuffer>; offsetMinutes: number }
+  | { ok: true; kind: "text"; text: string; offsetMinutes: number; tz?: string }
+  | { ok: true; kind: "voice"; wav: Uint8Array<ArrayBuffer>; offsetMinutes: number; tz?: string }
   | { ok: false; status: number; error: string };
 
 const fail = (status: number, error: string): ChatRequest => ({ ok: false, status, error });
@@ -61,7 +65,13 @@ export async function parseChatRequest(req: Request): Promise<ChatRequest> {
     }
     const parsed = TextBody.safeParse(body);
     if (!parsed.success) return fail(400, "invalid_request");
-    return { ok: true, kind: "text", text: parsed.data.text, offsetMinutes: parsed.data.tz_offset_minutes };
+    return {
+      ok: true,
+      kind: "text",
+      text: parsed.data.text,
+      offsetMinutes: parsed.data.tz_offset_minutes,
+      ...knownZone(parsed.data.tz),
+    };
   }
 
   let form: FormData;
@@ -72,12 +82,18 @@ export async function parseChatRequest(req: Request): Promise<ChatRequest> {
   }
   const audio = form.get("audio");
   const offset = Offset.safeParse(Number(form.get("tz_offset_minutes") ?? Number.NaN));
-  if (!(audio instanceof File) || !offset.success) return fail(400, "invalid_request");
+  const tzField = form.get("tz");
+  const tz = tzField === null ? { success: true as const, data: undefined } : TimeZone.safeParse(tzField);
+  if (!(audio instanceof File) || !offset.success || !tz.success) return fail(400, "invalid_request");
   if (audio.size > VOICE_MAX_BYTES) return fail(413, "too_large");
   const wav = new Uint8Array(await audio.arrayBuffer());
   const check = checkVoiceWav(wav);
   if (!check.ok) {
     return fail(check.reason === "too_large" || check.reason === "too_long" ? 413 : 415, check.reason);
   }
-  return { ok: true, kind: "voice", wav, offsetMinutes: offset.data };
+  return { ok: true, kind: "voice", wav, offsetMinutes: offset.data, ...knownZone(tz.data) };
+}
+
+function knownZone(tz: string | undefined): { tz?: string } {
+  return tz !== undefined && isValidTimeZone(tz) ? { tz } : {};
 }

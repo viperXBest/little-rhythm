@@ -10,6 +10,7 @@ import {
   type FeedDetails,
 } from '@/lib/events';
 import { supabase } from '@/lib/supabase';
+import { timeZoneName, tzOffsetMinutes } from '@/lib/time-zone';
 
 // Mirrors supabase/functions/_shared/agent-schemas.ts. The server validated
 // these; fields that failed are missing and listed in `errors`.
@@ -96,11 +97,6 @@ export const chatErrorMessage: Record<ChatError, string> = {
 
 export type ChatResult = { ok: true; reply: ChatReply } | { ok: false; error: ChatError };
 
-/** Minutes east of UTC, e.g. 120 in Bucharest in winter. */
-function tzOffsetMinutes(): number {
-  return -new Date().getTimezoneOffset();
-}
-
 const PROPOSAL_TYPES = new Set(['feed', 'sleep', 'sleep_end', 'diaper']);
 
 function parseReply(data: unknown): ChatReply | null {
@@ -146,7 +142,8 @@ async function invokeChat(body: ArrayBuffer | Record<string, unknown>, headers?:
 }
 
 export function sendText(text: string): Promise<ChatResult> {
-  return invokeChat({ text, tz_offset_minutes: tzOffsetMinutes() });
+  const tz = timeZoneName();
+  return invokeChat({ text, tz_offset_minutes: tzOffsetMinutes(), ...(tz ? { tz } : {}) });
 }
 
 /**
@@ -158,8 +155,12 @@ export async function sendVoice(uri: string): Promise<ChatResult> {
   const audio = await new File(uri).bytes();
   const boundary = `lr-${randomUUID()}`;
   const encoder = new TextEncoder();
+  const tz = timeZoneName();
+  const field = (name: string, value: string) =>
+    `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`;
   const head = encoder.encode(
-    `--${boundary}\r\nContent-Disposition: form-data; name="tz_offset_minutes"\r\n\r\n${tzOffsetMinutes()}\r\n` +
+    field('tz_offset_minutes', String(tzOffsetMinutes())) +
+      (tz ? field('tz', tz) : '') +
       `--${boundary}\r\nContent-Disposition: form-data; name="audio"; filename="clip.wav"\r\n` +
       'Content-Type: audio/wav\r\n\r\n',
   );
