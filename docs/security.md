@@ -56,3 +56,27 @@ UPDATE), which goes through RLS like any other update.
   `id`, `baby_id`, `type`, `created_by`, `source` and `created_at` are fixed at
   insert. To fix a wrong type, delete the event and log it again.
 - Inserts must have `created_by = auth.uid()` and a baby in the caller's family.
+
+## Chat memory
+
+- **What the model sees:** chat history (the last 30 messages) and the thread
+  summary. No names, ids or emails go with them, and gated turns never do. The
+  summary is rejected before storage if it holds a health keyword, an email, a UUID
+  or a family name. Names are read through RLS only for that check.
+- **`chat_messages.gated`:** set only by the chat function. Clients insert plain user
+  rows (the insert policy requires `gated = false`), and `UPDATE` on `chat_messages`
+  is revoked from `authenticated`. A health question is stored gated from the start,
+  so there is no window where it sits ungated.
+- **`thread_memory`:**
+  - The select policy mirrors thread visibility: a private thread's summary is its
+    owner's only.
+  - It has no insert, update or delete policy; those privileges are revoked from
+    `authenticated`.
+  - It cascades with its thread. Day 7's `delete-account` removes it with the
+    family's threads.
+  - It is not in the realtime publication.
+- **Search:** `search_thread_messages` is SECURITY INVOKER, so RLS decides which
+  threads exist for the caller. It never returns gated or escalation rows.
+  `public.f_unaccent` is an immutable wrapper around `extensions.unaccent` with a
+  fixed dictionary.
+- **Tests:** `supabase/tests/06_chat_memory.test.sql`.

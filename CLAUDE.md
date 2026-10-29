@@ -44,7 +44,7 @@ README.md  SECURITY.md  LICENSE  .env.example
 | F2 | Tracking | One-tap feed (bottle in ml, or breast side and duration), sleep start/stop, diaper (wet/dirty); edit, delete, timeline; real-time sync |
 | F3 | Agentic chat and voice logging | "She drank 90 ml at 3, she's asleep now" (typed or spoken) → Muse Voice Transcribe → Muse Spark agent creates the feed and the sleep, shown as confirm cards before saving |
 | F4 | Predictions | Next feed, next nap, bedtime-routine start and bedtime as time ranges, computed by code; Muse only explains them |
-| F5 | Buddy chat | Answers about the baby's logged data and explains the computed rhythm; never gives health advice; any health question returns only an escalation card |
+| F5 | Family-life companion | Warm chat about family life (non-health baby care, the log and rhythm, logistics, the couple, self-care) with per-thread memory (30 messages, rolling summary, search); never gives health advice; any health question returns only an escalation card |
 | F6 | Couple layer | Daily 2-question check-in revealed once both answered; night-feed balance; private and shared chats |
 | F7 | Notifications | Local reminders before predicted windows and for the daily check-in |
 | F8 | Account deletion | Deletes the user, and the family's data when they are the last member |
@@ -53,13 +53,15 @@ Roadmap only: relationship nudges, pumping, growth charts, medication tracking, 
 
 ## Agent tools (chat function)
 
-`log_feed`, `log_sleep`, `end_sleep`, `log_diaper`, `get_recent_events`, `get_next_windows` (the same engine as `predict`, bound to the session baby, no arguments read). Write tools return proposals that the app shows as confirm cards; nothing is saved until the user confirms. `end_sleep` closes the open sleep the server finds, never one the model names. Muse Spark runs with `reasoning_effort: "low"` (measured faster and as accurate, see `docs/chat.md`). Chat feed ranges match the app: bottle 5–400 ml, breast 1–90 min.
+`log_feed`, `log_sleep`, `end_sleep`, `log_diaper`, `get_recent_events`, `get_next_windows` (the same engine as `predict`, bound to the session baby, no arguments read), `search_chat_history` (bound to the session thread, RLS RPC, gated and escalation rows excluded). Write tools return proposals that the app shows as confirm cards; nothing is saved until the user confirms. `end_sleep` closes the open sleep the server finds, never one the model names. Muse Spark runs with `reasoning_effort: "low"` (measured faster and as accurate, see `docs/chat.md`). Chat feed ranges match the app: bottle 5–400 ml, breast 1–90 min.
 
 Each turn also gets a server-built context (age in weeks, last 48 h of events, the computed windows, the thread's last 10 messages minus escalated turns) and passes the health gate: `_shared/health-keywords.ts` (EN/RO) plus a Muse Spark structured-output classifier run in parallel with the agent. Either positive → `escalation`, no model text; the card text is static in the app. Requests carry `thread_id`; the function checks the thread is the caller's before storing anything. See `docs/chat.md` and `docs/safety.md`.
 
+Memory (Day 6b): the last 30 usable messages verbatim; a rolling summary in `thread_memory` folded after the response (`_shared/thread-memory.ts`), checked for health keywords, emails, ids and names before storage; search through `search_thread_messages` (SECURITY INVOKER, unaccented `simple` FTS). The parent's message is stored after the gate; gated turns are inserted with `gated = true` by the function and never reused.
+
 ## Data model
 
-Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_member(family_id)`, protects all of it.
+Eleven tables, all with RLS. Every row hangs off a family; one helper, `is_family_member(family_id)`, protects all of it.
 
 | Table | Key columns |
 |---|---|
@@ -70,9 +72,10 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 | events | id, baby_id, type (feed/sleep/diaper), started_at, ended_at, details (jsonb), created_by, source (tap/chat/voice) |
 | invites | family_id, code_hash, expires_at, used_at, created_by |
 | chat_threads | id, family_id, owner_id (set = private) |
-| chat_messages | thread_id, role, content (null on escalation), escalation, proposal_summary, author_id, created_at |
+| chat_messages | thread_id, role, content (null on escalation), escalation, proposal_summary, gated, author_id, created_at, search (tsvector) |
 | checkins | family_id, user_id, day, answers (jsonb) |
 | api_usage | user_id, function, window_start, count |
+| thread_memory | thread_id (PK), summary (<= 4000), covered_until, updated_at |
 
 ## Security rules (non-negotiable)
 
@@ -94,7 +97,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 
 - TypeScript strict everywhere; no `any`.
 - Database changes only through migrations in `/supabase/migrations`.
-  - A new migration's timestamp must be later than the latest one (currently `20261029100000`).
+  - A new migration's timestamp must be later than the latest one (currently `20261029120000`).
   - Until 2026-10-29 10:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
   - Never use `supabase db push --include-all`.
 - Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Day 4 build swapped expo-audio for @siteed/audio-studio (plugin: device detection, background audio, notifications and phone-state handling all off; only RECORD_AUDIO). Rebuild only when a native module changes.
@@ -109,7 +112,7 @@ Ten tables, all with RLS. Every row hangs off a family; one helper, `is_family_m
 4. Oct 30 · Agentic chat and voice logging (Muse Spark + Muse Voice Transcribe, confirm cards) (done; see `docs/chat.md`)
 5. Oct 31 · Predictions engine, predict function, "Next up" card, notifications (done, deployed, verified on both phones; see `docs/predictions.md`)
 6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance (done, deployed, verified on both phones; safety set awaiting generation and curation; see `docs/chat.md`, `docs/couple.md`, `docs/safety.md`)
-7. Nov 2 · delete-account, rate limits, security review, safety prompts, CI green
+7. Nov 2 · delete-account (must cascade the family's chat threads, so `thread_memory` goes too), rate limits, security review, safety prompts, CI green
 8. Nov 3 · Polish, seed-demo, README, rehearse
    - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and the brand accent colour (`#208AEF`, theme `primary`), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
 9. Nov 4 · Release v1.0.0, 3-min demo video, X post, submit in the evening
