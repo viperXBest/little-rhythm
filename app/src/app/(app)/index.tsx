@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 
 import { Button, ErrorText, Screen } from '@/components/form';
+import { NextUp } from '@/components/next-up';
 import { QuickLog } from '@/components/quick-log';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -32,6 +33,7 @@ export default function Home() {
       ) : (
         <ThemedText themeColor="textSecondary">You and your partner are both here.</ThemedText>
       )}
+      <NextUp />
       <QuickLog />
       <Button title="Log by chat or voice" variant="secondary" onPress={() => router.push('/chat')} />
       <Timeline />
