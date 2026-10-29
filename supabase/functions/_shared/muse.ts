@@ -4,6 +4,7 @@
 import OpenAI from "npm:openai@7.32.0";
 
 import type { Complete, ToolCall } from "./agent.ts";
+import type { ClassifyCall } from "./health-gate.ts";
 
 export const MUSE_BASE_URL = "https://api.meta.ai/v1";
 export const SPARK_MODEL = "muse-spark-1.3";
@@ -11,6 +12,8 @@ export const TRANSCRIBE_MODEL = "muse-voice-transcribe-1.0";
 
 const TRANSCRIBE_TIMEOUT_MS = 20_000;
 const CHAT_TIMEOUT_MS = 30_000;
+/** The health classifier runs beside the agent; a slow one must not hold the reply. */
+const CLASSIFY_TIMEOUT_MS = 10_000;
 
 export type MuseErrorCode = "transcribe_failed" | "model_failed";
 
@@ -85,6 +88,39 @@ export function sparkComplete(apiKey: string, reasoningEffort?: ReasoningEffort)
       return { content: message.content ?? null, tool_calls: toolCalls };
     } catch (error) {
       if (error instanceof MuseError) throw error;
+      throw new MuseError("model_failed", error instanceof OpenAI.APIError ? error.status : undefined);
+    }
+  };
+}
+
+/**
+ * Muse Spark with structured output (strict JSON Schema), for the health
+ * classifier. Returns the raw JSON text; the caller validates it with zod.
+ */
+export function sparkJson(
+  apiKey: string,
+  schema: { name: string; schema: Record<string, unknown> },
+  reasoningEffort?: ReasoningEffort,
+): ClassifyCall {
+  const client = new OpenAI({
+    apiKey,
+    baseURL: MUSE_BASE_URL,
+    timeout: CLASSIFY_TIMEOUT_MS,
+    maxRetries: 0,
+  });
+  return async (messages) => {
+    try {
+      const res = await client.chat.completions.create({
+        model: SPARK_MODEL,
+        messages,
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: schema.name, strict: true, schema: schema.schema },
+        },
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+      });
+      return res.choices[0]?.message?.content ?? null;
+    } catch (error) {
       throw new MuseError("model_failed", error instanceof OpenAI.APIError ? error.status : undefined);
     }
   };
