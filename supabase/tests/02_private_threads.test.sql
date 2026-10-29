@@ -1,4 +1,5 @@
--- Private threads are readable and writable only by their owner.
+-- Private threads are readable and writable only by their owner; one shared and
+-- one private thread per parent (ensure_chat_threads); assistant rows are server-only.
 begin;
 create extension if not exists pgtap with schema extensions;
 
@@ -21,11 +22,28 @@ begin
 end;
 $$;
 
+create function tests.as_anon() returns void
+language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
+  perform set_config('role', 'anon', true);
+end;
+$$;
+
+create function tests.as_postgres() returns void
+language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims', '', true);
+  perform set_config('role', 'postgres', true);
+end;
+$$;
+
 grant execute on all functions in schema tests to anon, authenticated;
 
 select tests.create_user('aaaaaaaa-0000-0000-0000-000000000001', 'A1');
 select tests.create_user('aaaaaaaa-0000-0000-0000-000000000002', 'A2');
 select tests.create_user('bbbbbbbb-0000-0000-0000-000000000001', 'B1');
+select tests.create_user('cccccccc-0000-0000-0000-000000000001', 'C1 (no family)');
 
 insert into public.families (id) values
   ('aaaaaaaa-f000-0000-0000-000000000000'),
@@ -43,7 +61,7 @@ insert into public.chat_messages (thread_id, role, content, author_id) values
   ('aaaaaaaa-7000-0000-0000-000000000002', 'user', 'private note', 'aaaaaaaa-0000-0000-0000-000000000001'),
   ('aaaaaaaa-7000-0000-0000-000000000002', 'assistant', 'private reply', null);
 
-select plan(14);
+select plan(29);
 
 -- ---- Owner ----------------------------------------------------------------
 select tests.as_user('aaaaaaaa-0000-0000-0000-000000000001');
@@ -87,6 +105,70 @@ select is_empty('select 1 from public.chat_threads', 'B1 sees no family A thread
 select throws_ok(
   $$insert into public.chat_messages (thread_id, role, content, author_id) values ('aaaaaaaa-7000-0000-0000-000000000001', 'user', 'hi', 'bbbbbbbb-0000-0000-0000-000000000001')$$,
   '42501', null, 'B1 cannot post into family A''s shared thread');
+
+-- ---- ensure_chat_threads ----------------------------------------------------
+select tests.as_user('aaaaaaaa-0000-0000-0000-000000000001');
+select results_eq(
+  'select shared_id, private_id from public.ensure_chat_threads()',
+  $$values ('aaaaaaaa-7000-0000-0000-000000000001'::uuid, 'aaaaaaaa-7000-0000-0000-000000000002'::uuid)$$,
+  'A1 gets the family shared thread and their own private thread');
+select results_eq(
+  'select shared_id, private_id from public.ensure_chat_threads()',
+  $$values ('aaaaaaaa-7000-0000-0000-000000000001'::uuid, 'aaaaaaaa-7000-0000-0000-000000000002'::uuid)$$,
+  'ensure_chat_threads is idempotent');
+select throws_ok(
+  $$insert into public.chat_threads (family_id, owner_id) values ('aaaaaaaa-f000-0000-0000-000000000000', null)$$,
+  '23505', null, 'a family has one shared thread');
+select throws_ok(
+  $$insert into public.chat_threads (family_id, owner_id) values ('aaaaaaaa-f000-0000-0000-000000000000', 'aaaaaaaa-0000-0000-0000-000000000001')$$,
+  '23505', null, 'a parent has one private thread');
+
+select tests.as_user('aaaaaaaa-0000-0000-0000-000000000002');
+select results_eq(
+  'select shared_id, private_id from public.ensure_chat_threads()',
+  $$values ('aaaaaaaa-7000-0000-0000-000000000001'::uuid, 'aaaaaaaa-7000-0000-0000-000000000003'::uuid)$$,
+  'A2 gets the same shared thread and their own private thread');
+select is_empty(
+  $$select 1 from public.chat_messages where thread_id = 'aaaaaaaa-7000-0000-0000-000000000002'$$,
+  'A2 cannot read the messages of A1''s private thread by id');
+
+select tests.as_user('bbbbbbbb-0000-0000-0000-000000000001');
+select ok(
+  (select shared_id is not null and private_id is not null
+     and shared_id <> 'aaaaaaaa-7000-0000-0000-000000000001'
+   from public.ensure_chat_threads()),
+  'B1 gets threads of their own family, not family A''s');
+select is(
+  (select count(*)::int from public.chat_threads where family_id = 'aaaaaaaa-f000-0000-0000-000000000000'),
+  0, 'B1 still sees no family A threads');
+
+select tests.as_user('cccccccc-0000-0000-0000-000000000001');
+select throws_ok('select * from public.ensure_chat_threads()', 'P0001', 'not_in_family',
+  'a user without a family gets no thread');
+
+select tests.as_anon();
+select throws_ok('select * from public.ensure_chat_threads()', '42501', null,
+  'anon cannot call ensure_chat_threads');
+
+-- ---- Assistant rows are server-only -----------------------------------------
+select tests.as_user('aaaaaaaa-0000-0000-0000-000000000001');
+select throws_ok(
+  $$insert into public.chat_messages (thread_id, role, content, author_id, escalation) values ('aaaaaaaa-7000-0000-0000-000000000002', 'assistant', null, null, 'urgent')$$,
+  '42501', null, 'clients cannot write an assistant escalation');
+select throws_ok(
+  $$insert into public.chat_messages (thread_id, role, content, author_id, proposal_summary) values ('aaaaaaaa-7000-0000-0000-000000000002', 'user', 'hi', 'aaaaaaaa-0000-0000-0000-000000000001', 'Proposed: bottle 90 ml')$$,
+  '42501', null, 'clients cannot attach a proposal summary');
+select is_empty(
+  $$update public.chat_messages set content = 'edited' where thread_id = 'aaaaaaaa-7000-0000-0000-000000000002' returning id$$,
+  'messages cannot be edited');
+
+select tests.as_postgres();
+select lives_ok(
+  $$insert into public.chat_messages (thread_id, role, content, escalation) values ('aaaaaaaa-7000-0000-0000-000000000002', 'assistant', null, 'health')$$,
+  'the server can store an escalation with no model text');
+select throws_ok(
+  $$insert into public.chat_messages (thread_id, role, content, author_id) values ('aaaaaaaa-7000-0000-0000-000000000002', 'user', null, 'aaaaaaaa-0000-0000-0000-000000000001')$$,
+  '23514', null, 'a message without an escalation needs content');
 
 select * from finish();
 rollback;

@@ -1,5 +1,5 @@
 -- Events: partner CRUD, family isolation, immutable columns, one open sleep,
--- and the realtime publication.
+-- and the realtime publication (chat and check-in RLS: 02 and 03).
 begin;
 create extension if not exists pgtap with schema extensions;
 
@@ -153,14 +153,14 @@ select results_eq(
 select set_eq(
   $$select tablename::text from pg_publication_tables
     where pubname = 'supabase_realtime' and schemaname = 'public'
-      and tablename in ('events', 'family_members')$$,
-  array['events', 'family_members'],
-  'events and family_members are in the realtime publication');
+      and tablename in ('events', 'family_members', 'chat_messages', 'checkins')$$,
+  array['events', 'family_members', 'chat_messages', 'checkins'],
+  'events, family_members, chat_messages and checkins are in the realtime publication');
 select is_empty(
   $$select 1 from pg_publication_tables
     where pubname = 'supabase_realtime' and schemaname = 'public'
-      and tablename in ('chat_messages', 'chat_threads', 'checkins', 'invites', 'api_usage')$$,
-  'private tables are not in the realtime publication');
+      and tablename in ('chat_threads', 'invites', 'api_usage', 'profiles', 'babies', 'families')$$,
+  'other tables are not in the realtime publication');
 
 select * from finish();
 rollback;

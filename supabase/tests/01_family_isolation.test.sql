@@ -66,7 +66,7 @@ insert into public.chat_threads (id, family_id) values
 insert into public.chat_messages (thread_id, role, content, author_id) values
   ('bbbbbbbb-7000-0000-0000-000000000000', 'user', 'hello', 'bbbbbbbb-0000-0000-0000-000000000001');
 insert into public.checkins (family_id, user_id, day, answers) values
-  ('bbbbbbbb-f000-0000-0000-000000000000', 'bbbbbbbb-0000-0000-0000-000000000001', current_date, '{"q1":"ok"}');
+  ('bbbbbbbb-f000-0000-0000-000000000000', 'bbbbbbbb-0000-0000-0000-000000000001', current_date, '{"mood":3,"help":""}');
 
 select plan(30);
 

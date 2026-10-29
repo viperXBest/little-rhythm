@@ -8,12 +8,11 @@
 // delivers changes in WAL order, so once A1 has received family A's change,
 // family B's change has already been processed: if it was not delivered by
 // then, RLS filtered it out.
+//
+// The second test applies the same ordering to chat_messages (A1's private
+// thread vs the shared one) and checkins (hidden until the partner answered).
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import {
-  createClient,
-  type RealtimeChannel,
-  type SupabaseClient,
-} from "npm:@supabase/supabase-js@2.49.4";
+import { createClient, type RealtimeChannel, type SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
 function env(name: string): string {
   const value = Deno.env.get(name);
@@ -104,8 +103,7 @@ Deno.test({
 
     const received: Change[] = [];
     const record =
-      (table: string) =>
-      (payload: { eventType: string; new: Record<string, unknown>; errors: unknown }) =>
+      (table: string) => (payload: { eventType: string; new: Record<string, unknown>; errors: unknown }) =>
         received.push({
           table,
           eventType: payload.eventType,
@@ -197,6 +195,103 @@ Deno.test({
       await a1.client.removeAllChannels();
       for (const user of [a1, a2, b1, b2]) await admin.auth.admin.deleteUser(user.id);
       await admin.from("families").delete().in("id", [familyA.familyId, familyB.familyId]);
+    }
+  },
+});
+
+const isoDay = (offsetDays: number) =>
+  new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
+
+Deno.test({
+  name: "realtime: the partner gets shared chat messages, and check-ins only after answering",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const a1 = await createUser("chat-a1");
+    const a2 = await createUser("chat-a2");
+    const family = await createFamily(a1.id);
+    const join = await admin.from("family_members").insert({ family_id: family.familyId, user_id: a2.id });
+    assertEquals(join.error, null);
+
+    const threads = await a1.client.rpc("ensure_chat_threads").single<
+      { shared_id: string; private_id: string }
+    >();
+    assertEquals(threads.error, null);
+    const { shared_id: sharedId, private_id: privateId } = threads.data!;
+
+    const received: Change[] = [];
+    const record =
+      (table: string) => (payload: { eventType: string; new: Record<string, unknown>; errors: unknown }) =>
+        received.push({ table, eventType: payload.eventType, row: payload.new, errors: payload.errors });
+    const channel = a2.client
+      .channel("partner")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages" },
+        record("chat_messages"),
+      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "checkins" }, record("checkins"));
+
+    const post = (threadId: string, content: string) =>
+      a1.client
+        .from("chat_messages")
+        .insert({ thread_id: threadId, role: "user", content, author_id: a1.id })
+        .select("id")
+        .single();
+    const checkIn = (user: { id: string; client: SupabaseClient }, day: string) =>
+      user.client
+        .from("checkins")
+        .insert({ family_id: family.familyId, user_id: user.id, day, answers: { mood: 3, help: "" } })
+        .select("id")
+        .single();
+
+    try {
+      await subscribe(channel);
+      let warm = false;
+      for (let attempt = 0; attempt < 15 && !warm; attempt++) {
+        const probe = await post(sharedId, "warm-up");
+        assertEquals(probe.error, null);
+        warm = await waitFor(() => received.some((c) => c.row.id === probe.data?.id), 2_000);
+      }
+      assert(warm, "realtime stream is up");
+      received.length = 0;
+
+      // Chat: private first, then shared.
+      const privateMsg = await post(privateId, "private note");
+      assertEquals(privateMsg.error, null);
+      const sharedMsg = await post(sharedId, "shared note");
+      assertEquals(sharedMsg.error, null);
+      assert(
+        await waitFor(() => received.some((c) => c.row.id === sharedMsg.data?.id), 10_000),
+        "A2 receives the shared-thread message (positive control)",
+      );
+      assertEquals(
+        received.filter((c) => c.row.thread_id === privateId),
+        [],
+        "A2 gets nothing from A1's private thread",
+      );
+
+      // Check-ins: A1 answers today while A2 has not; then both answer the next day, A2 first.
+      const today = await checkIn(a1, isoDay(0));
+      assertEquals(today.error, null);
+      const a2Next = await checkIn(a2, isoDay(1));
+      assertEquals(a2Next.error, null);
+      const a1Next = await checkIn(a1, isoDay(1));
+      assertEquals(a1Next.error, null);
+      assert(
+        await waitFor(() => received.some((c) => c.row.id === a1Next.data?.id), 10_000),
+        "A2 receives A1's answer for a day A2 already answered (live reveal)",
+      );
+      assertEquals(
+        received.filter((c) => c.row.id === today.data?.id),
+        [],
+        "A2 does not receive A1's answer for a day A2 has not answered",
+      );
+      assertEquals(received.filter((c) => c.errors), [], "no payload carries an auth error");
+    } finally {
+      await a2.client.removeAllChannels();
+      for (const user of [a1, a2]) await admin.auth.admin.deleteUser(user.id);
+      await admin.from("families").delete().eq("id", family.familyId);
     }
   },
 });
