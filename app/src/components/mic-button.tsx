@@ -111,8 +111,8 @@ export function MicButton({ onClip, onError, disabled = false }: Props) {
       onPressOut={() => void onPressOut()}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: isRecording ? theme.danger : theme.primary },
-        (pressed || disabled) && !isRecording && styles.dimmed,
+        { backgroundColor: isRecording ? theme.error : pressed ? theme.primaryPressed : theme.primary },
+        disabled && !isRecording && styles.dimmed,
       ]}>
       <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
         {label}

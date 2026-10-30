@@ -193,7 +193,7 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
 
   const now = new Date();
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <ThemedView type="surface" style={styles.card}>
       <ThemedText type="smallBold">{TITLES[proposal.type]}</ThemedText>
       {serverErrors.map((e) => (
         <ErrorText key={`${e.field}:${e.code}`}>{errorMessage(e)}</ErrorText>

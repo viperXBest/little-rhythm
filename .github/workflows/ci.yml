@@ -49,6 +49,8 @@ jobs:
         run: deno test -A supabase/functions/
       - name: App reminder ids
         run: deno test app/src/lib/reminder-plan.test.ts
+      - name: App palette contrast (WCAG AA)
+        run: deno test app/src/constants/palette.test.ts
       - name: Demo seed plan (timeline, DST, --project guard)
         run: deno test -A scripts/seed-demo/plan.test.ts
 

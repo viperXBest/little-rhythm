@@ -69,7 +69,7 @@ export function CheckinCard() {
   if (!family || !userId) return null;
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <ThemedView type="surface" style={styles.card}>
       <ThemedText type="smallBold">Daily check-in</ThemedText>
       {state.status === 'loading' ? <ThemedText themeColor="textSecondary">Loading…</ThemedText> : null}
       {state.status === 'error' ? (

@@ -52,7 +52,7 @@ function StepButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.stepButton,
-        { backgroundColor: theme.backgroundSelected },
+        { backgroundColor: theme.border },
         (pressed || disabled) && styles.dimmed,
       ]}>
       <ThemedText type="subtitle" style={styles.stepText}>
@@ -71,7 +71,7 @@ type SegmentedProps<T extends string> = {
 export function Segmented<T extends string>({ options, value, onChange }: SegmentedProps<T>) {
   const theme = useTheme();
   return (
-    <View accessibilityRole="radiogroup" style={[styles.segmented, { backgroundColor: theme.backgroundElement }]}>
+    <View accessibilityRole="radiogroup" style={[styles.segmented, { backgroundColor: theme.surface }]}>
       {options.map((option) => {
         const selected = option.value === value;
         return (

@@ -99,7 +99,7 @@ function SleepCard({ onStart, onError }: { onStart: () => Promise<void>; onError
 
   const byPartner = openSleep.created_by !== session?.user.id;
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <ThemedView type="surface" style={styles.card}>
       <ThemedText type="smallBold">
         Asleep {formatDuration(now.getTime() - Date.parse(openSleep.started_at))}
       </ThemedText>
@@ -135,7 +135,7 @@ function FeedPanel({ onLog, onCancel }: { onLog: (details: FeedDetails) => Promi
   }
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <ThemedView type="surface" style={styles.card}>
       <Segmented
         options={[
           { value: 'bottle', label: 'Bottle' },

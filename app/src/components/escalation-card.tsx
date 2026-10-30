@@ -22,19 +22,34 @@ const TEXT = {
 export function EscalationCard({ urgent }: { urgent: boolean }) {
   const theme = useTheme();
   const text = urgent ? TEXT.urgent : TEXT.health;
+  // A warning look no other card uses: tinted fill, red border and a ⚠ mark.
   return (
     <View
       accessibilityRole="alert"
-      style={[styles.card, { borderColor: urgent ? theme.danger : theme.textSecondary }]}>
-      <ThemedText type="smallBold" style={urgent ? { color: theme.danger } : undefined}>
-        {text.title}
-      </ThemedText>
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.warningBackground,
+          borderColor: theme.error,
+          borderWidth: urgent ? 3 : 2,
+        },
+      ]}>
+      <View style={styles.title}>
+        <ThemedText type="smallBold" accessibilityElementsHidden importantForAccessibility="no" style={{ color: theme.errorText }}>
+          ⚠
+        </ThemedText>
+        <ThemedText type="smallBold" style={[styles.titleText, { color: urgent ? theme.errorText : theme.text }]}>
+          {text.title}
+        </ThemedText>
+      </View>
       <ThemedText type="small">{text.body}</ThemedText>
-      {urgent ? <Button title="Call 112" onPress={() => void Linking.openURL('tel:112')} /> : null}
+      {urgent ? <Button title="Call 112" variant="danger" onPress={() => void Linking.openURL('tel:112')} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 16, borderWidth: 2, padding: Spacing.three, gap: Spacing.two },
+  card: { borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
+  title: { flexDirection: 'row', gap: Spacing.two },
+  titleText: { flex: 1 },
 });

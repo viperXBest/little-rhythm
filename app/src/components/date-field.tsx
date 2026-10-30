@@ -73,7 +73,7 @@ export function DateField({
         onPress={open}
         style={({ pressed }) => [
           styles.input,
-          { backgroundColor: theme.backgroundElement },
+          { backgroundColor: theme.surface },
           pressed && styles.dimmed,
         ]}>
         <ThemedText themeColor={value ? 'text' : 'textSecondary'}>

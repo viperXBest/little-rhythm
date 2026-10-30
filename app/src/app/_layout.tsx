@@ -1,20 +1,41 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { Button, Screen } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
+import { Colors, type Palette } from '@/constants/theme';
 import { configureNotifications } from '@/lib/reminders';
 import { SessionProvider, useSession } from '@/lib/session';
 
 SplashScreen.preventAutoHideAsync();
 configureNotifications();
 
+/** The navigator's colours from the app palette (the stock themes use iOS blue). */
+function navigationTheme(base: Theme, palette: Palette): Theme {
+  return {
+    ...base,
+    colors: {
+      primary: palette.link,
+      background: palette.background,
+      card: palette.background,
+      text: palette.text,
+      border: palette.border,
+      notification: palette.error,
+    },
+  };
+}
+
+const NAVIGATION = {
+  light: navigationTheme(DefaultTheme, Colors.light),
+  dark: navigationTheme(DarkTheme, Colors.dark),
+};
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={colorScheme === 'dark' ? NAVIGATION.dark : NAVIGATION.light}>
       <SessionProvider>
         <RootNavigator />
       </SessionProvider>

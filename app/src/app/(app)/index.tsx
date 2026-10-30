@@ -69,7 +69,7 @@ function InviteCard() {
   }
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <ThemedView type="surface" style={styles.card}>
       <ThemedText type="smallBold">Invite your partner</ThemedText>
       {invite ? (
         <View style={styles.inviteBody}>

@@ -41,7 +41,7 @@ export default function DeleteAccount() {
   return (
     <Screen>
       <ThemedText type="subtitle">Delete account</ThemedText>
-      <ThemedView type="backgroundElement" style={styles.card}>
+      <ThemedView type="surface" style={styles.card}>
         <ThemedText type="smallBold">This can&apos;t be undone.</ThemedText>
         {withPartner ? (
           <ThemedText type="small">
@@ -74,7 +74,7 @@ export default function DeleteAccount() {
       {confirming ? (
         <>
           <ThemedText type="smallBold">Delete your account now?</ThemedText>
-          <Button title="Yes, delete everything" onPress={() => void onDelete()} busy={busy} />
+          <Button title="Yes, delete everything" variant="danger" onPress={() => void onDelete()} busy={busy} />
           <Button title="Keep my account" variant="secondary" onPress={() => setConfirming(false)} disabled={busy} />
         </>
       ) : (

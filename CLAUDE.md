@@ -94,6 +94,28 @@ Eleven tables, all with RLS. Every row hangs off a family; one helper, `is_famil
 - Couple data (check-ins, night-feed balance) never goes to the AI.
 - Every security control gets a test (pgTAP for RLS, function tests for pair/chat).
 
+## Palette (Meta-aligned)
+
+All colours live in `app/src/constants/palette.ts`; components read them through `useTheme()`, never as literals. `palette.test.ts` (Deno, CI) checks WCAG AA for every pair the app uses: text ≥ 4.5:1, focus rings, accents, icons and the escalation border ≥ 3:1. No Meta logo, wordmark or infinity gradient.
+
+| Token | Light | Dark | Role |
+|---|---|---|---|
+| primary | #0064E0 | #0064E0 | Fills only: buttons, selected segment. Label `onPrimary` #FFFFFF (5.4:1) in both themes |
+| primaryPressed | #0050B8 | #0050B8 | Pressed button |
+| accent | #0081FB | #0081FB | Highlights, Next up bar, night-feed bar. Never text |
+| link | #0064E0 | #4599FF | Text links (dark: lighter tint, 6.1:1 on background, 5.3:1 on surface) |
+| focus | #0064E0 | #0081FB | Focused-field ring |
+| text | #1C2B33 | #E4E6EB | Body text |
+| textSecondary | #65676B | #B0B3B8 | Secondary text |
+| background | #FFFFFF | #18191A | Page |
+| surface | #F0F2F5 | #242526 | Cards, fields |
+| border | #DADDE1 | #3E4042 | Decorative dividers and outlines |
+| infoBackground | #E7F3FF | #1B2B40 | Info tint (adaptive-icon background too) |
+| success | #31A24C | #31A24C | Icons on the page background only (too low for text, < 3:1 on surface) |
+| error | #E41E3F | #E41E3F | Borders, icons, danger button fill (white label 4.6:1) |
+| errorText | #C8102E | #FF7083 | Error messages (#E41E3F is 4.1:1 on surface) |
+| warningBackground | #FDECEE | #3B2024 | Escalation card only (with the error border and a ⚠ mark) |
+
 ## Conventions
 
 - TypeScript strict everywhere; no `any`.
@@ -115,7 +137,7 @@ Eleven tables, all with RLS. Every row hangs off a family; one helper, `is_famil
 6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance (done, deployed, verified on both phones; safety set awaiting generation and curation; see `docs/chat.md`, `docs/couple.md`, `docs/safety.md`)
 7. Nov 2 · delete-account (must cascade the family's chat threads, so `thread_memory` goes too), rate limits, security review, safety prompts, CI green
 8. Nov 3 · Polish, seed-demo, README, rehearse
-   - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and the brand accent colour (`#208AEF`, theme `primary`), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
+   - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and `#0064E0` (theme `primary`), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
 9. Nov 4 · Release v1.0.0, 3-min demo video, X post, submit in the evening
 
 Protect in this order if behind: security, pairing and sync, agentic chat logging, predictions. Trim UI polish first.

@@ -49,7 +49,7 @@ function TimelineRow({ row }: { row: EventRow }) {
       onPress={() => router.push({ pathname: '/event/[id]', params: { id: row.id } })}
       style={({ pressed }) => [
         styles.row,
-        { backgroundColor: theme.backgroundElement },
+        { backgroundColor: theme.surface },
         pressed && styles.dimmed,
       ]}>
       <ThemedText type="small" themeColor="textSecondary" style={styles.time}>

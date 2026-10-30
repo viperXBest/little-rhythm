@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing, type Palette } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export function Screen({ children }: { children: ReactNode }) {
@@ -35,16 +35,31 @@ export function Screen({ children }: { children: ReactNode }) {
 
 type FieldProps = TextInputProps & { label: string };
 
-export function Field({ label, style, ...rest }: FieldProps) {
+export function Field({ label, style, onFocus, onBlur, ...rest }: FieldProps) {
   const theme = useTheme();
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
       <ThemedText type="smallBold">{label}</ThemedText>
       <TextInput
         placeholderTextColor={theme.textSecondary}
+        selectionColor={theme.focus}
+        cursorColor={theme.focus}
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
         style={[
           styles.input,
-          { color: theme.text, backgroundColor: theme.backgroundElement },
+          {
+            color: theme.text,
+            backgroundColor: theme.surface,
+            borderColor: focused ? theme.focus : theme.border,
+          },
           style,
         ]}
         {...rest}
@@ -53,18 +68,32 @@ export function Field({ label, style, ...rest }: FieldProps) {
   );
 }
 
+type ButtonVariant = 'primary' | 'secondary' | 'danger';
+
 type ButtonProps = {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary';
+  variant?: ButtonVariant;
   busy?: boolean;
   disabled?: boolean;
 };
 
+/** Fill and label per variant; every pair is in palette.test.ts. */
+function buttonColors(theme: Palette, variant: ButtonVariant, pressed: boolean) {
+  switch (variant) {
+    case 'primary':
+      return { fill: pressed ? theme.primaryPressed : theme.primary, label: theme.onPrimary };
+    case 'danger':
+      return { fill: theme.error, label: theme.onPrimary };
+    case 'secondary':
+      return { fill: pressed ? theme.border : theme.surface, label: theme.text };
+  }
+}
+
 export function Button({ title, onPress, variant = 'primary', busy = false, disabled = false }: ButtonProps) {
   const theme = useTheme();
-  const primary = variant === 'primary';
   const inactive = busy || disabled;
+  const { label } = buttonColors(theme, variant, false);
   return (
     <Pressable
       accessibilityRole="button"
@@ -73,13 +102,14 @@ export function Button({ title, onPress, variant = 'primary', busy = false, disa
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: primary ? theme.primary : theme.backgroundElement },
-        (pressed || inactive) && styles.dimmed,
+        { backgroundColor: buttonColors(theme, variant, pressed).fill },
+        variant === 'danger' && pressed && styles.pressed,
+        inactive && styles.dimmed,
       ]}>
       {busy ? (
-        <ActivityIndicator color={primary ? theme.onPrimary : theme.text} />
+        <ActivityIndicator color={label} />
       ) : (
-        <ThemedText style={{ color: primary ? theme.onPrimary : theme.text }} type="smallBold">
+        <ThemedText style={{ color: label }} type="smallBold">
           {title}
         </ThemedText>
       )}
@@ -91,7 +121,7 @@ export function ErrorText({ children }: { children: string | null }) {
   const theme = useTheme();
   if (!children) return null;
   return (
-    <ThemedText accessibilityLiveRegion="polite" type="small" style={{ color: theme.danger }}>
+    <ThemedText accessibilityLiveRegion="polite" type="small" style={{ color: theme.errorText }}>
       {children}
     </ThemedText>
   );
@@ -111,6 +141,7 @@ const styles = StyleSheet.create({
   field: { gap: Spacing.one },
   input: {
     borderRadius: 12,
+    borderWidth: 2,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
     fontSize: 16,
@@ -122,5 +153,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 52,
   },
+  pressed: { opacity: 0.85 },
   dimmed: { opacity: 0.6 },
 });

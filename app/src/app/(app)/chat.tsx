@@ -149,7 +149,10 @@ export default function Chat() {
             if (state.kind === 'saved') {
               return (
                 <ThemedText key={proposal.id} type="small">
-                  ✓ Saved · {state.summary}
+                  <ThemedText type="smallBold" themeColor="success">
+                    ✓
+                  </ThemedText>{' '}
+                  Saved · {state.summary}
                 </ThemedText>
               );
             }
@@ -201,7 +204,7 @@ function Message({ message, mine, shared }: { message: ChatMessage; mine: boolea
   const who = message.role === 'assistant' ? 'Little Rhythm' : mine || !shared ? 'You' : 'Your partner';
   return (
     <ThemedView
-      type={message.role === 'user' ? 'backgroundElement' : 'background'}
+      type={message.role === 'user' ? 'surface' : 'background'}
       style={[styles.bubble, message.role === 'user' && mine ? styles.mine : styles.theirs]}>
       <ThemedText type="small" themeColor="textSecondary">
         {who} · {formatTime(message.created_at)}

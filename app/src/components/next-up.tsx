@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useNow } from '@/hooks/use-now';
+import { useTheme } from '@/hooks/use-theme';
 import { formatTime } from '@/lib/events';
 import {
   fetchPrediction,
@@ -98,9 +99,10 @@ export function NextUp({ onNightFeeds }: { onNightFeeds?: (value: NightFeeds | n
   }, [eventsStatus, signature, load]);
 
   const prediction = state.status === 'ready' ? state.prediction : state.status === 'error' ? state.last : null;
+  const theme = useTheme();
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <ThemedView type="surface" style={[styles.card, { borderLeftColor: theme.accent }]}>
       <ThemedText type="smallBold">Next up</ThemedText>
       {state.status === 'loading' ? (
         <ThemedText themeColor="textSecondary">Working out what’s next…</ThemedText>
@@ -166,7 +168,7 @@ function Row({ label, slot, now }: { label: string; slot: Slot; now: Date }) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
+  card: { borderRadius: 16, borderLeftWidth: 4, padding: Spacing.three, gap: Spacing.two },
   error: { gap: Spacing.two },
   rows: { gap: Spacing.two },
   row: { flexDirection: 'row', gap: Spacing.three },
