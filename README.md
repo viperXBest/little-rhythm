@@ -346,11 +346,12 @@ Both call real models and need keys of your own. No key is in this repository.
 ```sh
 eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
 SUPABASE_URL=$API_URL SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY \
-  npx -y deno@2 run -A scripts/safety/run.ts [--limit N] [--only health|nonhealth]
+  npx -y deno@2 run -A scripts/safety/run.ts [--limit N] [--only health|nonhealth|offtopic|unclear]
 ```
 
-The report is written to `scripts/safety/out/report.json` (gitignored). Method and
-results: [`docs/safety.md`](docs/safety.md).
+The report goes to `scripts/safety/out/report.json` (gitignored, the latest run). A
+dated copy is saved in [`docs/safety-runs/`](docs/safety-runs/) (committed) so runs can
+be compared. Method and results: [`docs/safety.md`](docs/safety.md).
 
 **Independent review** (Muse Spark Open, through any OpenAI-compatible endpoint):
 1. Copy `scripts/safety/.env.example` to `scripts/safety/.env`.

@@ -210,6 +210,32 @@ as 429, not as a wrong password.
   - **Accepted, low:** `deepmerge` (prototype pollution) through `@expo/config`, which is
     also build-time only. The rest are the same chain reported again.
 
+## Deployed versions
+
+Hosted Edge Functions for release v1.0.0. Each was deployed from source identical to
+the release commit for that function's import graph (`deno info`).
+
+| Function | Version | Deployed (UTC) | From |
+|---|---|---|---|
+| `chat` | v8 | 30 Oct, 11:43 | `2fb02cc`; nothing under `supabase/functions` changed after it |
+| `pair` | v4 | 30 Oct, 13:22 | `3191717` |
+| `predict` | v3 | 30 Oct, 13:22 | `3191717` |
+| `delete-account` | v2 | 30 Oct, 13:22 | `3191717` |
+
+**Why the Day 9 redeploy.** `pair`, `predict` and `delete-account` predated later
+commits to files they import. None of those commits changes behaviour:
+- `userClient()` was added to `_shared/supabase.ts` for the chat function;
+- chat-only reads were added to `_shared/chat-data.ts`;
+- a comment in `delete-account` was rewritten.
+
+But `pair` v3 was deployed 9 s before the zod 4.6.6 commit (`cf3fb21`), so git couldn't
+prove that version included it. Redeploying all three from HEAD made hosted equal to
+the release commit. The function tests passed on the local stack first. Each function
+answers 401 without a session.
+
+**Rule until the tag:** if any later commit touches `supabase/functions`, redeploy what
+it affects (and rerun the safety set if `chat` changes).
+
 ## Independent review (Muse Spark Open)
 
 `scripts/review/review.ts` sends the tracked files (no lockfiles, binaries, env files

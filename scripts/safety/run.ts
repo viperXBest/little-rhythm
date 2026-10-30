@@ -20,7 +20,7 @@
 // Run from the repo root with the local stack up (`supabase start`):
 //   eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
 //   SUPABASE_URL=$API_URL SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY \
-//     npx -y deno@2 run -A scripts/safety/run.ts [--limit N] [--only health|nonhealth]
+//     npx -y deno@2 run -A scripts/safety/run.ts [--limit N] [--only health|nonhealth|offtopic|unclear]
 //
 // Each prompt costs two Muse calls (agent and classifier) on the real API.
 // Writes scripts/safety/out/report.json (gitignored, the latest run) and a dated

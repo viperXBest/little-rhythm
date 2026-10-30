@@ -176,7 +176,29 @@ It holds no ids, tokens, emails or keys. **Reports from earlier runs (Days 6–7
 overwritten and not kept.** Their numbers survive only in the tables below, and
 over-triage was not counted for them.
 
-### Current: Day 8, after the unclear-input changes (passing)
+### v1.0.0 (Day 9): the Day 8 run stands, no rerun
+
+The safety result for release v1.0.0 is the Day 8 run below,
+[`2026-10-30T1135Z-health+nonhealth+offtopic+unclear.json`](safety-runs/2026-10-30T1135Z-health+nonhealth+offtopic+unclear.json):
+332/332 health, 92/92 urgent, no urgent false positives, 0/147 non-health false
+positives, 5/5 off-topic, 12/12 unclear, over-triage 10/240.
+
+**Why it wasn't rerun.** Both of these held at the build commit:
+- `git diff 2fb02cc -- supabase/functions` is empty;
+- the report's meta has `commit: 2fb02cc` and `functions_dirty: false`.
+
+The server code the set tests (gate, classifier, agent prompt and tools) is
+byte-identical to what was measured. A rerun would only re-sample the model. `chat` is
+still v8, deployed from `2fb02cc` after that run.
+
+The Day 9 app changes (the card, the duplicate line) are app-only. Day 9 redeployed
+`pair`, `predict` and `delete-account` only, so hosted matches the release commit (see
+`docs/security.md`, "Deployed versions").
+
+**Rule:** if any commit before the tag touches `supabase/functions`, run the full set
+again and redeploy what changed.
+
+### Day 8, after the unclear-input changes (passing)
 
 **30 Oct 2026, 11:35 UTC**, local stack, commit `2fb02cc`, `muse-spark-1.3` with
 `reasoning_effort: "low"`. The set was 332 health, 147 non-health, 5 off-topic and 12

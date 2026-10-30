@@ -139,5 +139,14 @@ All colours live in `app/src/constants/palette.ts`; components read them through
 8. Nov 3 · Polish, seed-demo, README, rehearse
    - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and `#0064E0` (theme `primary`), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
 9. Nov 4 · Release v1.0.0, 3-min demo video, X post, submit in the evening
+   - **seed-demo works ~06:50–18:35 local.** The nap window opens 15–45 min ahead and tonight's routine is still to come (the 2 h routine cap is gone). Today's wake moves within 05:50–08:25 to fit. Nights can't work in one zone: at 13 weeks bedtime is a clock time, and naps only start in the day. `--tz <IANA>` seeds in a zone where it is daytime; the night refusal suggests one. **With `--tz`, set both phones or the emulator to that zone.** The seed prints the take's expected Next up card. The demo line is relative: "she drank 90 ml twenty minutes ago, she's asleep now".
+   - **Confirm card (app-only):**
+     - Time fields take the page colour on the card, with an outline and a "Change ›" link.
+     - Next to its cards, a reply hides the proposal line and the server's assumed-time note (`app/src/lib/chat-display.ts`). The server still appends the note for older app versions.
+     - The new pure helpers have Deno tests in CI: `chat-display`, `mic-label`, `asLanguageTag`.
+   - **Device checks** run on the release APK on both phones: Next up after seeding, the card, the demo line, the mic warm-up, the notification icon and the splash. This PC has no Android SDK or emulator.
+   - **Safety:** no rerun for v1.0.0. The Oct 30 report (`2fb02cc`, `functions_dirty: false`) stands, because `supabase/functions` is unchanged since. If any commit before the tag touches `supabase/functions`, rerun the full set and redeploy.
+   - **Deploys:** `pair` v4, `predict` v3 and `delete-account` v2 were redeployed from `3191717` so hosted equals the release commit. `chat` stays v8. Table in `docs/security.md`, "Deployed versions".
+   - **versionCode** is EAS-remote (`appVersionSource: remote`, `autoIncrement`). It was 3, so the v1.0.0 production build gets 4. `app.json` stays 1.0.0.
 
 Protect in this order if behind: security, pairing and sync, agentic chat logging, predictions. Trim UI polish first.
