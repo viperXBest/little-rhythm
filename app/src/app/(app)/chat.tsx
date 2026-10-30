@@ -23,6 +23,7 @@ import {
   type ChatResult,
   type ThreadIds,
 } from '@/lib/chat';
+import { cardMessageId, messageText } from '@/lib/chat-display';
 import { formatTime } from '@/lib/events';
 import { useSession } from '@/lib/session';
 
@@ -140,6 +141,7 @@ export default function Chat() {
 
   const list = threadId ? (messages[threadId] ?? []) : [];
   const reply = threadId ? replies[threadId] : undefined;
+  const withCards = cardMessageId(list, reply);
   const loadState: Load = threadsStatus !== 'ready' ? threadsStatus : threadId ? (listStatus[threadId] ?? 'loading') : 'loading';
 
   return (
@@ -162,7 +164,13 @@ export default function Chat() {
       ) : null}
       <View style={styles.list}>
         {list.map((m) => (
-          <Message key={m.id} message={m} mine={m.author_id === userId} shared={scope === 'shared'} />
+          <Message
+            key={m.id}
+            message={m}
+            mine={m.author_id === userId}
+            shared={scope === 'shared'}
+            withCards={m.id === withCards}
+          />
         ))}
       </View>
 
@@ -223,11 +231,23 @@ export default function Chat() {
   );
 }
 
-function Message({ message, mine, shared }: { message: ChatMessage; mine: boolean; shared: boolean }) {
+function Message({
+  message,
+  mine,
+  shared,
+  withCards,
+}: {
+  message: ChatMessage;
+  mine: boolean;
+  shared: boolean;
+  /** This phone's cards for the message are shown below the list: they carry the proposal and the note. */
+  withCards: boolean;
+}) {
   if (message.role === 'assistant' && message.escalation) {
     return <EscalationCard urgent={message.escalation === 'urgent'} />;
   }
   const who = message.role === 'assistant' ? 'Little Rhythm' : mine || !shared ? 'You' : 'Your partner';
+  const { content, summary } = messageText(message, withCards);
   return (
     <ThemedView
       type={message.role === 'user' ? 'surface' : 'background'}
@@ -235,10 +255,10 @@ function Message({ message, mine, shared }: { message: ChatMessage; mine: boolea
       <ThemedText type="small" themeColor="textSecondary">
         {who} · {formatTime(message.created_at)}
       </ThemedText>
-      {message.content ? <ThemedText>{message.content}</ThemedText> : null}
-      {message.proposal_summary ? (
+      {content ? <ThemedText>{content}</ThemedText> : null}
+      {summary ? (
         <ThemedText type="small" themeColor="textSecondary">
-          {message.proposal_summary}
+          {summary}
         </ThemedText>
       ) : null}
     </ThemedView>

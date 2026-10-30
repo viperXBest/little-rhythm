@@ -14,6 +14,8 @@ type DateFieldProps = {
   placeholder?: string;
   minimumDate?: Date;
   maximumDate?: Date;
+  /** What the field sits on: a card is already `surface`, so the field takes the page colour. */
+  on?: 'page' | 'card';
 };
 
 function format(value: Date, mode: DateFieldProps['mode']): string {
@@ -36,6 +38,7 @@ export function DateField({
   placeholder = 'Choose',
   minimumDate,
   maximumDate,
+  on = 'page',
 }: DateFieldProps) {
   const theme = useTheme();
 
@@ -70,14 +73,18 @@ export function DateField({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${value ? format(value, mode) : placeholder}`}
+        accessibilityHint={mode === 'date' ? 'Opens the date picker' : 'Opens the date and time picker'}
         onPress={open}
         style={({ pressed }) => [
           styles.input,
-          { backgroundColor: theme.surface },
+          { backgroundColor: on === 'card' ? theme.background : theme.surface, borderColor: theme.border },
           pressed && styles.dimmed,
         ]}>
-        <ThemedText themeColor={value ? 'text' : 'textSecondary'}>
+        <ThemedText style={styles.value} themeColor={value ? 'text' : 'textSecondary'}>
           {value ? format(value, mode) : placeholder}
+        </ThemedText>
+        <ThemedText type="smallBold" themeColor="link">
+          {value ? 'Change ›' : 'Set ›'}
         </ThemedText>
       </Pressable>
     </View>
@@ -87,9 +94,14 @@ export function DateField({
 const styles = StyleSheet.create({
   field: { gap: Spacing.one },
   input: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
     borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth * 2,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
   },
+  value: { flex: 1 },
   dimmed: { opacity: 0.6 },
 });

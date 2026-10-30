@@ -22,11 +22,15 @@ export function timeZoneName(): string | null {
  */
 export function languageTag(): string | null {
   try {
-    const tag = Intl.DateTimeFormat().resolvedOptions().locale;
-    return typeof tag === 'string' && /^[A-Za-z]{2,3}([-_][A-Za-z0-9]{1,8})*$/.test(tag) && tag.length <= 35
-      ? tag
-      : null;
+    return asLanguageTag(Intl.DateTimeFormat().resolvedOptions().locale);
   } catch {
     return null;
   }
+}
+
+/** The value when it looks like a BCP 47 tag of at most 35 characters, else null. */
+export function asLanguageTag(tag: unknown): string | null {
+  return typeof tag === 'string' && /^[A-Za-z]{2,3}([-_][A-Za-z0-9]{1,8})*$/.test(tag) && tag.length <= 35
+    ? tag
+    : null;
 }

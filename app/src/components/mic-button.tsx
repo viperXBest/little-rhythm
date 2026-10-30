@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { VOICE_MAX_MS, VOICE_RECORDING } from '@/constants/voice';
 import { useTheme } from '@/hooks/use-theme';
+import { micLabel } from '@/lib/mic-label';
 
 // Shorter than this is a tap, not a message.
 const MIN_CLIP_MS = 400;
@@ -169,13 +170,12 @@ export function MicButton({ onClip, onError, disabled = false }: Props) {
     await finish(clip.uri);
   }
 
-  const seconds = Math.floor(durationMs / 1000);
-  // Speak once it says "speak now": words said while it starts up are not captured.
-  const label = isRecording
-    ? `Recording – speak now · ${seconds}s of ${VOICE_MAX_MS / 1000}s. Release to send.`
-    : starting
-      ? 'Starting…'
-      : 'Hold to talk';
+  const label = micLabel({
+    isRecording,
+    starting,
+    seconds: Math.floor(durationMs / 1000),
+    maxSeconds: VOICE_MAX_MS / 1000,
+  });
 
   return (
     <Pressable

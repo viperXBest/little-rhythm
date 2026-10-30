@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { proposalToRow, type ChatSource, type Proposal, type ProposalError } from '@/lib/chat';
+import { stillTimeAssumed, TIME_ASSUMED_NOTE } from '@/lib/chat-display';
 import {
   formatTime,
   MINUTES_RANGE,
@@ -20,9 +21,6 @@ import { useTodayEvents } from '@/lib/today-events';
 
 // Same slack as the event editor: the two phones' clocks may drift a little.
 const FUTURE_SLACK_MS = 60_000;
-
-// Same text as the server's note (_shared/unclear-input.ts); fixed app text, not model output.
-const TIME_ASSUMED_NOTE = 'Time not mentioned, set to now. Edit if wrong.';
 
 const TITLES: Record<Proposal['type'], string> = {
   feed: 'Feed',
@@ -112,8 +110,7 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
   function edited(...fields: string[]) {
     setServerErrors((prev) => prev.filter((e) => !fields.includes(e.field) && e.field !== 'arguments'));
     setError(null);
-    // Once the parent sets the time, it is no longer assumed.
-    if (fields.includes(proposal.type === 'sleep_end' ? 'ended_at' : 'started_at')) setTimeAssumed(false);
+    setTimeAssumed((assumed) => stillTimeAssumed(assumed, proposal.type, fields));
   }
 
   // A missing sleep can't be fixed on the card: only discard.
@@ -219,6 +216,7 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
           ) : null}
           {unfixable ? null : (
             <DateField
+              on="card"
               label="Woke up"
               mode="datetime"
               value={endedAt}
@@ -233,6 +231,7 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
         </>
       ) : (
         <DateField
+          on="card"
           label={proposal.type === 'sleep' ? 'Fell asleep' : 'Time'}
           mode="datetime"
           value={startedAt}
@@ -247,6 +246,7 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
       {proposal.type === 'sleep' ? (
         <>
           <DateField
+            on="card"
             label="Woke up"
             mode="datetime"
             value={endedAt}

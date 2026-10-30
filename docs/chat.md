@@ -187,6 +187,15 @@ The agent never logs an event at an assumed "now" silently
   note "Time not mentioned, set to now. Edit if wrong." to the reply, so app versions
   without the card note still show it. The confirm card shows the same text until
   the parent sets the time.
+- **Said once (Day 9, app only).** While a reply's cards are shown, its bubble hides
+  the proposal line ("Proposed: …") and cuts the server's note from the caption. The
+  cards carry both. Older messages, and any reply the phone can't match to its cards,
+  show in full. The logic is in `app/src/lib/chat-display.ts`, tested in
+  `chat-display.test.ts`. The server is unchanged, so no redeploy was needed and the
+  safety baseline still applies.
+- **Time fields look tappable (Day 9).** On a card, a time field has the page colour
+  against the card's surface, an outline, and a "Change ›" link, and it announces
+  "Opens the date and time picker".
 - **Garbled transcripts.** A message is treated as garbled when it mixes alphabets
   (at least two letters of each) or has the Unicode replacement character. It then
   gets a server note before it.
