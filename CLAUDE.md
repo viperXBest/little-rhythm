@@ -147,6 +147,13 @@ All colours live in `app/src/constants/palette.ts`; components read them through
    - **Device checks** run on the release APK on both phones: Next up after seeding, the card, the demo line, the mic warm-up, the notification icon and the splash. This PC has no Android SDK or emulator.
    - **Safety:** no rerun for v1.0.0. The Oct 30 report (`2fb02cc`, `functions_dirty: false`) stands, because `supabase/functions` is unchanged since. If any commit before the tag touches `supabase/functions`, rerun the full set and redeploy.
    - **Deploys:** `pair` v4, `predict` v3 and `delete-account` v2 were redeployed from `3191717` so hosted equals the release commit. `chat` stays v8. Table in `docs/security.md`, "Deployed versions".
+   - **Demo order:**
+     - Step 2 shows Next up as seeded (nap window, routine).
+     - Step 3 is the voice log; afterwards Next up switches to "Expected to wake".
+   - **Release:**
+     - Build `3c12fe52-5dd8-46aa-9409-79b7734763b1` from `d4dcdf0` (APK SHA-256 `63f232d8…2e93dab`).
+     - Tag `v1.0.0` goes on `d4dcdf0` after the APK is confirmed on both phones; ask before pushing it.
+     - No `gh` on this PC: the APK and `release-notes.md` go in a local folder, and the user creates the GitHub Release by hand.
    - **versionCode** is EAS-remote (`appVersionSource: remote`, `autoIncrement`). It was 3, so the v1.0.0 production build gets 4. `app.json` stays 1.0.0.
 
 Protect in this order if behind: security, pairing and sync, agentic chat logging, predictions. Trim UI polish first.

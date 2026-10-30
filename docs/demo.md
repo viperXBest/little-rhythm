@@ -50,8 +50,8 @@ npx -y deno@2 run --env-file=scripts/seed-demo/.env --allow-env --allow-net \
 | # | Time | Phone | What happens | What it shows |
 |---|---|---|---|---|
 | 1 | 0:00–0:15 | — | The problem: new parents juggle tracking, guesswork about sleep, and each other. | Why the app exists |
-| 2 | 0:15–0:45 | Mom | Holds the mic: "she drank 90 ml twenty minutes ago, she's asleep now". Two confirm cards appear, a feed and a sleep; she taps Confirm. **Dad's phone updates instantly.** | Muse Voice Transcribe → Muse Spark agent → proposals; nothing is saved until Confirm; realtime sync |
-| 3 | 0:45–1:05 | Either | The **Next up** card shows the next nap window and when the bedtime routine starts, with its reminder. | Predictions computed by code from the log; local reminders |
+| 2 | 0:15–0:35 | Either | The **Next up** card, as seeded: the nap window opening soon, the next feed, and when tonight's bedtime routine starts, with its reminder. | Predictions computed by code from the log; local reminders |
+| 3 | 0:35–1:05 | Mom | Holds the mic: "she drank 90 ml twenty minutes ago, she's asleep now". Two confirm cards appear, a feed and a sleep; she taps Confirm. **Dad's phone updates instantly**, and Next up switches from the nap window to "Expected to wake". | Muse Voice Transcribe → Muse Spark agent → proposals; nothing is saved until Confirm; realtime sync; predictions follow the log |
 | 4 | 1:05–1:30 | Dad | Asks the chat: "why is she so fussy tonight?". The answer draws on her last naps and feeds. | The agent reads the log (`get_recent_events`, `get_next_windows`); a family-life companion |
 | 5 | 1:30–1:50 | Either | "she has a fever of 38.5" returns the **escalation card**, not advice. | Not a medical app: keywords plus a classifier; static card; no model text |
 | 6 | 1:50–2:20 | Both | **Check-in:** both answer; the answers reveal; the **night-feed balance** shows who carried more this week. | Couple layer; revealed only once both answered; never sent to the AI |
@@ -60,7 +60,10 @@ npx -y deno@2 run --env-file=scripts/seed-demo/.env --allow-env --allow-net \
 
 ## Notes for the recording
 
-- **Step 2:** say the phrase clearly, under 30 s. The cards take about 5 s; keep talking
+- **Step 2:** check the card against the "Next up at …" line seed-demo printed before
+  recording. Show it before the voice log: once she is asleep, the nap row shows when
+  she is expected to wake instead of the nap window.
+- **Step 3:** say the phrase clearly, under 30 s. The cards take about 5 s; keep talking
   over the wait.
 - **Step 5:** the card text comes from the app, not the model. Point at it and say so.
 - **Step 7:** show the Shared / Private switch on both phones.
