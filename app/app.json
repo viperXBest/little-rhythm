@@ -27,7 +27,7 @@
       "package": "com.viperxbest.littlerhythm"
     },
     "web": {
-      "output": "server",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
