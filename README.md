@@ -5,7 +5,7 @@
 An Android app built for the Meta Global AI Developer Hackathon (Indie Developer track),
 with Muse Spark as a tool-calling agent and Muse Voice Transcribe for voice logging.
 
-Say "she drank 90 ml at 3, she's asleep now", and both phones get the feed and the
+Say "she drank 90 ml twenty minutes ago, she's asleep now", and both phones get the feed and the
 sleep, after one tap on Confirm. Then see when the next feed, nap and bedtime are
 likely.
 
@@ -311,8 +311,9 @@ SUPABASE_URL=$API_URL SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SER
 - three weeks of feeds, sleeps and diapers;
 - check-ins for the past three days.
 
-The last nap is placed so that **Next up** shows the nap window and the bedtime
-routine within the next two hours at the recording time.
+The last nap (or, early in the day, the morning wake) is placed so that **Next up**
+shows the nap window 15–45 min after the recording time, with tonight's bedtime routine
+still ahead. After seeding, the script prints what the card should show for the take.
 
 It runs from a developer's machine only. It refuses to run unless `--project` matches
 the URL, and it never prints keys, passwords or emails. Details:
@@ -321,13 +322,16 @@ the URL, and it never prints keys, passwords or emails. Details:
 ```sh
 cp scripts/seed-demo/.env.example scripts/seed-demo/.env   # URL, service-role key, two demo logins
 npx -y deno@2 run --env-file=scripts/seed-demo/.env --allow-env --allow-net \
-  scripts/seed-demo/seed.ts --project local [--at HH:MM]    # or --project <ref> for hosted
+  scripts/seed-demo/seed.ts --project local [--at HH:MM] [--tz <IANA zone>]   # or --project <ref>
 ```
 
-**When it runs:** right before a take, in the late afternoon in Europe/Bucharest
-(about 16:40–18:35 for a 13-week-old). Bedtime is a clock time at this age, so at any
-other time the card couldn't show the nap and the routine together.
-- Outside that window, the script refuses and prints the valid range.
+**When it runs:** right before a take, any time from about 06:50 to 18:35 in the phones'
+time zone (Europe/Bucharest by default). At 13 weeks bedtime is a clock time (the
+routine starts 18:30–20:00), and naps only start during the day. So at night the card
+can't show a nap window.
+- At night the script refuses. It prints the valid range and suggests a `--tz` where it
+  is daytime. Seed with that zone and set both phones (or the emulator) to it before the
+  take, or Next up won't match.
 - `--at` may be at most 30 min after the run.
 
 ## Safety set and independent review

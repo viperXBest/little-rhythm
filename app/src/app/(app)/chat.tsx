@@ -147,7 +147,7 @@ export default function Chat() {
       <ThemedText type="subtitle">Chat</ThemedText>
       <Segmented options={SCOPES} value={scope} onChange={setScope} />
       <ThemedText type="small" themeColor="textSecondary">
-        {SCOPE_NOTE[scope]} Log by voice or text (“90 ml bottle at 3, she’s asleep now”), or ask about the log
+        {SCOPE_NOTE[scope]} Log by voice or text (“90 ml bottle twenty minutes ago, she’s asleep now”), or ask about the log
         and what’s next. No health advice: for anything health-related, contact your paediatrician.
       </ThemedText>
 

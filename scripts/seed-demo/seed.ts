@@ -3,11 +3,14 @@
 // (plan.ts). Runs from the developer's PC only, never in CI against hosted.
 //
 //   npx -y deno@2 run --env-file=scripts/seed-demo/.env --allow-env --allow-net \
-//     scripts/seed-demo/seed.ts --project <ref> [--at HH:MM]
+//     scripts/seed-demo/seed.ts --project <ref> [--at HH:MM] [--tz <IANA zone>]
 //
 // --project must match SUPABASE_URL (https://<ref>.supabase.co), or be `local`
-// for 127.0.0.1 / localhost. --at is the recording time in Europe/Bucharest
-// today, at most 30 min after the run; without it, the run time.
+// for 127.0.0.1 / localhost. --tz is the phones' time zone (default
+// Europe/Bucharest); --at is the recording time in that zone today, at most
+// 30 min after the run; without it, the run time. Works from about 06:50 to
+// 18:35 local; for a night-time take, pass a --tz where it is day and set both
+// phones (or the emulator) to that zone.
 //
 // Reset deletes only families whose every member is a demo account. If a demo
 // account shares a family with anyone else, nothing is changed.
@@ -15,6 +18,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
 import { countNightFeeds } from "../../supabase/functions/_shared/night-feeds.ts";
+import { isValidTimeZone, localParts, type Zone } from "../../supabase/functions/_shared/zone.ts";
 import {
   buildPlan,
   localTime,
@@ -25,6 +29,20 @@ import {
   validAnchorRange,
   ZONE,
 } from "./plan.ts";
+
+/** Zones offered when it is night in the requested one; the first where it is day now is suggested. */
+const DAYTIME_ZONES = [
+  "Europe/London",
+  "America/New_York",
+  "America/Los_Angeles",
+  "Pacific/Honolulu",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+  "Asia/Kolkata",
+] as const;
+
+const zoneName = (zone: Zone) =>
+  zone.kind === "iana" ? zone.name : `UTC${zone.minutes >= 0 ? "+" : ""}${zone.minutes / 60}`;
 
 export const NAMES = { parent1: "Ana", parent2: "Radu", baby: "Maia" } as const;
 
@@ -120,23 +138,29 @@ async function resetFamilies(admin: SupabaseClient, ids: string[]): Promise<numb
 
 export type Summary = {
   plan: Plan;
+  zone: Zone;
   resetFamilies: number;
   nightFeeds: { parent1: number; parent2: number };
 };
 
 /**
- * Seeds the demo family for a recording at `at` (or `now`). `now` is the run
- * time; the CLI passes the real clock, tests a fixed one. Every check runs
- * before anything is written.
+ * Seeds the demo family for a recording at `at` (or `now`) in `tz` (default
+ * Europe/Bucharest). `now` is the run time; the CLI passes the real clock,
+ * tests a fixed one. Every check runs before anything is written.
  */
 export async function seedDemo(opts: {
   admin: SupabaseClient;
   accounts: Accounts;
   now: Date;
   at?: string;
+  tz?: string;
 }): Promise<Summary> {
   const { admin, accounts, now } = opts;
-  const anchor = resolveAnchor(now, opts.at);
+  if (opts.tz !== undefined && !isValidTimeZone(opts.tz)) {
+    throw new SeedError("bad_tz", "--tz takes an IANA time zone, like America/New_York.");
+  }
+  const zone: Zone = opts.tz === undefined ? ZONE : { kind: "iana", name: opts.tz };
+  const anchor = resolveAnchor(now, opts.at, zone);
   if (!anchor.ok) {
     const message = {
       bad_format: "--at takes a 24-hour time, like 17:30.",
@@ -145,14 +169,21 @@ export async function seedDemo(opts: {
     }[anchor.reason];
     throw new SeedError(anchor.reason, message);
   }
-  const plan = buildPlan(anchor.anchor);
+  const plan = buildPlan(anchor.anchor, zone);
   if (!plan) {
-    const range = validAnchorRange(now);
+    const range = validAnchorRange(now, zone);
+    const dayZone = DAYTIME_ZONES.find((name) => buildPlan(anchor.anchor, { kind: "iana", name }));
     throw new SeedError(
       "outside_window",
-      `At ${localTime(anchor.anchor.getTime())} the card can't show both the nap window and the bedtime ` +
-        `routine soon enough. ` +
-        (range ? `Record between ${range.from} and ${range.to} (Bucharest).` : "No time today works."),
+      `At ${localTime(anchor.anchor.getTime(), zone)} (${zoneName(zone)}) the card can't show a nap window ` +
+        `before tonight's bedtime routine. ` +
+        (range ? `Record between ${range.from} and ${range.to} there` : "No time today works there") +
+        (dayZone
+          ? `, or pass --tz ${dayZone} (where it is ${
+            localTime(anchor.anchor.getTime(), { kind: "iana", name: dayZone })
+          }) ` +
+            `and set both phones to that time zone.`
+          : "."),
     );
   }
   if (accounts.parent1.email.toLowerCase() === accounts.parent2.email.toLowerCase()) {
@@ -212,22 +243,32 @@ export async function seedDemo(opts: {
       created_by: e.by,
     })),
     now: plan.anchor,
-    zone: ZONE,
+    zone,
     you: "parent1",
     partner: "parent2",
   });
-  return { plan, resetFamilies: reset, nightFeeds: { parent1: nights.you, parent2: nights.partner ?? 0 } };
+  return {
+    plan,
+    zone,
+    resetFamilies: reset,
+    nightFeeds: { parent1: nights.you, parent2: nights.partner ?? 0 },
+  };
 }
 
 /** The run summary for the terminal: names, counts and times only. */
 export function describe(summary: Summary): string {
-  const { plan } = summary;
+  const { plan, zone } = summary;
   const count = (type: string) => plan.events.filter((e) => e.type === type).length;
+  const time = (iso: string) => localTime(Date.parse(iso), zone);
   const slot = (label: string, s: Plan["prediction"]["nap"]) =>
-    `${label} ${
-      s.window ? `${localTime(Date.parse(s.window.start))}–${localTime(Date.parse(s.window.end))}` : s.reason
-    }`;
+    `${label} ${s.window ? `${time(s.window.start)}–${time(s.window.end)}` : s.reason}`;
   const p = plan.prediction;
+  const anchorDay = localParts(zone, plan.anchor.getTime()).day;
+  const routine = p.routine.window
+    ? `${time(p.routine.window.start)} ${
+      localParts(zone, Date.parse(p.routine.window.start)).day === anchorDay ? "tonight" : "tomorrow"
+    }`
+    : p.routine.reason;
   return [
     `Demo family ready: ${NAMES.parent1} and ${NAMES.parent2}, baby ${NAMES.baby} (${p.age_weeks} weeks).`,
     `Replaced ${summary.resetFamilies} earlier demo family(ies).`,
@@ -236,9 +277,11 @@ export function describe(summary: Summary): string {
     } diapers.`,
     `Check-ins for ${new Set(plan.checkins.map((c) => c.day)).size} past days; today is unanswered.`,
     `Night feeds, last 7 nights: ${NAMES.parent1} ${summary.nightFeeds.parent1}, ${NAMES.parent2} ${summary.nightFeeds.parent2}.`,
-    `At ${localTime(plan.anchor.getTime())}: ${slot("next nap", p.nap)}, ${slot("routine", p.routine)}, ${
-      slot("feed", p.feed)
-    }.`,
+    `Next up at ${localTime(plan.anchor.getTime(), zone)} (${zoneName(zone)}): ${slot("nap", p.nap)}, ` +
+    `routine starts ${routine}, ${slot("bedtime", p.bedtime)}, ${slot("feed", p.feed)}.`,
+    ...(zoneName(zone) !== zoneName(ZONE)
+      ? [`Set both phones (or the emulator) to ${zoneName(zone)} before the take, or Next up won't match.`]
+      : []),
   ].join("\n");
 }
 
@@ -278,6 +321,7 @@ if (import.meta.main) {
       },
       now: new Date(),
       at: arg("--at"),
+      tz: arg("--tz"),
     });
     console.log(describe(summary));
   } catch (error) {

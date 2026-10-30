@@ -4,7 +4,13 @@
 import { assert, assertEquals, assertNotEquals } from "jsr:@std/assert@1.0.13";
 
 import { countNightFeeds } from "../../supabase/functions/_shared/night-feeds.ts";
-import { localParts, localToUtc, MS_PER_DAY, MS_PER_MINUTE } from "../../supabase/functions/_shared/zone.ts";
+import {
+  localParts,
+  localToUtc,
+  MS_PER_DAY,
+  MS_PER_MINUTE,
+  type Zone,
+} from "../../supabase/functions/_shared/zone.ts";
 import {
   buildPlan,
   HISTORY,
@@ -36,31 +42,77 @@ Deno.test("the same anchor gives the same plan", () => {
   assertEquals(JSON.stringify(planAt(NOW)), JSON.stringify(planAt(new Date(NOW.getTime()))));
 });
 
-Deno.test("valid range is computed with the engine and covers the late afternoon", () => {
-  const range = validAnchorRange(NOW);
-  assert(range);
-  assert(range.from <= "17:00" && range.to >= "18:00", `${range.from}-${range.to}`);
-  // Morning and late evening can't show the nap and the routine together.
-  assertEquals(buildPlan(atLocal(NOW_DAY, 9, 0)), null);
-  assertEquals(buildPlan(atLocal(NOW_DAY, 21, 0)), null);
-
+/** Every 15 min of `range` gives a plan with the nap window 15-45 min out and tonight's routine ahead. */
+function assertRangeFits(day: number, range: { from: string; to: string }, zone: Zone = ZONE): void {
   const [fromH, fromM] = range.from.split(":").map(Number);
   const [toH, toM] = range.to.split(":").map(Number);
   for (let minute = fromH * 60 + fromM; minute <= toH * 60 + toM; minute += 15) {
-    const anchor = atLocal(NOW_DAY, Math.floor(minute / 60), minute % 60);
-    const plan = planAt(anchor);
+    const anchor = new Date(localToUtc(zone, day, minute));
+    const plan = buildPlan(anchor, zone);
+    assert(plan, `no plan at ${minute}`);
     assertEquals(plan.prediction.age_weeks, 13);
     const l = leads(anchor, plan.prediction);
     assert(leadsFit(l), `${minute}: ${JSON.stringify(l)}`);
     assert(l.nap !== null && l.nap >= 15 && l.nap <= 45);
-    assert(l.routine !== null && l.routine >= 0 && l.routine <= 120);
+    assert(l.routine !== null && l.routine >= 0);
+    // Tonight's routine, not tomorrow's.
+    assertEquals(localParts(zone, Date.parse(plan.prediction.routine.window!.start)).day, day);
+    // Today's wake (the end of last night) stays between 05:50 and 08:25.
+    const lastNight = plan.events
+      .filter((e) => e.type === "sleep" && localParts(zone, Date.parse(e.started_at)).minute >= 18 * 60)
+      .at(-1)!;
+    const wake = localParts(zone, Date.parse(lastNight.ended_at!)).minute;
+    assert(wake >= 5 * 60 + 50 && wake <= 8 * 60 + 25, `${minute}: wake ${wake}`);
   }
+}
+
+Deno.test("valid range is computed with the engine and covers the day, not the night", () => {
+  const range = validAnchorRange(NOW);
+  assert(range);
+  assert(range.from <= "07:00" && range.to >= "18:30", `${range.from}-${range.to}`);
+  // At night no nap starts before bedtime; after ~18:35 tonight's routine has begun.
+  assertEquals(buildPlan(atLocal(NOW_DAY, 3, 0)), null);
+  assertEquals(buildPlan(atLocal(NOW_DAY, 21, 0)), null);
+  assertRangeFits(NOW_DAY, range);
+});
+
+Deno.test("an early-morning take has no nap yet today, and the wake-up feed", () => {
+  const anchor = atLocal(NOW_DAY, 7, 30);
+  const plan = planAt(anchor);
+  const today = plan.events.filter((e) => local(Date.parse(e.started_at)).day === NOW_DAY);
+  assertEquals(today.filter((e) => e.type === "sleep").length, 0);
+  assert(today.some((e) => e.type === "feed"));
+});
+
+Deno.test("--tz: a night-time take in Bucharest works in a zone where it is day", () => {
+  // 03:00 in Bucharest is 17:00 the evening before in Los Angeles (PST, UTC-8).
+  const night = atLocal(NOW_DAY, 3, 0);
+  assertEquals(buildPlan(night), null);
+  const la: Zone = { kind: "iana", name: "America/Los_Angeles" };
+  const plan = buildPlan(night, la);
+  assert(plan);
+  assertEquals(localParts(la, night.getTime()).minute, 17 * 60);
+  assert(leadsFit(leads(night, plan.prediction)));
+  // Same rules in any zone: the range is a local-time range.
+  const laDay = localParts(la, NOW.getTime()).day;
+  const range = validAnchorRange(NOW, la);
+  assert(range);
+  assert(range.from <= "07:00" && range.to >= "18:30", `${range.from}-${range.to}`);
+  assertEquals(resolveAnchor(night, "17:10", la).ok, true);
+  assertRangeFits(laDay, { from: "07:00", to: "18:30" }, la);
 });
 
 Deno.test("rows stay within the app's ranges, before the run time, and sleeps never overlap", () => {
-  const plan = planAt(NOW);
-  const latest = NOW.getTime() - QUIET_BEFORE_ANCHOR_MIN * MS_PER_MINUTE;
-  const earliest = NOW.getTime() - (HISTORY + 1) * MS_PER_DAY;
+  // The usual afternoon take, an early one with no nap yet, and ones that move today's wake.
+  for (const [hh, mm] of [[7, 0], [7, 30], [9, 40], [12, 0], [17, 30]]) {
+    assertRowsValid(planAt(atLocal(NOW_DAY, hh, mm)));
+  }
+});
+
+function assertRowsValid(plan: Plan): void {
+  const anchor = plan.anchor.getTime();
+  const latest = anchor - QUIET_BEFORE_ANCHOR_MIN * MS_PER_MINUTE;
+  const earliest = anchor - (HISTORY + 1) * MS_PER_DAY;
   for (const e of plan.events) {
     const start = Date.parse(e.started_at);
     assert(start >= earliest && start <= latest, e.started_at);
@@ -91,7 +143,7 @@ Deno.test("rows stay within the app's ranges, before the run time, and sleeps ne
   const today = new Date(NOW_DAY * MS_PER_DAY).toISOString().slice(0, 10);
   assert(days.every((d) => d < today));
   assert(plan.checkins.every((c) => c.mood >= 1 && c.mood <= 5 && c.help.length <= 280));
-});
+}
 
 Deno.test("night feeds split about 60/40 between the parents", () => {
   const plan = planAt(NOW);
@@ -111,12 +163,16 @@ Deno.test("night feeds split about 60/40 between the parents", () => {
   assert(share >= 0.55 && share <= 0.65, `parent1 share ${share}`);
 });
 
-Deno.test("DST (25 Oct, EEST to EET): every day is complete and night hours aren't duplicated", () => {
-  const plan = planAt(NOW);
-  const dstDay = local(Date.parse("2026-10-25T12:00:00Z")).day;
-  const firstFullDay = NOW_DAY - HISTORY + 1;
-  assert(firstFullDay < dstDay - 1);
-  for (let day = firstFullDay; day < NOW_DAY; day++) {
+/** The fall-back change on `dstIso`'s local day, inside the history of a plan at `anchor` in `zone`. */
+function assertDstHistory(zone: Zone, anchor: Date, dstIso: string): void {
+  const local = (ms: number) => localParts(zone, ms);
+  const plan = buildPlan(anchor, zone);
+  assert(plan);
+  const anchorDay = local(anchor.getTime()).day;
+  const dstDay = local(Date.parse(dstIso)).day;
+  const firstFullDay = anchorDay - HISTORY + 1;
+  assert(firstFullDay < dstDay - 1 && dstDay < anchorDay);
+  for (let day = firstFullDay; day < anchorDay; day++) {
     const ofDay = plan.events.filter((e) => local(Date.parse(e.started_at)).day === day);
     const sleeps = ofDay.filter((e) => e.type === "sleep");
     assertEquals(sleeps.length, 5, `day ${day}: 4 naps and the night`);
@@ -136,6 +192,16 @@ Deno.test("DST (25 Oct, EEST to EET): every day is complete and night hours aren
   assert(night?.ended_at);
   const hours = (Date.parse(night.ended_at) - Date.parse(night.started_at)) / 3_600_000;
   assert(hours >= 11 && hours <= 12.5, `${hours} h`);
+}
+
+Deno.test("DST (25 Oct, EEST to EET): every day is complete and night hours aren't duplicated", () => {
+  assertDstHistory(ZONE, NOW, "2026-10-25T12:00:00Z");
+});
+
+Deno.test("DST with --tz (1 Nov, PDT to PST in Los Angeles): the same holds", () => {
+  const la: Zone = { kind: "iana", name: "America/Los_Angeles" };
+  // 4 Nov 17:30 in Los Angeles.
+  assertDstHistory(la, new Date("2026-11-05T01:30:00Z"), "2026-11-01T20:00:00Z");
 });
 
 Deno.test("DST: night feeds across the change are counted like the plan says", () => {

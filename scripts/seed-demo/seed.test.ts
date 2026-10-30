@@ -183,6 +183,13 @@ Deno.test({
       // The printed summary carries names, counts and times, never a login.
       const printed = describe(second);
       assert(printed.includes(NAMES.parent1) && printed.includes("Night feeds"), printed);
+      // The take's expected card, in the seed's zone (default: no phone-zone warning).
+      assert(
+        /Next up at 17:30 \(Europe\/Bucharest\): nap \d\d:\d\d–\d\d:\d\d, routine starts \d\d:\d\d tonight/
+          .test(printed),
+        printed,
+      );
+      assert(!printed.includes("Set both phones"), printed);
       for (
         const secret of [acc.parent1.email, acc.parent1.password, acc.parent2.email, acc.parent2.password]
       ) {
@@ -229,15 +236,34 @@ Deno.test({
 });
 
 Deno.test({
-  name: "an --at outside the window is refused before anything is written",
+  name: "a night-time run is refused before anything is written, and works with the suggested --tz",
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
     const acc = accounts();
-    const morning = new Date("2026-10-20T06:00:00Z"); // 09:00 in Bucharest
-    const error = await assertRejects(() => seedDemo({ admin, accounts: acc, now: morning }), SeedError);
+    const evening = new Date("2026-10-20T18:00:00Z"); // 21:00 in Bucharest
+    const error = await assertRejects(() => seedDemo({ admin, accounts: acc, now: evening }), SeedError);
     assertEquals(error.code, "outside_window");
-    assert(/Record between \d\d:\d\d and \d\d:\d\d/.test(error.message), error.message);
+    assert(/Record between \d\d:\d\d and \d\d:\d\d there/.test(error.message), error.message);
+    // Suggests a zone where it is day, which then works.
+    const tz = /--tz (\S+) /.exec(error.message)?.[1];
+    assert(tz, error.message);
     await assertRejects(() => userId(acc.parent1.email));
+
+    const bad = await assertRejects(
+      () => seedDemo({ admin, accounts: acc, now: evening, tz: "Mars/Olympus" }),
+      SeedError,
+    );
+    assertEquals(bad.code, "bad_tz");
+    await assertRejects(() => userId(acc.parent1.email));
+
+    try {
+      const summary = await seedDemo({ admin, accounts: acc, now: evening, tz });
+      const printed = describe(summary);
+      assert(printed.includes(`(${tz}): nap `), printed);
+      assert(printed.includes(`Set both phones (or the emulator) to ${tz}`), printed);
+    } finally {
+      await cleanup(acc, [], []);
+    }
   },
 });

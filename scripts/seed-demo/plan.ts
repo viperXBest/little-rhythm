@@ -1,12 +1,15 @@
 // The demo family's timeline: three weeks of feeds, sleeps and diapers for a
-// 13-week-old in Europe/Bucharest, ending just before the recording time (the
-// anchor). Pure and deterministic: the same anchor always gives the same rows.
-// No I/O; seed.ts writes the plan.
+// 13-week-old in one time zone (Europe/Bucharest unless --tz), ending just
+// before the recording time (the anchor). Pure and deterministic: the same
+// anchor and zone always give the same rows. No I/O; seed.ts writes the plan.
 //
-// The last nap is placed so that, at the anchor, the real prediction engine
-// opens the nap window 15-45 min later and the bedtime routine starts within
-// 2 h. Bedtime is a clock time for this age, so that only works in part of the
-// day; validAnchorRange() finds that part with the engine instead of a fixed range.
+// The last nap (or, early in the day, the morning wake) is placed so that, at
+// the anchor, the real prediction engine opens the nap window 15-45 min later
+// and tonight's bedtime routine is still ahead. Bedtime is a clock time for
+// this age (routine 18:30-20:00 local) and naps only start in the day, so this
+// works from the morning to the early evening, not at night; validAnchorRange()
+// finds that part with the engine. For a night-time take, seed in a zone where
+// it is day (--tz) and set the phones to it.
 
 import { predict, type PredictEvent, type Prediction } from "../../supabase/functions/_shared/predict.ts";
 import { HISTORY_DAYS } from "../../supabase/functions/_shared/predict-constants.ts";
@@ -18,6 +21,7 @@ import {
   type Zone,
 } from "../../supabase/functions/_shared/zone.ts";
 
+/** The default zone; --tz picks another. */
 export const ZONE: Zone = { kind: "iana", name: "Europe/Bucharest" };
 /** Days of history before the anchor's day. */
 export const HISTORY = 21;
@@ -27,8 +31,11 @@ export const AGE_DAYS = 13 * 7 + 2;
 export const MAX_AHEAD_MIN = 30;
 /** Minutes from the anchor to the nap window's start. */
 export const NAP_LEAD = { min: 15, max: 45, target: 30 } as const;
-/** The routine must start within this many minutes of the anchor. */
-export const ROUTINE_LEAD_MAX = 120;
+/**
+ * Today's morning wake may move this far (min) from the usual 06:35-06:55 (so 05:50-08:25),
+ * so a nap window fits any day-time take. Tried in this order; the first that fits wins.
+ */
+export const TODAY_WAKE_SHIFTS = [0, -15, 15, -30, 30, -45, 45, 60, 75, 90] as const;
 /** No event starts or ends later than this before the anchor (so never after the run time). */
 export const QUIET_BEFORE_ANCHOR_MIN = MAX_AHEAD_MIN;
 
@@ -95,10 +102,12 @@ type Row = Omit<PlannedEvent, "started_at" | "ended_at"> & { start: number; end:
 
 class Day {
   readonly rows: Row[] = [];
-  constructor(readonly day: number, readonly r: Rng) {}
+  /** Today only: the last local minute a diaper change may be logged (the quiet gap before the anchor). */
+  until = Infinity;
+  constructor(readonly zone: Zone, readonly day: number, readonly r: Rng) {}
 
   at(minute: number, day = this.day): number {
-    return localToUtc(ZONE, day, minute);
+    return localToUtc(this.zone, day, minute);
   }
 
   source(): PlannedEvent["source"] {
@@ -152,13 +161,16 @@ class Day {
     const nap = this.rows.find((r) => r.type === "sleep" && r.end !== null && ms >= r.start && ms < r.end);
     const minute = nap?.end ? planned + Math.round((nap.end - ms) / MS_PER_MINUTE) + 5 : planned;
     this.feed(minute, this.r() < 0.65 ? "parent1" : "parent2");
-    if (this.r() < 0.85) this.diaper(minute + between(this.r, 5, 20));
+    if (this.r() < 0.85) {
+      const change = minute + between(this.r, 5, 20);
+      if (change <= this.until) this.diaper(change);
+    }
   }
 }
 
 /** A full past day: four naps (the last a catnap) and feeds every 2.5-3.5 h until bedtime. */
-function pastDay(anchorDay: number, daysBack: number): Row[] {
-  const d = new Day(anchorDay - daysBack, rng(daysBack, 3));
+function pastDay(zone: Zone, anchorDay: number, daysBack: number): Row[] {
+  const d = new Day(zone, anchorDay - daysBack, rng(daysBack, 3));
   const wake = wakeMinute(daysBack);
   const bed = bedMinute(daysBack);
   let t = wake;
@@ -172,11 +184,14 @@ function pastDay(anchorDay: number, daysBack: number): Row[] {
   return d.rows;
 }
 
-/** The night starting on the evening `daysBack` days before the anchor's day: one sleep, two feeds. */
-function night(anchorDay: number, daysBack: number): Row[] {
+/**
+ * The night starting on the evening `daysBack` days before the anchor's day: one
+ * sleep until `wake` the next morning, two feeds.
+ */
+function night(zone: Zone, anchorDay: number, daysBack: number, wake = wakeMinute(daysBack - 1)): Row[] {
   const evening = anchorDay - daysBack;
-  const d = new Day(evening, rng(daysBack, 4));
-  d.sleep(bedMinute(daysBack), wakeMinute(daysBack - 1), evening + 1);
+  const d = new Day(zone, evening, rng(daysBack, 4));
+  d.sleep(bedMinute(daysBack), wake, evening + 1);
   const feeds: [number, number][] = [[between(d.r, 1365, 1395), evening], [
     between(d.r, 195, 225),
     evening + 1,
@@ -190,34 +205,47 @@ function night(anchorDay: number, daysBack: number): Row[] {
 }
 
 /**
- * The anchor's day up to the last nap, which ends at `lastNapEnd` (local minutes).
- * Wake windows and naps are spread evenly between the morning wake and that nap;
- * null when they would fall outside 85-125 min awake or 45-110 min asleep.
+ * The anchor's day from the morning wake (`wake`, local minutes) up to the last
+ * nap, which ends at `lastNapEnd`, or with no nap yet when `lastNapEnd` is null
+ * (an early-morning take). Wake windows and naps are spread evenly between the
+ * wake and that nap; null when they would fall outside 85-125 min awake or
+ * 45-110 min asleep.
  */
-function today(anchorDay: number, anchorMinute: number, lastNapEnd: number): Row[] | null {
-  const d = new Day(anchorDay, rng(0, 3));
-  const wake = wakeMinute(0);
-  const lastStart = lastNapEnd - between(d.r, 60, 85);
-  const WAKE = 105;
-  const NAP = 80;
-  const cycles = Math.max(0, Math.round((lastStart - wake - WAKE) / (WAKE + NAP)));
-  const shift = (lastStart - wake - WAKE - cycles * (WAKE + NAP)) / (2 * cycles + 1);
-  const awake = WAKE + shift;
-  const asleep = NAP + shift;
-  if (awake < 85 || awake > 125 || (cycles > 0 && (asleep < 45 || asleep > 110))) return null;
-  let t = wake;
-  for (let i = 0; i < cycles; i++) {
-    const start = Math.round(t + awake);
-    const end = Math.round(start + asleep);
-    d.sleep(start, end);
-    t = end;
+function today(
+  zone: Zone,
+  anchorDay: number,
+  anchorMinute: number,
+  wake: number,
+  lastNapEnd: number | null,
+): Row[] | null {
+  const d = new Day(zone, anchorDay, rng(0, 3));
+  d.until = anchorMinute - QUIET_BEFORE_ANCHOR_MIN;
+  if (lastNapEnd !== null) {
+    const lastStart = lastNapEnd - between(d.r, 60, 85);
+    const WAKE = 105;
+    const NAP = 80;
+    const cycles = Math.max(0, Math.round((lastStart - wake - WAKE) / (WAKE + NAP)));
+    const shift = (lastStart - wake - WAKE - cycles * (WAKE + NAP)) / (2 * cycles + 1);
+    const awake = WAKE + shift;
+    const asleep = NAP + shift;
+    if (awake < 85 || awake > 125 || (cycles > 0 && (asleep < 45 || asleep > 110))) return null;
+    let t = wake;
+    for (let i = 0; i < cycles; i++) {
+      const start = Math.round(t + awake);
+      const end = Math.round(start + asleep);
+      d.sleep(start, end);
+      t = end;
+    }
+    d.sleep(lastStart, lastNapEnd);
   }
-  d.sleep(lastStart, lastNapEnd);
 
-  // Feeds from the morning to about 90 min before the anchor, evenly spaced.
+  // Feeds from the morning to about 90 min before the anchor, evenly spaced;
+  // early in the day, only the wake-up feed.
   const first = wake + between(d.r, 5, 15);
   const last = anchorMinute - between(d.r, 80, 100);
-  if (last >= first) {
+  if (last < first) {
+    d.feedAndChange(first);
+  } else {
     const n = Math.max(1, Math.round((last - first) / 180));
     for (let i = 0; i <= n; i++) {
       const jitter = i === 0 || i === n ? 0 : between(d.r, -10, 10);
@@ -248,18 +276,22 @@ function checkins(anchorDay: number): PlannedCheckin[] {
 const isoDay = (day: number) => new Date(day * MS_PER_DAY).toISOString().slice(0, 10);
 const iso = (ms: number) => new Date(ms).toISOString();
 
-const historyCache = new Map<number, Row[]>();
+const historyCache = new Map<string, Row[]>();
 
-/** Everything before the anchor's day: independent of the anchor's time, so built once per day. */
-function history(anchorDay: number): Row[] {
-  let rows = historyCache.get(anchorDay);
+/**
+ * Everything before last night: independent of the anchor's time, so built
+ * once per day and zone. Last night ends at today's wake, which buildPlan picks.
+ */
+function history(zone: Zone, anchorDay: number): Row[] {
+  const key = `${JSON.stringify(zone)}@${anchorDay}`;
+  let rows = historyCache.get(key);
   if (!rows) {
     rows = [];
     for (let daysBack = HISTORY; daysBack >= 1; daysBack--) {
-      if (daysBack < HISTORY) rows.push(...pastDay(anchorDay, daysBack));
-      rows.push(...night(anchorDay, daysBack));
+      if (daysBack < HISTORY) rows.push(...pastDay(zone, anchorDay, daysBack));
+      if (daysBack > 1) rows.push(...night(zone, anchorDay, daysBack));
     }
-    historyCache.set(anchorDay, rows);
+    historyCache.set(key, rows);
   }
   return rows;
 }
@@ -270,12 +302,17 @@ function toEvent(row: Row): PlannedEvent {
 }
 
 /** What the "Next up" card shows at `anchor` for these rows. */
-export function predictAt(anchor: Date, birthDate: string, events: readonly PlannedEvent[]): Prediction {
+export function predictAt(
+  anchor: Date,
+  birthDate: string,
+  events: readonly PlannedEvent[],
+  zone: Zone = ZONE,
+): Prediction {
   const since = anchor.getTime() - HISTORY_DAYS * MS_PER_DAY;
   const recent: PredictEvent[] = events
     .filter((e) => Date.parse(e.started_at) >= since && Date.parse(e.started_at) <= anchor.getTime())
     .map(({ type, started_at, ended_at }) => ({ type, started_at, ended_at }));
-  return predict({ now: anchor, zone: ZONE, birthDate, events: recent });
+  return predict({ now: anchor, zone, birthDate, events: recent });
 }
 
 export type Leads = { nap: number | null; routine: number | null; feedOverdue: boolean };
@@ -291,37 +328,48 @@ export function leads(anchor: Date, prediction: Prediction): Leads {
   };
 }
 
+/** The nap window opens 15-45 min after the anchor, tonight's routine hasn't started, the feed isn't overdue. */
 export function leadsFit(l: Leads): boolean {
   return l.nap !== null && l.nap >= NAP_LEAD.min && l.nap <= NAP_LEAD.max &&
-    l.routine !== null && l.routine >= 0 && l.routine <= ROUTINE_LEAD_MAX && !l.feedOverdue;
+    l.routine !== null && l.routine >= 0 && !l.feedOverdue;
 }
 
 /**
- * The demo timeline for a recording at `anchor` (whole minutes), or null when no
- * placement of the last nap makes the card show both the nap window and the
- * routine soon enough at that time of day.
+ * The demo timeline for a recording at `anchor` (whole minutes) in `zone`, or
+ * null when no morning wake and placement of the last nap (or no nap yet)
+ * makes the card show the nap window soon and the routine still ahead at that
+ * time of day. Prefers the usual wake time, then the nap window 30 min out.
  */
-export function buildPlan(anchor: Date): Plan | null {
-  const { day: anchorDay, minute: anchorMinute } = localParts(ZONE, anchor.getTime());
+export function buildPlan(anchor: Date, zone: Zone = ZONE): Plan | null {
+  const { day: anchorDay, minute: anchorMinute } = localParts(zone, anchor.getTime());
   const birthDate = isoDay(anchorDay - AGE_DAYS);
-  const past = history(anchorDay);
+  const past = history(zone, anchorDay);
   const latest = anchor.getTime() - QUIET_BEFORE_ANCHOR_MIN * MS_PER_MINUTE;
-  let best: { plan: Plan; distance: number } | null = null;
+  const lastNapEnds: (number | null)[] = [null];
   for (let end = anchorMinute - 150; end <= anchorMinute - QUIET_BEFORE_ANCHOR_MIN; end += 5) {
-    const rows = today(anchorDay, anchorMinute, end);
-    if (!rows) continue;
-    const all = [...past, ...rows];
-    if (all.some((r) => r.start > latest || (r.end !== null && r.end > latest))) continue;
-    const events = all.sort((a, b) => a.start - b.start).map(toEvent);
-    const prediction = predictAt(anchor, birthDate, events);
-    const l = leads(anchor, prediction);
-    if (!leadsFit(l)) continue;
-    const distance = Math.abs((l.nap ?? 0) - NAP_LEAD.target);
-    if (!best || distance < best.distance) {
-      best = { plan: { anchor, birthDate, events, checkins: checkins(anchorDay), prediction }, distance };
-    }
+    lastNapEnds.push(end);
   }
-  return best?.plan ?? null;
+  for (const wakeShift of TODAY_WAKE_SHIFTS) {
+    let best: { plan: Plan; distance: number } | null = null;
+    const wake = wakeMinute(0) + wakeShift;
+    const lastNight = night(zone, anchorDay, 1, wake);
+    for (const end of lastNapEnds) {
+      const rows = today(zone, anchorDay, anchorMinute, wake, end);
+      if (!rows) continue;
+      const all = [...past, ...lastNight, ...rows];
+      if (all.some((r) => r.start > latest || (r.end !== null && r.end > latest))) continue;
+      const events = all.sort((a, b) => a.start - b.start).map(toEvent);
+      const prediction = predictAt(anchor, birthDate, events, zone);
+      const l = leads(anchor, prediction);
+      if (!leadsFit(l)) continue;
+      const distance = Math.abs((l.nap ?? 0) - NAP_LEAD.target);
+      if (!best || distance < best.distance) {
+        best = { plan: { anchor, birthDate, events, checkins: checkins(anchorDay), prediction }, distance };
+      }
+    }
+    if (best) return best.plan;
+  }
+  return null;
 }
 
 const hhmm = (minute: number) =>
@@ -331,12 +379,12 @@ const hhmm = (minute: number) =>
  * The local times on `now`'s day (5-min steps) at which buildPlan succeeds: the
  * longest contiguous run, as "HH:MM". Computed with the prediction engine.
  */
-export function validAnchorRange(now: Date): { from: string; to: string } | null {
-  const day = localParts(ZONE, now.getTime()).day;
+export function validAnchorRange(now: Date, zone: Zone = ZONE): { from: string; to: string } | null {
+  const day = localParts(zone, now.getTime()).day;
   let run: [number, number] | null = null;
   let longest: [number, number] | null = null;
   for (let minute = 0; minute < 24 * 60; minute += 5) {
-    if (buildPlan(new Date(localToUtc(ZONE, day, minute)))) {
+    if (buildPlan(new Date(localToUtc(zone, day, minute)), zone)) {
       run = run ? [run[0], minute] : [minute, minute];
       if (!longest || run[1] - run[0] > longest[1] - longest[0]) longest = run;
     } else {
@@ -351,22 +399,22 @@ export type AnchorResult =
   | { ok: false; reason: "bad_format" | "before_run" | "too_far_ahead" };
 
 /**
- * The recording time: today's HH:MM in Bucharest, or the run time. Compared at
+ * The recording time: today's HH:MM in `zone`, or the run time. Compared at
  * whole minutes, so --at 17:00 run at 17:00:40 is the run's own minute.
  */
-export function resolveAnchor(now: Date, at: string | undefined): AnchorResult {
+export function resolveAnchor(now: Date, at: string | undefined, zone: Zone = ZONE): AnchorResult {
   const runMinute = Math.floor(now.getTime() / MS_PER_MINUTE) * MS_PER_MINUTE;
   if (at === undefined) return { ok: true, anchor: new Date(runMinute) };
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(at);
   if (!match) return { ok: false, reason: "bad_format" };
-  const day = localParts(ZONE, now.getTime()).day;
-  const anchor = localToUtc(ZONE, day, Number(match[1]) * 60 + Number(match[2]));
+  const day = localParts(zone, now.getTime()).day;
+  const anchor = localToUtc(zone, day, Number(match[1]) * 60 + Number(match[2]));
   if (anchor < runMinute) return { ok: false, reason: "before_run" };
   if (anchor - runMinute > MAX_AHEAD_MIN * MS_PER_MINUTE) return { ok: false, reason: "too_far_ahead" };
   return { ok: true, anchor: new Date(anchor) };
 }
 
 /** Local "HH:MM" of an instant, for messages. */
-export function localTime(ms: number): string {
-  return hhmm(localParts(ZONE, ms).minute);
+export function localTime(ms: number, zone: Zone = ZONE): string {
+  return hhmm(localParts(zone, ms).minute);
 }
