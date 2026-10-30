@@ -51,6 +51,8 @@ jobs:
         run: deno test app/src/lib/reminder-plan.test.ts
       - name: App palette contrast (WCAG AA)
         run: deno test app/src/constants/palette.test.ts
+      - name: App build guard (public Supabase env only)
+        run: deno test app/app.config.test.ts
       - name: Demo seed plan (timeline, DST, --project guard)
         run: deno test -A scripts/seed-demo/plan.test.ts
 

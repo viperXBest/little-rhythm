@@ -274,7 +274,7 @@ From the repo root, with the stack running:
 
 # Deno unit tests: predictions, agent, health gate, voice, memory, reminders, palette, demo seed
 npx -y deno@2 test -A supabase/functions/ scripts/seed-demo/plan.test.ts
-npx -y deno@2 test app/src/lib/reminder-plan.test.ts app/src/constants/palette.test.ts
+npx -y deno@2 test app/src/lib/reminder-plan.test.ts app/src/constants/palette.test.ts app/app.config.test.ts
 
 # Row-level security (pgTAP)
 supabase test db
