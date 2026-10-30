@@ -1,0 +1,14 @@
+[
+  { "text": "majestuentu слипу anawarga Ok, map that please", "category": "release-build transcript", "lang": "en", "expect": "ask_or_flagged" },
+  { "text": "слипу anawarga diaper wet", "category": "garbled", "lang": "en", "expect": "ask_or_flagged" },
+  { "text": "asdkj qwe zxcv blorp", "category": "nonsense", "lang": "en", "expect": "ask" },
+  { "text": "wet diaper", "category": "no time", "lang": "en", "expect": "flagged" },
+  { "text": "90 ml bottle", "category": "no time", "lang": "en", "expect": "flagged" },
+  { "text": "she's asleep", "category": "no time", "lang": "en", "expect": "flagged" },
+  { "text": "scutec ud", "category": "no time", "lang": "ro", "expect": "flagged" },
+  { "text": "Maya just went to sleep one hour ago, can you map that please?", "category": "relative time", "lang": "en", "expect": { "minutes_ago": 60 } },
+  { "text": "Maia fed on the left side for 15 minutes, 20 minutes ago", "category": "relative time", "lang": "en", "expect": { "minutes_ago": 20 } },
+  { "text": "a adormit acum o oră", "category": "relative time", "lang": "ro", "expect": { "minutes_ago": 60 } },
+  { "text": "she drank 90 ml at 3", "category": "clock time", "lang": "en", "expect": "stated" },
+  { "text": "she's asleep now", "category": "now", "lang": "en", "expect": "stated" }
+]
