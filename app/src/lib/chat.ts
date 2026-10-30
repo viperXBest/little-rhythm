@@ -10,7 +10,7 @@ import {
   type FeedDetails,
 } from '@/lib/events';
 import { supabase } from '@/lib/supabase';
-import { timeZoneName, tzOffsetMinutes } from '@/lib/time-zone';
+import { languageTag, timeZoneName, tzOffsetMinutes } from '@/lib/time-zone';
 
 // Mirrors supabase/functions/_shared/agent-schemas.ts. The server validated
 // these; fields that failed are missing and listed in `errors`.
@@ -22,6 +22,8 @@ export type FeedProposal = {
   started_at: string | null;
   details: { kind?: FeedDetails['kind']; ml?: number; side?: BreastSide; minutes?: number };
   errors: ProposalError[];
+  /** The parent gave no time; the server set it to now. Absent from older servers. */
+  time_assumed?: boolean;
 };
 export type SleepProposal = {
   id: string;
@@ -29,6 +31,8 @@ export type SleepProposal = {
   started_at: string | null;
   ended_at: string | null;
   errors: ProposalError[];
+  /** The parent gave no time; the server set it to now. Absent from older servers. */
+  time_assumed?: boolean;
 };
 export type SleepEndProposal = {
   id: string;
@@ -37,6 +41,8 @@ export type SleepEndProposal = {
   started_at: string | null;
   ended_at: string | null;
   errors: ProposalError[];
+  /** The parent gave no time; the server set it to now. Absent from older servers. */
+  time_assumed?: boolean;
 };
 export type DiaperProposal = {
   id: string;
@@ -44,6 +50,8 @@ export type DiaperProposal = {
   started_at: string | null;
   details: { wet?: boolean; dirty?: boolean };
   errors: ProposalError[];
+  /** The parent gave no time; the server set it to now. Absent from older servers. */
+  time_assumed?: boolean;
 };
 export type Proposal = FeedProposal | SleepProposal | SleepEndProposal | DiaperProposal;
 
@@ -180,12 +188,15 @@ export async function sendVoice(uri: string, threadId: string): Promise<ChatResu
   const boundary = `lr-${randomUUID()}`;
   const encoder = new TextEncoder();
   const tz = timeZoneName();
+  // The transcription hint: the server maps it to a supported language or English.
+  const lang = languageTag();
   const field = (name: string, value: string) =>
     `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`;
   const head = encoder.encode(
     field('thread_id', threadId) +
       field('tz_offset_minutes', String(tzOffsetMinutes())) +
       (tz ? field('tz', tz) : '') +
+      (lang ? field('lang', lang) : '') +
       `--${boundary}\r\nContent-Disposition: form-data; name="audio"; filename="clip.wav"\r\n` +
       'Content-Type: audio/wav\r\n\r\n',
   );

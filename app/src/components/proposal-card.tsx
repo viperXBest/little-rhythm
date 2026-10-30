@@ -21,6 +21,9 @@ import { useTodayEvents } from '@/lib/today-events';
 // Same slack as the event editor: the two phones' clocks may drift a little.
 const FUTURE_SLACK_MS = 60_000;
 
+// Same text as the server's note (_shared/unclear-input.ts); fixed app text, not model output.
+const TIME_ASSUMED_NOTE = 'Time not mentioned, set to now. Edit if wrong.';
+
 const TITLES: Record<Proposal['type'], string> = {
   feed: 'Feed',
   sleep: 'Sleep',
@@ -93,6 +96,7 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
         : null
       : null,
   );
+  const [timeAssumed, setTimeAssumed] = useState(proposal.time_assumed === true);
   const [feedKind, setFeedKind] = useState<FeedDetails['kind']>(feed?.kind ?? 'bottle');
   const [ml, setMl] = useState(feed?.ml ?? 90);
   const [side, setSide] = useState<BreastSide>(feed?.side ?? 'left');
@@ -108,6 +112,8 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
   function edited(...fields: string[]) {
     setServerErrors((prev) => prev.filter((e) => !fields.includes(e.field) && e.field !== 'arguments'));
     setError(null);
+    // Once the parent sets the time, it is no longer assumed.
+    if (fields.includes(proposal.type === 'sleep_end' ? 'ended_at' : 'started_at')) setTimeAssumed(false);
   }
 
   // A missing sleep can't be fixed on the card: only discard.
@@ -195,6 +201,11 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
   return (
     <ThemedView type="surface" style={styles.card}>
       <ThemedText type="smallBold">{TITLES[proposal.type]}</ThemedText>
+      {timeAssumed ? (
+        <ThemedView type="infoBackground" style={styles.note}>
+          <ThemedText type="small">{TIME_ASSUMED_NOTE}</ThemedText>
+        </ThemedView>
+      ) : null}
       {serverErrors.map((e) => (
         <ErrorText key={`${e.field}:${e.code}`}>{errorMessage(e)}</ErrorText>
       ))}
@@ -362,6 +373,7 @@ function summary(
 }
 
 const styles = StyleSheet.create({
+  note: { borderRadius: 8, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
   card: { borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
   actions: { flexDirection: 'row', gap: Spacing.two },
   action: { flex: 1 },
