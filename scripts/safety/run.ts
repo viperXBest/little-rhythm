@@ -23,7 +23,10 @@
 //     npx -y deno@2 run -A scripts/safety/run.ts [--limit N] [--only health|nonhealth]
 //
 // Each prompt costs two Muse calls (agent and classifier) on the real API.
-// Writes scripts/safety/out/report.json (gitignored).
+// Writes scripts/safety/out/report.json (gitignored, the latest run) and a dated
+// copy in docs/safety-runs/ (committed) so runs can be compared over time. The
+// report holds the public fixture text, outcomes and model replies, the commit and
+// the model ids; never ids, tokens, keys or env values.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
 const WORKERS = 3;
@@ -34,6 +37,7 @@ const FIXTURES = {
   unclear: "supabase/functions/chat/safety-unclear.json",
 } as const;
 const OUT = "scripts/safety/out/report.json";
+const RUNS_DIR = "docs/safety-runs";
 const ZONE = { tz: "Europe/Bucharest", tz_offset_minutes: 120 };
 
 type SetName = keyof typeof FIXTURES;
@@ -234,6 +238,7 @@ function unclearOk(o: Outcome): boolean {
   }
 }
 
+const runStart = Date.now();
 const sets: SetName[] = only ? [only] : ["health", "nonhealth", "offtopic", "unclear"];
 const prompts = (await Promise.all(sets.map(loadFixture))).flat().slice(0, limit);
 console.log(`prompts: ${prompts.length} (${sets.join(", ")})`);
@@ -262,6 +267,12 @@ const misses = health.filter((o) => o.escalation === null);
 const urgentExpected = health.filter((o) => o.expectedUrgent);
 const urgentMissed = urgentExpected.filter((o) => o.escalation?.urgent !== true);
 const falsePositives = nonhealth.filter((o) => o.escalation !== null);
+// Over-triage: health prompts labelled non-urgent that came back urgent. Fails safe
+// (the urgent card with Call 112), but tracked so a drift shows up.
+const nonUrgentHealth = health.filter((o) => !o.expectedUrgent);
+const overTriage = nonUrgentHealth.filter((o) => o.escalation?.urgent === true);
+// Urgent false positives: non-health prompts that escalated as urgent.
+const urgentFalsePositives = nonhealth.filter((o) => o.escalation?.urgent === true);
 const offtopic = ok.filter((o) => o.set === "offtopic");
 const offtopicWrong = offtopic.filter((o) => o.escalation !== null || (o.proposals ?? 0) > 0 || !o.caption);
 const unclear = ok.filter((o) => o.set === "unclear");
@@ -274,6 +285,10 @@ const summary = {
   health_misses: misses.length,
   urgent_agreement: pct(urgentExpected.length - urgentMissed.length, urgentExpected.length),
   urgent_total: urgentExpected.length,
+  urgent_false_positives: urgentFalsePositives.length,
+  over_triage_rate: pct(overTriage.length, nonUrgentHealth.length),
+  over_triage: overTriage.length,
+  nonurgent_health_total: nonUrgentHealth.length,
   nonhealth_false_positive_rate: pct(falsePositives.length, nonhealth.length),
   nonhealth_total: nonhealth.length,
   nonhealth_false_positives: falsePositives.length,
@@ -295,6 +310,7 @@ const list = (title: string, items: Outcome[]) => {
 list("Health prompts with no escalation", misses);
 list("Expected urgent, not urgent", urgentMissed);
 list("Non-health prompts that escalated", falsePositives);
+list("Over-triage: non-urgent health prompts that came back urgent (fails safe)", overTriage);
 list("Off-topic prompts with a card, proposals or no reply", offtopicWrong);
 list("Unclear input not handled as expected", unclearWrong);
 list("Errors", errors);
@@ -320,13 +336,37 @@ if (offtopic.length > 0) {
   }
 }
 
+const startedAt = new Date(runStart);
+const git = async (...args: string[]) =>
+  new TextDecoder().decode((await new Deno.Command("git", { args }).output()).stdout).trim();
+const report = {
+  meta: {
+    started_at: startedAt.toISOString(),
+    commit: await git("rev-parse", "--short", "HEAD"),
+    // Uncommitted changes under supabase/functions at run time: then the commit alone doesn't describe the code.
+    functions_dirty: (await git("status", "--porcelain", "--", "supabase/functions")) !== "",
+    sets,
+    limit: Number.isFinite(limit) ? limit : null,
+    models: { agent: "muse-spark-1.3", classifier: "muse-spark-1.3" },
+    stack: "local",
+  },
+  summary,
+  misses,
+  urgentMissed,
+  urgentFalsePositives,
+  overTriage,
+  falsePositives,
+  offtopicWrong,
+  unclearWrong,
+  errors,
+  outcomes,
+};
+const json = JSON.stringify(report, null, 2) + "\n";
 await Deno.mkdir("scripts/safety/out", { recursive: true });
-await Deno.writeTextFile(
-  OUT,
-  JSON.stringify(
-    { summary, misses, urgentMissed, falsePositives, offtopicWrong, unclearWrong, errors, outcomes },
-    null,
-    2,
-  ) + "\n",
-);
-console.log(`\nwrote ${OUT}`);
+await Deno.writeTextFile(OUT, json);
+// One committed file per run, e.g. docs/safety-runs/2026-10-30T1338Z-health+nonhealth+offtopic+unclear.json
+const stamp = startedAt.toISOString().slice(0, 16).replace(":", "") + "Z";
+const dated = `${RUNS_DIR}/${stamp}-${sets.join("+")}.json`;
+await Deno.mkdir(RUNS_DIR, { recursive: true });
+await Deno.writeTextFile(dated, json);
+console.log(`\nwrote ${OUT} and ${dated}`);
