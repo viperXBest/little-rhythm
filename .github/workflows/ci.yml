@@ -49,6 +49,8 @@ jobs:
         run: deno test -A supabase/functions/
       - name: App reminder ids
         run: deno test app/src/lib/reminder-plan.test.ts
+      - name: Demo seed plan (timeline, DST, --project guard)
+        run: deno test -A scripts/seed-demo/plan.test.ts
 
   supabase:
     name: RLS, realtime and function tests (local stack)
@@ -90,11 +92,11 @@ jobs:
           echo "Functions not served by supabase start; starting supabase functions serve"
           nohup supabase functions serve --env-file supabase/functions/.env > functions-serve.log 2>&1 &
           wait_for_functions || { tail -50 functions-serve.log; exit 1; }
-      - name: Realtime and function tests (no model calls)
+      - name: Realtime, function and demo-seed tests (no model calls)
         run: |
           eval "$(supabase status -o env | grep -E '^(API_URL|ANON_KEY|SERVICE_ROLE_KEY)=')"
           SUPABASE_URL=$API_URL SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY \
-            deno test -A supabase/tests/realtime/ supabase/tests/functions/
+            deno test -A supabase/tests/realtime/ supabase/tests/functions/ scripts/seed-demo/seed.test.ts
 
   gitleaks:
     name: Secret scan

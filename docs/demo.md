@@ -3,8 +3,34 @@
 Under 3 minutes. Two Android phones side by side, signed in as **Mom** and **Dad** on
 the same baby.
 
-**Before every rehearsal and the recording:** run `seed-demo` (`scripts/`, local only),
-so the log, the windows and the check-in start from the same state each time.
+**Before every rehearsal and the recording:** run `seed-demo`, so the log, the windows
+and the check-in start from the same state each time.
+
+```sh
+# scripts/seed-demo/.env from .env.example (gitignored): URL, service-role key, two demo logins
+npx -y deno@2 run --env-file=scripts/seed-demo/.env --allow-env --allow-net \
+  scripts/seed-demo/seed.ts --project <ref> [--at HH:MM]
+```
+
+- **What it creates:** Ana and Radu, paired, with Maia (13 weeks), three weeks of
+  feeds, sleeps and diapers in Europe/Bucharest, night feeds split about 60/40, and
+  check-ins for the three days before. Today's check-in is left open for the reveal.
+  It seeds no chat.
+- **`--at`** is the recording time today, at most 30 min after the run (default: now).
+  - The last nap is placed so that, at that time, **Next up** shows the nap window
+    15–45 min ahead and the bedtime routine within 2 h.
+  - Bedtime is a clock time at this age, so this only works in the late afternoon. The
+    script computes the window with the prediction engine and prints it if `--at` falls
+    outside (about 16:40–18:35).
+- **Reset:** it deletes and recreates only families whose every member is a demo
+  account; if a demo account shares a family with anyone else, it changes nothing.
+  It also clears the demo accounts' rate-limit counters.
+- **Guards:**
+  - `--project` must match `SUPABASE_URL` (`local` for the local stack).
+  - It prints names, counts and times, never keys, passwords or emails.
+- **Tests:** `scripts/seed-demo/plan.test.ts` (timeline, DST, guards) and
+  `scripts/seed-demo/seed.test.ts` (local stack: two runs give the same state, another
+  family is untouched).
 
 | # | Time | Phone | What happens | What it shows |
 |---|---|---|---|---|
