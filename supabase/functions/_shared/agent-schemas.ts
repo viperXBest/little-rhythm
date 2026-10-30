@@ -8,6 +8,8 @@
 
 import { z } from "npm:zod@4.6.6";
 
+import { timeAssumed } from "./unclear-input.ts";
+
 // Must match ML_RANGE and MINUTES_RANGE in app/src/lib/events.ts.
 export const FEED_ML = { min: 5, max: 400 } as const;
 export const FEED_MINUTES = { min: 1, max: 90 } as const;
@@ -79,6 +81,7 @@ export type FeedProposal = {
     minutes?: number;
   };
   errors: ProposalError[];
+  time_assumed: boolean;
 };
 export type SleepProposal = {
   id: string;
@@ -86,6 +89,7 @@ export type SleepProposal = {
   started_at: string | null;
   ended_at: string | null;
   errors: ProposalError[];
+  time_assumed: boolean;
 };
 /** Closes the session baby's open sleep; sleep_id comes from the server, never the model. */
 export type SleepEndProposal = {
@@ -95,6 +99,7 @@ export type SleepEndProposal = {
   started_at: string | null;
   ended_at: string | null;
   errors: ProposalError[];
+  time_assumed: boolean;
 };
 export type DiaperProposal = {
   id: string;
@@ -102,6 +107,7 @@ export type DiaperProposal = {
   started_at: string | null;
   details: { wet?: boolean; dirty?: boolean };
   errors: ProposalError[];
+  time_assumed: boolean;
 };
 export type Proposal = FeedProposal | SleepProposal | SleepEndProposal | DiaperProposal;
 
@@ -112,6 +118,8 @@ export type ProposalContext = {
   /** Minutes east of UTC on the parent's phone (Bucharest summer: 180). */
   offsetMinutes: number;
   openSleep: OpenSleep | null;
+  /** The parent's message (or transcript). With it, proposals whose time was assumed are flagged. */
+  text?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -214,7 +222,11 @@ function parseArgs(rawArgs: string): Raw | null {
   }
 }
 
-/** Turns one write tool call into a proposal. Always returns one, with errors if invalid. */
+/**
+ * Turns one write tool call into a proposal. Always returns one, with errors if invalid.
+ * With ctx.text, a time the parent didn't give is flagged (time_assumed) and, when the
+ * model says no time was stated, pinned to now, so the card's "set to now" note is true.
+ */
 export function toProposal(
   tool: WriteTool,
   rawArgs: string,
@@ -222,6 +234,21 @@ export function toProposal(
   id: string = crypto.randomUUID(),
 ): Proposal {
   const raw = parseArgs(rawArgs);
+  const proposal = buildProposal(tool, raw, ctx, id);
+  if (ctx.text === undefined) return proposal;
+  const key = proposal.type === "sleep_end" ? "ended_at" : "started_at";
+  const timeStated = raw?.time_stated;
+  if (timeStated === false) {
+    const now = new Date(Math.floor(ctx.now.getTime() / 60_000) * 60_000).toISOString();
+    (proposal as Record<typeof key, string | null>)[key] = now;
+    proposal.errors = proposal.errors.filter((e) => e.field !== key);
+  }
+  const time = (proposal as Record<typeof key, string | null>)[key];
+  proposal.time_assumed = timeAssumed({ timeStated, time, now: ctx.now, text: ctx.text });
+  return proposal;
+}
+
+function buildProposal(tool: WriteTool, raw: Raw | null, ctx: ProposalContext, id: string): Proposal {
   const c = new Collector(raw ?? {});
   if (!raw) c.add("arguments", "invalid_arguments");
 
@@ -237,7 +264,14 @@ export function toProposal(
         : kind === "breast"
         ? { kind, side, minutes }
         : { ml, side, minutes };
-      return { id, type: "feed", started_at, details: dropUndefined(details), errors: c.errors };
+      return {
+        id,
+        type: "feed",
+        started_at,
+        details: dropUndefined(details),
+        errors: c.errors,
+        time_assumed: false,
+      };
     }
     case "log_sleep": {
       const started_at = c.time("started_at", true, ctx);
@@ -245,7 +279,7 @@ export function toProposal(
       if (started_at && ended_at && ended_at < started_at) c.add("ended_at", "before_start");
       const rawEnd = raw?.ended_at;
       if ((rawEnd === undefined || rawEnd === null) && ctx.openSleep) c.add("ended_at", "sleep_already_open");
-      return { id, type: "sleep", started_at, ended_at, errors: c.errors };
+      return { id, type: "sleep", started_at, ended_at, errors: c.errors, time_assumed: false };
     }
     case "end_sleep": {
       const ended_at = c.time("ended_at", true, ctx);
@@ -261,6 +295,7 @@ export function toProposal(
         started_at: open ? new Date(open.started_at).toISOString() : null,
         ended_at,
         errors: c.errors,
+        time_assumed: false,
       };
     }
     case "log_diaper": {
@@ -274,6 +309,7 @@ export function toProposal(
         started_at,
         details: { wet: wet ?? false, dirty: dirty ?? false },
         errors: c.errors,
+        time_assumed: false,
       };
     }
   }
@@ -288,6 +324,11 @@ function dropUndefined<T extends Record<string, unknown>>(value: T): T {
 // ---------------------------------------------------------------------------
 
 const TIME_HINT = "Parent's local wall-clock time, YYYY-MM-DDTHH:mm. Never in the future.";
+const TIME_STATED = {
+  type: "boolean",
+  description:
+    'true only if the parent said when: a clock time, "now", or a relative time like "20 minutes ago". false if they gave no time and you used now.',
+};
 
 export type ToolDefinition = {
   type: "function";
@@ -304,10 +345,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: "object",
         additionalProperties: false,
-        required: ["kind", "started_at"],
+        required: ["kind", "started_at", "time_stated"],
         properties: {
           kind: { type: "string", enum: ["bottle", "breast"] },
           started_at: { type: "string", description: TIME_HINT },
+          time_stated: TIME_STATED,
           ml: { type: "integer", minimum: FEED_ML.min, maximum: FEED_ML.max },
           side: { type: "string", enum: ["left", "right"] },
           minutes: { type: "integer", minimum: FEED_MINUTES.min, maximum: FEED_MINUTES.max },
@@ -324,9 +366,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: "object",
         additionalProperties: false,
-        required: ["started_at"],
+        required: ["started_at", "time_stated"],
         properties: {
           started_at: { type: "string", description: TIME_HINT },
+          time_stated: TIME_STATED,
           ended_at: { type: "string", description: TIME_HINT },
         },
       },
@@ -340,8 +383,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: "object",
         additionalProperties: false,
-        required: ["ended_at"],
-        properties: { ended_at: { type: "string", description: TIME_HINT } },
+        required: ["ended_at", "time_stated"],
+        properties: { ended_at: { type: "string", description: TIME_HINT }, time_stated: TIME_STATED },
       },
     },
   },
@@ -353,9 +396,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: "object",
         additionalProperties: false,
-        required: ["started_at", "wet", "dirty"],
+        required: ["started_at", "time_stated", "wet", "dirty"],
         properties: {
           started_at: { type: "string", description: TIME_HINT },
+          time_stated: TIME_STATED,
           wet: { type: "boolean" },
           dirty: { type: "boolean" },
         },

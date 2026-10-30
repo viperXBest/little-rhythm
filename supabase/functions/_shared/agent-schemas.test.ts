@@ -58,6 +58,7 @@ Deno.test("valid bottle feed resolves local time to UTC", () => {
     started_at: "2026-10-27T23:30:00.000Z",
     details: { kind: "bottle", ml: 90 },
     errors: [],
+    time_assumed: false,
   });
 });
 
@@ -100,6 +101,7 @@ Deno.test("end_sleep closes the server-supplied open sleep", () => {
     started_at: "2026-10-27T22:00:00.000Z",
     ended_at: "2026-10-27T23:40:00.000Z",
     errors: [],
+    time_assumed: false,
   });
 });
 

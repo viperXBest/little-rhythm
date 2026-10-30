@@ -2,7 +2,14 @@ import { assertEquals } from "jsr:@std/assert@1.0.13";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
 import type { RecentEventsQuery, SearchHistoryQuery } from "./agent-schemas.ts";
-import { type AgentInput, type Completion, MAX_ITERATIONS, type Message, runAgent } from "./agent.ts";
+import {
+  type AgentInput,
+  type Completion,
+  GARBLED_NOTE,
+  MAX_ITERATIONS,
+  type Message,
+  runAgent,
+} from "./agent.ts";
 import {
   buildContext,
   buildHistory,
@@ -25,6 +32,7 @@ import { applyHealthGate, REFERRAL_SENTENCE } from "./health-gate.ts";
 import { keywordHit } from "./health-keywords.ts";
 import { BUCHAREST, feedAt } from "./predict.fixtures.ts";
 import { predict } from "./predict.ts";
+import { TIME_ASSUMED_NOTE } from "./unclear-input.ts";
 
 // 02:00 on 28 Oct 2026 in Bucharest (UTC+2).
 const NOW = new Date("2026-10-28T00:00:00Z");
@@ -77,8 +85,8 @@ Deno.test("one message, two tool calls: a bottle feed and an open sleep", async 
     {
       content: null,
       tool_calls: [
-        call("log_feed", { kind: "bottle", started_at: "2026-10-27T15:00", ml: 90 }),
-        call("log_sleep", { started_at: "2026-10-28T02:00" }),
+        call("log_feed", { kind: "bottle", started_at: "2026-10-27T15:00", ml: 90, time_stated: true }),
+        call("log_sleep", { started_at: "2026-10-28T02:00", time_stated: true }),
       ],
     },
     { content: "Proposed a 90 ml bottle at 15:00 and a sleep from now.", tool_calls: [] },
@@ -495,9 +503,24 @@ Deno.test("proposal summary is built from validated proposals, in local time", (
         started_at: "2026-10-27T13:00:00Z",
         details: { kind: "bottle", ml: 90 },
         errors: [],
+        time_assumed: false,
       },
-      { id: "2", type: "sleep", started_at: "2026-10-27T13:40:00Z", ended_at: null, errors: [] },
-      { id: "3", type: "diaper", started_at: "2026-10-27T14:00:00Z", details: { wet: true }, errors: [] },
+      {
+        id: "2",
+        type: "sleep",
+        started_at: "2026-10-27T13:40:00Z",
+        ended_at: null,
+        errors: [],
+        time_assumed: false,
+      },
+      {
+        id: "3",
+        type: "diaper",
+        started_at: "2026-10-27T14:00:00Z",
+        details: { wet: true },
+        errors: [],
+        time_assumed: false,
+      },
     ], BUCHAREST),
     "Proposed: bottle 90 ml at 15:00; sleep from 15:40; wet diaper at 16:00",
   );
@@ -608,3 +631,91 @@ function recordingDb(rows: unknown[]) {
   });
   return { client: proxy as SupabaseClient, calls };
 }
+
+// ---- Unclear input: a time the parent didn't give is never silently "now" ----
+// NOW is 2026-10-28T02:00 on the parent's phone (UTC+2), 00:00Z.
+
+/** The release-build transcript of "Maya just went to sleep one hour ago, can you map that please?". */
+const GARBLED = "majestuentu слипу anawarga Ok, map that please";
+
+Deno.test("garbled transcript: a sleep the model puts at now is flagged, and the reply says so", async () => {
+  // Even when the model claims the time was stated.
+  const model = scripted([
+    { content: null, tool_calls: [call("log_sleep", { started_at: "2026-10-28T02:00", time_stated: true })] },
+    { content: "Proposed a sleep from now.", tool_calls: [] },
+  ]);
+  const result = await runAgent(input(GARBLED, model.complete));
+  assertEquals(result.proposals.map((p) => [p.type, p.started_at, p.time_assumed]), [
+    ["sleep", "2026-10-28T00:00:00.000Z", true],
+  ]);
+  assertEquals(result.caption, `Proposed a sleep from now.\n\n${TIME_ASSUMED_NOTE}`);
+  // The model was told the message looks garbled, right before it.
+  const sent = model.seen[0];
+  assertEquals(sent.at(-2), { role: "system", content: GARBLED_NOTE });
+  assertEquals(sent.at(-1), { role: "user", content: GARBLED });
+});
+
+Deno.test("garbled transcript: asking the parent to repeat proposes nothing", async () => {
+  const model = scripted([
+    { content: "Sorry, I didn't catch that. Could you say it again, with when it happened?", tool_calls: [] },
+  ]);
+  const result = await runAgent(input(GARBLED, model.complete));
+  assertEquals(result.proposals, []);
+  assertEquals(result.caption.includes(TIME_ASSUMED_NOTE), false);
+});
+
+Deno.test("a relative time is used and not flagged", async () => {
+  const model = scripted([
+    { content: null, tool_calls: [call("log_sleep", { started_at: "2026-10-28T01:00", time_stated: true })] },
+    { content: "Proposed a sleep from 01:00.", tool_calls: [] },
+  ]);
+  const result = await runAgent(input("Maia just went to sleep one hour ago", model.complete));
+  assertEquals(result.proposals.map((p) => [p.started_at, p.time_assumed]), [[
+    "2026-10-27T23:00:00.000Z",
+    false,
+  ]]);
+  assertEquals(result.caption, "Proposed a sleep from 01:00.");
+  assertEquals(model.seen[0].some((m) => m.content === GARBLED_NOTE), false);
+});
+
+Deno.test("no time given: time_stated false pins the time to now and flags it", async () => {
+  const model = scripted([
+    {
+      content: null,
+      tool_calls: [
+        call("log_diaper", { wet: true, dirty: false, time_stated: false }),
+        // A guessed time with time_stated false is replaced by now.
+        call("log_feed", { kind: "bottle", ml: 90, started_at: "2026-10-28T00:30", time_stated: false }),
+      ],
+    },
+    { content: "Proposed a wet diaper and a bottle. The time was set to now.", tool_calls: [] },
+  ]);
+  const result = await runAgent(input("wet diaper and a 90 ml bottle", model.complete));
+  assertEquals(result.proposals.map((p) => [p.type, p.started_at, p.errors, p.time_assumed]), [
+    ["diaper", "2026-10-28T00:00:00.000Z", [], true],
+    ["feed", "2026-10-28T00:00:00.000Z", [], true],
+  ]);
+  assertEquals(result.caption.endsWith(TIME_ASSUMED_NOTE), true);
+});
+
+Deno.test("no time words and a time at now is flagged even when the model says it was stated", async () => {
+  const model = scripted([
+    {
+      content: null,
+      tool_calls: [call("log_diaper", { started_at: "2026-10-28T02:00", wet: true, time_stated: true })],
+    },
+    { content: "Proposed a wet diaper.", tool_calls: [] },
+  ]);
+  const result = await runAgent(input("wet diaper", model.complete));
+  assertEquals(result.proposals[0].time_assumed, true);
+});
+
+Deno.test("'asleep now' is a stated time: not flagged", async () => {
+  const model = scripted([
+    { content: null, tool_calls: [call("log_sleep", { started_at: "2026-10-28T02:00", time_stated: true })] },
+    { content: "Proposed a sleep from now.", tool_calls: [] },
+  ]);
+  const result = await runAgent(input("she's asleep now", model.complete));
+  assertEquals(result.proposals[0].time_assumed, false);
+  assertEquals(result.caption, "Proposed a sleep from now.");
+});

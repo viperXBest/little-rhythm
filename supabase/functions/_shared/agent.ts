@@ -9,6 +9,7 @@ import {
   isWriteTool,
   type OpenSleep,
   type Proposal,
+  type ProposalContext,
   RecentEventsArgs,
   type RecentEventsQuery,
   SEARCH_LIMIT,
@@ -22,6 +23,7 @@ import {
 import type { BuddyContext, HistoryMessage } from "./buddy-context.ts";
 import { REFERRAL_SENTENCE } from "./health-gate.ts";
 import type { Prediction, Slot } from "./predict.ts";
+import { looksGarbled, TIME_ASSUMED_NOTE } from "./unclear-input.ts";
 import { toZoneLocalTime, type Zone } from "./zone.ts";
 
 export const MAX_ITERATIONS = 4;
@@ -96,7 +98,9 @@ Now on the parent's phone: ${local} (${weekday}, UTC${offset}). ${sleep}
 1. Logging
 Turn what the parent says about feeds, sleeps and diapers into tool calls, one call per event.
 - log_feed, log_sleep, end_sleep and log_diaper only propose an event. The parent checks and confirms each one before it is saved.
-- Times are the parent's local wall clock as YYYY-MM-DDTHH:mm. A time without a date ("at 3") is the most recent time in the past with that clock reading, never a future time. No time or "just now" means now. "20 minutes ago" means now minus 20 minutes.
+- Times are the parent's local wall clock as YYYY-MM-DDTHH:mm. A time without a date ("at 3") is the most recent time in the past with that clock reading, never a future time. "Now" or "just now" means now. "20 minutes ago" or "an hour ago" means now minus that.
+- Every write tool takes time_stated: true only if the parent said when (a clock time, "now", or a relative time). Never assume a time silently. If the parent gave no time, use now with time_stated false and say in your reply that the time was set to now and can be edited on the card.
+- Voice messages are transcripts and can be partly garbled: mixed alphabets, non-words, missing pieces. If you can't tell which event the parent means, don't call a write tool: ask them to say it again or type it, and to include when it happened. If the event is clear but the time isn't, propose it with time_stated false. Never take a time from a garbled part.
 - "She's asleep now" or "she fell asleep at 2" starts a sleep: log_sleep without ended_at. "She woke up" ends the sleep in progress: end_sleep. A finished nap with a start and end is log_sleep with both.
 - A breast feed on both sides is two log_feed calls, one per side.
 - If a tool result says the proposal needs fixing, do not call it again: the parent fixes it on the card.
@@ -127,10 +131,16 @@ export async function runAgent(input: AgentInput): Promise<AgentResult> {
     { role: "system", content: contextMessage(input.context) },
     ...(input.memory ? [{ role: "system" as const, content: memoryMessage(input.memory) }] : []),
     ...input.history.map((m): Message => ({ role: m.role, content: m.content })),
+    ...(looksGarbled(input.text) ? [{ role: "system" as const, content: GARBLED_NOTE }] : []),
     { role: "user", content: input.text },
   ];
   const proposals: Proposal[] = [];
-  const ctx = { now: input.now, offsetMinutes: input.offsetMinutes, openSleep: input.openSleep };
+  const ctx = {
+    now: input.now,
+    offsetMinutes: input.offsetMinutes,
+    openSleep: input.openSleep,
+    text: input.text,
+  };
 
   for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     const completion = await input.complete(messages, TOOL_DEFINITIONS);
@@ -166,7 +176,7 @@ ${JSON.stringify(context)}`;
 async function runTool(
   call: ToolCall,
   input: AgentInput,
-  ctx: { now: Date; offsetMinutes: number; openSleep: OpenSleep | null },
+  ctx: ProposalContext,
   proposals: Proposal[],
 ): Promise<unknown> {
   const name = call.function.name;
@@ -269,10 +279,24 @@ export function describeWindows(prediction: Prediction, zone: Zone): Record<stri
   };
 }
 
+/**
+ * The reply. When any proposal's time was assumed, the fixed note is added by the
+ * server, so older app versions (without the card note) still show it.
+ */
 function caption(content: string | null, proposals: Proposal[]): string {
   const text = content?.trim();
-  if (text) return text.slice(0, MAX_CAPTION);
-  return proposals.length > 0
+  const base = text
+    ? text.slice(0, MAX_CAPTION)
+    : proposals.length > 0
     ? "Check the details below and confirm."
     : "I couldn't find anything to log. Try something like “90 ml bottle at 3”.";
+  return proposals.some((p) => p.time_assumed)
+    ? `${base}
+
+${TIME_ASSUMED_NOTE}`
+    : base;
 }
+
+/** Added before the parent's message when it looks like a garbled transcript. */
+export const GARBLED_NOTE =
+  "Server note: the parent's message looks partly garbled (it mixes alphabets or has broken words, likely a voice transcription error). If you can't tell which event they mean, ask them to repeat or type it, including when it happened. Don't take a time from the garbled part.";
