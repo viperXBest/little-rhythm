@@ -43,6 +43,7 @@ import {
   type Escalation,
 } from "../_shared/health-gate.ts";
 import { keywordHit } from "../_shared/health-keywords.ts";
+import { languageBias } from "../_shared/asr-language.ts";
 import { MuseError, sparkComplete, sparkJson, sparkText, transcribe } from "../_shared/muse.ts";
 import { predict } from "../_shared/predict.ts";
 import { EMPTY_SUMMARY, maybeFoldMemory, runInBackground } from "../_shared/thread-memory.ts";
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
   let transcript: string | undefined;
   if (request.kind === "voice") {
     try {
-      transcript = await transcribe(request.wav, apiKey);
+      transcript = await transcribe(request.wav, apiKey, languageBias(request.lang));
     } catch (error) {
       return museFailure(error);
     }

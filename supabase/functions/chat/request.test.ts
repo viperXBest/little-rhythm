@@ -37,13 +37,20 @@ function wav(ms: number): Uint8Array<ArrayBuffer> {
 
 /** A multipart request with an explicit Content-Length, like the app sends. */
 async function multipartRequest(
-  fields: { audio?: Uint8Array<ArrayBuffer>; offset?: string; tz?: string; thread?: string | null },
+  fields: {
+    audio?: Uint8Array<ArrayBuffer>;
+    offset?: string;
+    tz?: string;
+    lang?: string;
+    thread?: string | null;
+  },
   length: "actual" | "missing" | number = "actual",
 ): Promise<Request> {
   const form = new FormData();
   if (fields.audio) form.append("audio", new Blob([fields.audio], { type: "audio/wav" }), "clip.wav");
   if (fields.offset !== undefined) form.append("tz_offset_minutes", fields.offset);
   if (fields.tz !== undefined) form.append("tz", fields.tz);
+  if (fields.lang !== undefined) form.append("lang", fields.lang);
   if (fields.thread !== null) form.append("thread_id", fields.thread ?? THREAD);
   const encoded = new Response(form);
   const type = encoded.headers.get("Content-Type") ?? "";
@@ -195,4 +202,16 @@ Deno.test("tz_offset_minutes outside -840..840 is a 400, for JSON and multipart"
     const voice = await parseChatRequest(await multipartRequest({ audio: wav(500), offset: String(offset) }));
     assertEquals(voice.ok, true, `multipart ${offset}`);
   }
+});
+
+Deno.test("lang: a well-formed tag is passed on; absent or malformed is dropped, not rejected", async () => {
+  const voice = async (lang?: string) => {
+    const r = await parseChatRequest(await multipartRequest({ audio: wav(500), offset: "120", lang }));
+    return r.ok && r.kind === "voice" ? (r.lang ?? null) : "rejected";
+  };
+  assertEquals(await voice("ro-RO"), "ro-RO");
+  assertEquals(await voice("en"), "en");
+  assertEquals(await voice(undefined), null);
+  assertEquals(await voice("not a tag; DROP"), null);
+  assertEquals(await voice("x".repeat(40)), null);
 });

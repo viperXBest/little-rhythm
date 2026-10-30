@@ -1,6 +1,8 @@
 // Parses a chat request without reading more than the caps allow.
 // JSON:      { text, thread_id, tz_offset_minutes, tz? }
-// multipart: audio (WAV file) + thread_id + tz_offset_minutes + tz?
+// multipart: audio (WAV file) + thread_id + tz_offset_minutes + tz? + lang?
+// lang is the phone's language tag (BCP 47) for the transcription hint; absent
+// or unknown means English (asr-language.ts), so older apps keep working.
 // tz is the phone's IANA zone; an unknown name is dropped, not rejected.
 // The body never names a baby or family; those come from the session. The
 // thread id is checked against the caller's family before anything is stored.
@@ -20,6 +22,7 @@ export const MAX_MULTIPART_BYTES = VOICE_MAX_BYTES + 16 * 1024;
 const Offset = z.int().min(TZ_OFFSET.min).max(TZ_OFFSET.max);
 const TimeZone = z.string().max(MAX_TZ_NAME);
 const ThreadId = z.uuid();
+const Lang = z.string().max(35).regex(/^[A-Za-z]{2,3}([-_][A-Za-z0-9]{1,8})*$/);
 const TextBody = z.strictObject({
   text: z.string().trim().min(1).max(MAX_TEXT),
   thread_id: ThreadId,
@@ -33,6 +36,8 @@ export type ChatRequest =
     ok: true;
     kind: "voice";
     wav: Uint8Array<ArrayBuffer>;
+    /** The phone's language tag, when it sent a well-formed one. */
+    lang?: string;
     threadId: string;
     offsetMinutes: number;
     tz?: string;
@@ -95,6 +100,8 @@ export async function parseChatRequest(req: Request): Promise<ChatRequest> {
   const offset = Offset.safeParse(Number(form.get("tz_offset_minutes") ?? Number.NaN));
   const thread = ThreadId.safeParse(form.get("thread_id"));
   const tzField = form.get("tz");
+  // A malformed lang is dropped (English hint), not rejected.
+  const lang = Lang.safeParse(form.get("lang"));
   const tz = tzField === null ? { success: true as const, data: undefined } : TimeZone.safeParse(tzField);
   if (!(audio instanceof File) || !thread.success || !offset.success || !tz.success) {
     return fail(400, "invalid_request");
@@ -109,6 +116,7 @@ export async function parseChatRequest(req: Request): Promise<ChatRequest> {
     ok: true,
     kind: "voice",
     wav,
+    ...(lang.success ? { lang: lang.data } : {}),
     threadId: thread.data,
     offsetMinutes: offset.data,
     ...knownZone(tz.data),

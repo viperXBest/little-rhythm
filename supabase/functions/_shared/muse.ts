@@ -23,14 +23,24 @@ export class MuseError extends Error {
   }
 }
 
-/** Muse Voice Transcribe: WAV in (already checked by checkVoiceWav), text out. */
-export async function transcribe(wav: Uint8Array<ArrayBuffer>, apiKey: string): Promise<string> {
+/**
+ * Muse Voice Transcribe: WAV in (already checked by checkVoiceWav), text out.
+ * languageBias steers recognition without forcing it (see asr-language.ts).
+ * No keywords: measured on Day 8, they gave no consistent gain and added
+ * repeated words (docs/chat.md, "Transcription").
+ */
+export async function transcribe(
+  wav: Uint8Array<ArrayBuffer>,
+  apiKey: string,
+  languageBias: string[],
+): Promise<string> {
   const form = new FormData();
   form.append(
     "request",
-    new Blob([JSON.stringify({ mode: "PUSH_TO_TALK", model: TRANSCRIBE_MODEL, audioEncoding: "WAV" })], {
-      type: "application/json",
-    }),
+    new Blob(
+      [JSON.stringify({ mode: "PUSH_TO_TALK", model: TRANSCRIBE_MODEL, audioEncoding: "WAV", languageBias })],
+      { type: "application/json" },
+    ),
   );
   form.append("audio", new Blob([wav], { type: "audio/wav" }), "clip.wav");
 
