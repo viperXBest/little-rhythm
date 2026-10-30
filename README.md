@@ -93,6 +93,13 @@ the last 48 h.
 **Voice pipeline:** the app records WAV with `@siteed/audio-studio`, and the function
 checks its size and header. `muse-voice-transcribe-1.0` turns it into text, and the
 agent runs on that text. Audio is never stored.
+- **Language:** the request carries a `languageBias` hint from the phone's language.
+  Voice logging is English-first: Romanian isn't one of the model's languages, but
+  Romanian works when typed.
+- **No silent guesses:** if a message gives no time, or a transcript comes back
+  garbled, the agent asks again or proposes the event with a fixed note: "Time not
+  mentioned, set to now. Edit if wrong." Details:
+  [`docs/chat.md`](docs/chat.md#unclear-input-and-assumed-times).
 
 **Latency** (`reasoning_effort: "low"`, measured on the full agent turn; details in
 [`docs/chat.md`](docs/chat.md)):

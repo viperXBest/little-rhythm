@@ -125,6 +125,80 @@ On the local stack, the gateway buffers chunked requests and passes them on with
 real `Content-Length`, so the 411 branch is defense in depth there. The size cap
 applies either way. Unit tests: `chat/request.test.ts`.
 
+## Transcription
+
+On the release build, "Maya just went to sleep one hour ago, can you map that
+please?" came back as "majestuentu слипу anawarga Ok, map that please". The start
+of the sentence was lost, and the agent proposed the sleep at now.
+
+- **Language hint.** The request sends `languageBias`, a hint rather than a
+  constraint ([Meta speech-to-text docs](https://dev.meta.ai/docs/speech-to-text)).
+  - The app sends the phone's language tag (`lang`), and `_shared/asr-language.ts`
+    maps it to one of the 25 supported languages.
+  - Anything else becomes `["English"]`: Romanian (which the model doesn't
+    support), a missing tag from older app versions, or a malformed one. **Voice
+    logging is English-first; Romanian works when typed.**
+- **No keywords.** `keywords` (vocabulary biasing) gave no consistent gain and added
+  repeated words ("ml ml", "fell fell"). The baby's name is never sent: no names go
+  to the AI.
+- **Start of the recording.** The recorder used to start only once the press had
+  passed an async permission check, while the button still said "Hold to talk".
+  - Now it is warmed up with `prepareRecording` when the chat opens, but only if mic
+    permission was already granted; opening the chat never prompts. It is warmed up
+    again after each clip.
+  - The button says "Starting…" until capture is live, then "Recording – speak now".
+  - Dev builds log the start delay and the level of the first 500 ms, as numbers
+    only.
+
+**Measured on 30 Oct 2026.** Five clips were read by a TTS voice (16 kHz mono
+WAV), each with the baby's name and a time ("one hour ago", "at 3", "20 minutes ago",
+"half past two"). They went through the real API, two runs, as WER (word error rate),
+plus whether the name and the time survived:
+
+| Clip variant | Request | WER, run 1 / 2 | Name kept | Time kept |
+|---|---|---|---|---|
+| clean | no hint (before) | 8.1% / 6.6% | 9/10 | 10/10 |
+| clean | `languageBias` English (after) | 1.8% / 8.4% | 9/10 | 10/10 |
+| clean | hint + keywords | 6.5% / 1.7% | 10/10 | 10/10 |
+| noise, about 15 dB SNR | no hint | 4.9% / 4.7% | 9/10 | 10/10 |
+| noise, about 15 dB SNR | `languageBias` English | 3.6% / 3.5% | 10/10 | 10/10 |
+| first 500 ms cut | any | 13–18% | **0/10** | 10/10 |
+
+- **A clipped start is the clear failure.** Cutting the first 500 ms lost the first
+  word every time, in every setting. That is why the start latency was fixed.
+- **The language hint** neither helped nor hurt clearly on clean English speech
+  (runs vary as much as settings do). It is sent because it steers away from the
+  wrong-language drift seen on the phone, which clean TTS doesn't reproduce.
+- **Still to measure:** real speech on the phone, before and after, with the dev
+  build's start-delay log.
+
+## Unclear input and assumed times
+
+The agent never logs an event at an assumed "now" silently
+(`_shared/unclear-input.ts`, `agent-schemas.ts`, `agent.ts`):
+
+- **Every write tool takes `time_stated`.** The prompt asks for `true` only if the
+  parent said when: a clock time, "now", or a relative time.
+- **The server sets `time_assumed`** on each proposal. It is true when:
+  - the model says no time was stated (that time is then pinned to now); or
+  - the time is within 3 min of now but the message names no time (English and
+    Romanian time words, or any digit), or it looks garbled.
+- **The note comes from the server too.** With any assumed time, it adds the fixed
+  note "Time not mentioned, set to now. Edit if wrong." to the reply, so app versions
+  without the card note still show it. The confirm card shows the same text until
+  the parent sets the time.
+- **Garbled transcripts.** A message is treated as garbled when it mixes alphabets
+  (at least two letters of each) or has the Unicode replacement character. It then
+  gets a server note before it.
+  - **Event unclear:** the prompt says to ask the parent to repeat or type it, and
+    to include when it happened.
+  - **Event clear, time unclear:** propose with `time_stated` false.
+  - **Never** take a time from a garbled part.
+- **Tests:**
+  - `_shared/agent.test.ts` and `_shared/unclear-input.test.ts`, with the exact
+    release-build transcript;
+  - the live regression set `chat/safety-unclear.json` (`docs/safety.md`).
+
 ## Reasoning effort: `low`
 
 Measured on 28 Oct 2026 with `scripts/day4-scratch/latency.ts` (local, not committed).
