@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Timeline } from '@/components/timeline';
 import { Fonts, Spacing } from '@/constants/theme';
+import { useNow } from '@/hooks/use-now';
 import { ageInWeeks } from '@/lib/dates';
 import { createPairCode, pairErrorMessage } from '@/lib/pair';
 import type { NightFeeds } from '@/lib/predict';
@@ -54,6 +55,8 @@ function InviteCard() {
   const [invite, setInvite] = useState<Invite | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const now = useNow(60_000);
+  const expired = invite !== null && invite.expiresAt.getTime() <= now.getTime();
 
   async function onCreate() {
     setError(null);
@@ -73,25 +76,36 @@ function InviteCard() {
       <ThemedText type="smallBold">Invite your partner</ThemedText>
       {invite ? (
         <View style={styles.inviteBody}>
-          <ThemedText selectable style={styles.code}>
+          <ThemedText
+            selectable={!expired}
+            themeColor={expired ? 'textSecondary' : 'text'}
+            style={[styles.code, expired && styles.expired]}>
             {invite.code}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            They sign up, tap “I have a code”, and enter it. Works once, until{' '}
-            {invite.expiresAt.toLocaleString([], {
-              weekday: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-            .
-          </ThemedText>
-          <Button
-            title="Share code"
-            onPress={() =>
-              void Share.share({ message: `Join me on Little Rhythm with this code: ${invite.code}` })
-            }
-          />
-          <Button title="New code" variant="secondary" onPress={onCreate} busy={busy} />
+          {expired ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              This code has expired. Make a new one for your partner.
+            </ThemedText>
+          ) : (
+            <ThemedText type="small" themeColor="textSecondary">
+              They sign up, tap “I have a code”, and enter it. Works once, until{' '}
+              {invite.expiresAt.toLocaleString([], {
+                weekday: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+              .
+            </ThemedText>
+          )}
+          {expired ? null : (
+            <Button
+              title="Share code"
+              onPress={() =>
+                void Share.share({ message: `Join me on Little Rhythm with this code: ${invite.code}` })
+              }
+            />
+          )}
+          <Button title="New code" variant={expired ? 'primary' : 'secondary'} onPress={onCreate} busy={busy} />
         </View>
       ) : (
         <Button title="Show pairing code" onPress={onCreate} busy={busy} />
@@ -112,4 +126,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: Spacing.two,
   },
+  expired: { textDecorationLine: 'line-through' },
 });

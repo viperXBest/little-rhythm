@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { Button, ErrorText, Field, Screen } from '@/components/form';
+import { Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -15,7 +16,13 @@ export default function DeleteAccount() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  if (!family) return null;
+  if (!family) {
+    return (
+      <Screen>
+        <Loading />
+      </Screen>
+    );
+  }
   const withPartner = family.memberCount >= 2;
 
   function onContinue() {
@@ -71,6 +78,7 @@ export default function DeleteAccount() {
         onSubmitEditing={onContinue}
       />
       <ErrorText>{error}</ErrorText>
+      {busy ? <Loading label="Deleting your account…" /> : null}
       {confirming ? (
         <>
           <ThemedText type="smallBold">Delete your account now?</ThemedText>

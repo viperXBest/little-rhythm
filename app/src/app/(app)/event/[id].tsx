@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 import { Segmented, Stepper } from '@/components/controls';
 import { DateField } from '@/components/date-field';
 import { Button, ErrorText, Screen } from '@/components/form';
+import { ErrorState, Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
 import {
   MINUTES_RANGE,
@@ -23,9 +24,25 @@ const FUTURE_SLACK_MS = 60_000;
 
 export default function EditEvent() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { find } = useTodayEvents();
+  const { find, status, refresh } = useTodayEvents();
   const row = typeof id === 'string' ? find(id) : undefined;
 
+  if (!row && status === 'loading') {
+    return (
+      <Screen>
+        <Loading />
+      </Screen>
+    );
+  }
+  if (!row && status === 'error') {
+    return (
+      <Screen>
+        <ThemedText type="subtitle">Edit</ThemedText>
+        <ErrorState message="Couldn’t load today’s log. Check your connection." onRetry={() => void refresh()} />
+        <Button title="Back" variant="secondary" onPress={() => router.back()} />
+      </Screen>
+    );
+  }
   if (!row) {
     // Deleted (here or on the partner's phone) or no longer today.
     return (

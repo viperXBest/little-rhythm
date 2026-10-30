@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Button } from '@/components/form';
+import { Empty, ErrorState, Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -16,19 +16,16 @@ export function Timeline() {
     <View style={styles.wrap}>
       <ThemedText type="smallBold">Today</ThemedText>
       {status === 'error' ? (
-        <>
-          <ThemedText type="small" themeColor="textSecondary">
-            Couldn&apos;t load today&apos;s log.
-          </ThemedText>
-          <Button title="Try again" variant="secondary" onPress={() => void refresh()} />
-        </>
-      ) : events.length === 0 ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          {status === 'loading' ? 'Loading…' : 'Nothing logged yet today.'}
-        </ThemedText>
-      ) : (
-        events.map((row) => <TimelineRow key={row.id} row={row} />)
-      )}
+        <ErrorState message="Couldn’t load today’s log. Check your connection." onRetry={() => void refresh()} />
+      ) : null}
+      {events.length > 0 ? null : status === 'loading' ? (
+        <Loading label="Loading today’s log…" />
+      ) : status === 'ready' ? (
+        <Empty>Nothing logged yet today. Use the buttons above, or tell the chat.</Empty>
+      ) : null}
+      {events.map((row) => (
+        <TimelineRow key={row.id} row={row} />
+      ))}
     </View>
   );
 }

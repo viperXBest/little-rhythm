@@ -6,6 +6,7 @@ import { Segmented } from '@/components/controls';
 import { EscalationCard } from '@/components/escalation-card';
 import { Button, ErrorText, Field, Screen } from '@/components/form';
 import { MicButton } from '@/components/mic-button';
+import { Empty, ErrorState, Loading } from '@/components/states';
 import { ProposalCard } from '@/components/proposal-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -28,12 +29,18 @@ import { useSession } from '@/lib/session';
 const MAX_TEXT = 1000;
 
 type Scope = 'shared' | 'private';
+type Load = 'loading' | 'ready' | 'error';
 type CardState = { kind: 'open' } | { kind: 'saved'; summary: string } | { kind: 'discarded' };
 
 const SCOPES = [
   { value: 'shared', label: 'Shared' },
   { value: 'private', label: 'Private' },
 ] as const;
+
+const EMPTY: Record<Scope, string> = {
+  shared: 'No messages yet. Try “wet diaper just now”, or ask when the next nap is.',
+  private: 'No messages yet. This conversation is only yours.',
+};
 
 const SCOPE_NOTE: Record<Scope, string> = {
   shared: 'You and your partner both see this conversation.',
@@ -52,7 +59,9 @@ export default function Chat() {
   const userId = session?.user.id ?? null;
   const [scope, setScope] = useState<Scope>('shared');
   const [threads, setThreads] = useState<ThreadIds | null>(null);
+  const [threadsStatus, setThreadsStatus] = useState<Load>('loading');
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
+  const [listStatus, setListStatus] = useState<Record<string, Load>>({});
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,28 +73,37 @@ export default function Chat() {
     let cancelled = false;
     void ensureThreads().then((ids) => {
       if (cancelled) return;
-      if (ids) setThreads(ids);
-      else setError('Couldn’t open the chat. Check your connection and try again.');
+      setThreads(ids);
+      setThreadsStatus(ids ? 'ready' : 'error');
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  async function retryThreads() {
+    setThreadsStatus('loading');
+    const ids = await ensureThreads();
+    setThreads(ids);
+    setThreadsStatus(ids ? 'ready' : 'error');
+  }
+
   const threadId = threads ? threads[scope] : null;
 
   const refresh = useCallback(async (id: string) => {
     const rows = await fetchMessages(id);
     if (rows) setMessages((prev) => ({ ...prev, [id]: merge(prev[id] ?? [], rows) }));
+    // A failed background refresh keeps what is shown; only a failed first load is an error.
+    setListStatus((prev) => ({ ...prev, [id]: rows ? 'ready' : prev[id] === 'ready' ? 'ready' : 'error' }));
   }, []);
 
   useEffect(() => {
     if (!threadId) return;
     let cancelled = false;
     void fetchMessages(threadId).then((rows) => {
-      if (!cancelled && rows) {
-        setMessages((prev) => ({ ...prev, [threadId]: merge(prev[threadId] ?? [], rows) }));
-      }
+      if (cancelled) return;
+      if (rows) setMessages((prev) => ({ ...prev, [threadId]: merge(prev[threadId] ?? [], rows) }));
+      setListStatus((prev) => ({ ...prev, [threadId]: rows ? 'ready' : 'error' }));
     });
     const unsubscribe = subscribeMessages(threadId, (message) =>
       setMessages((prev) => ({ ...prev, [threadId]: merge(prev[threadId] ?? [], [message]) })),
@@ -122,6 +140,7 @@ export default function Chat() {
 
   const list = threadId ? (messages[threadId] ?? []) : [];
   const reply = threadId ? replies[threadId] : undefined;
+  const loadState: Load = threadsStatus !== 'ready' ? threadsStatus : threadId ? (listStatus[threadId] ?? 'loading') : 'loading';
 
   return (
     <Screen>
@@ -132,8 +151,14 @@ export default function Chat() {
         and what’s next. No health advice: for anything health-related, contact your paediatrician.
       </ThemedText>
 
-      {list.length === 0 && threadId ? (
-        <ThemedText themeColor="textSecondary">No messages yet.</ThemedText>
+      {threadsStatus === 'error' ? (
+        <ErrorState message="Couldn’t open the chat. Check your connection." onRetry={() => void retryThreads()} />
+      ) : loadState === 'error' && threadId ? (
+        <ErrorState message="Couldn’t load the messages. Check your connection." onRetry={() => void refresh(threadId)} />
+      ) : loadState === 'loading' ? (
+        <Loading label="Opening the chat…" />
+      ) : list.length === 0 ? (
+        <Empty>{EMPTY[scope]}</Empty>
       ) : null}
       <View style={styles.list}>
         {list.map((m) => (
@@ -169,6 +194,7 @@ export default function Chat() {
         </View>
       ) : null}
 
+      {busy ? <Loading label="Little Rhythm is thinking…" /> : null}
       <MicButton
         onClip={async (uri) => {
           await run((id) => sendVoice(uri, id));

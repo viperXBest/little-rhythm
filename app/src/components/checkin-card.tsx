@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Segmented } from '@/components/controls';
 import { Button, ErrorText, Field } from '@/components/form';
+import { ErrorState, Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -71,17 +72,12 @@ export function CheckinCard() {
   return (
     <ThemedView type="surface" style={styles.card}>
       <ThemedText type="smallBold">Daily check-in</ThemedText>
-      {state.status === 'loading' ? <ThemedText themeColor="textSecondary">Loading…</ThemedText> : null}
+      {state.status === 'loading' ? <Loading label="Loading today’s check-in…" /> : null}
       {state.status === 'error' ? (
-        <View style={styles.block}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Couldn’t load the check-in. Check your connection.
-          </ThemedText>
-          <Button title="Try again" variant="secondary" onPress={() => void load()} />
-        </View>
+        <ErrorState message="Couldn’t load the check-in. Check your connection." onRetry={() => void load()} />
       ) : null}
       {state.status === 'ready' && !mine ? (
-        <CheckinForm familyId={family.id} userId={userId} day={state.day} onDone={() => void load()} />
+        <CheckinForm familyId={family.id} userId={userId} day={state.day} onDone={load} />
       ) : null}
       {mine ? (
         <View style={styles.block}>
@@ -112,7 +108,7 @@ function CheckinForm({
   familyId: string;
   userId: string;
   day: string;
-  onDone: () => void;
+  onDone: () => Promise<void>;
 }) {
   const [mood, setMood] = useState<MoodValue | null>(null);
   const [help, setHelp] = useState('');
@@ -124,13 +120,15 @@ function CheckinForm({
     setBusy(true);
     setError(null);
     const result = await submitCheckin({ familyId, userId, day, mood: Number(mood), help });
-    setBusy(false);
     if (result === 'error') {
+      setBusy(false);
       setError('Couldn’t save your answers. Try again.');
       return;
     }
-    // 'already_answered' (another device) still ends in the answered state.
-    onDone();
+    // 'already_answered' (another device) still ends in the answered state. Stay busy
+    // until the reload shows the answers, so the form doesn't flash back.
+    await onDone();
+    setBusy(false);
   }
 
   return (

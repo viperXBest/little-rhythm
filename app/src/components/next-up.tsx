@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Button } from '@/components/form';
+import { Empty, ErrorState, Loading } from '@/components/states';
 import { ReminderToggle } from '@/components/reminder-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -104,16 +104,13 @@ export function NextUp({ onNightFeeds }: { onNightFeeds?: (value: NightFeeds | n
   return (
     <ThemedView type="surface" style={[styles.card, { borderLeftColor: theme.accent }]}>
       <ThemedText type="smallBold">Next up</ThemedText>
-      {state.status === 'loading' ? (
-        <ThemedText themeColor="textSecondary">Working out what’s next…</ThemedText>
-      ) : null}
+      {state.status === 'loading' ? <Loading label="Working out what’s next…" /> : null}
       {state.status === 'error' ? (
-        <View style={styles.error}>
-          <ThemedText type="small" themeColor="textSecondary">
-            {ERROR_TEXT[state.error]}
-          </ThemedText>
-          <Button title="Try again" variant="secondary" onPress={() => void load()} />
-        </View>
+        <ErrorState
+          message={ERROR_TEXT[state.error]}
+          // A missing family or a second baby won't change on retry.
+          onRetry={state.error === 'rate_limited' || state.error === 'unknown' ? () => void load() : undefined}
+        />
       ) : null}
       {prediction ? <Rows prediction={prediction} /> : null}
       <ReminderToggle prediction={prediction} />
@@ -126,7 +123,7 @@ function Rows({ prediction }: { prediction: Prediction }) {
   const { feed, nap, wake, routine, bedtime } = prediction;
   const awake = wake.reason === 'not_asleep';
   if (feed.reason === 'no_feed_logged' && nap.reason === 'no_sleep_logged') {
-    return <ThemedText themeColor="textSecondary">Log a feed or sleep to see what’s next.</ThemedText>;
+    return <Empty>Log a feed or sleep to see what’s next.</Empty>;
   }
   return (
     <View style={styles.rows}>
@@ -169,7 +166,6 @@ function Row({ label, slot, now }: { label: string; slot: Slot; now: Date }) {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 16, borderLeftWidth: 4, padding: Spacing.three, gap: Spacing.two },
-  error: { gap: Spacing.two },
   rows: { gap: Spacing.two },
   row: { flexDirection: 'row', gap: Spacing.three },
   label: { flex: 1 },
