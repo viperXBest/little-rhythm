@@ -7,9 +7,25 @@
 type ExpoConfig = Record<string, unknown>;
 
 export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
-  checkSupabaseEnv(process.env, process.env.EAS_BUILD_PROFILE);
+  if (!isEasCliPreRead(process.env)) checkSupabaseEnv(process.env, process.env.EAS_BUILD_PROFILE);
   return config;
 };
+
+/**
+ * eas-cli reads this config once on the developer's machine before it fetches the
+ * EAS environment (it needs the project id first), with .env loading off, so both
+ * values are absent there. That read is skipped; eas-cli's next read has them, and
+ * the build worker (EAS_BUILD=true) checks again before bundling, so a missing value
+ * still fails the build.
+ */
+export function isEasCliPreRead(env: Record<string, string | undefined>): boolean {
+  return (
+    env.EXPO_NO_DOTENV === '1' &&
+    env.EAS_BUILD !== 'true' &&
+    !env.EXPO_PUBLIC_SUPABASE_URL &&
+    !env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
 
 export type SupabaseEnv = { url: string; anonKey: string };
 
