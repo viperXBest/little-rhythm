@@ -199,8 +199,9 @@ cd little-rhythm
 cp supabase/functions/.env.example supabase/functions/.env
 # In supabase/functions/.env:
 #   PAIR_CODE_PEPPER  set it to the output of: openssl rand -hex 32
-#   MODEL_API_KEY     your Meta Model API key. Only chat needs it; leave it empty to run
-#                     everything else (the tests make no model calls).
+#   MODEL_API_KEY     your Meta Model API key. Without one, set any placeholder
+#                     (e.g. not-a-real-key): chat refuses to start with it empty, the tests
+#                     make no model calls, and only chat replies need a real key.
 supabase start          # Postgres, Auth, Realtime and the Edge Functions; applies the migrations
 ```
 
@@ -302,8 +303,14 @@ the URL, and it never prints keys, passwords or emails. Details:
 ```sh
 cp scripts/seed-demo/.env.example scripts/seed-demo/.env   # URL, service-role key, two demo logins
 npx -y deno@2 run --env-file=scripts/seed-demo/.env --allow-env --allow-net \
-  scripts/seed-demo/seed.ts --project local --at 17:30      # or --project <ref> for hosted
+  scripts/seed-demo/seed.ts --project local [--at HH:MM]    # or --project <ref> for hosted
 ```
+
+**When it runs:** right before a take, in the late afternoon in Europe/Bucharest
+(about 16:40–18:35 for a 13-week-old). Bedtime is a clock time at this age, so at any
+other time the card couldn't show the nap and the routine together.
+- Outside that window, the script refuses and prints the valid range.
+- `--at` may be at most 30 min after the run.
 
 ## Safety set and independent review
 
