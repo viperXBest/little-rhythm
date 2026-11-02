@@ -202,7 +202,7 @@ export default function Chat() {
               if (follow.current) setTimeout(() => scroller.current?.scrollToEnd({ animated: false }), 50);
             }}>
             <ThemedText type="small" themeColor="textSecondary">
-              {SCOPE_NOTE[scope]} Log by voice or text (“90 ml bottle twenty minutes ago, she’s asleep now”), or ask
+              {SCOPE_NOTE[scope]} Log by voice or text (“90&nbsp;ml bottle twenty minutes ago, she’s asleep now”), or ask
               about the log and what’s next. No health advice: for anything health-related, contact your
               paediatrician.
             </ThemedText>

@@ -19,6 +19,7 @@ import {
   type FeedDetails,
 } from '@/lib/events';
 import { useSession } from '@/lib/session';
+import { feedLabel } from '@/lib/units';
 import { useTodayEvents } from '@/lib/today-events';
 
 // Same slack as the event editor: the two phones' clocks may drift a little.
@@ -57,14 +58,14 @@ function errorMessage(error: ProposalError): string {
     case 'in_future':
       return `${label}: that time is in the future. Pick when it happened.`;
     case 'too_old':
-      return `${label}: only the last 48 hours can be logged here.`;
+      return `${label}: only the last 48\u00A0hours can be logged here.`;
     case 'invalid_time':
     case 'required':
       return `${label}: please set it.`;
     case 'out_of_range':
       return error.field === 'ml'
-        ? `Amount: must be ${ML_RANGE.min}–${ML_RANGE.max} ml. Check it.`
-        : `Duration: must be ${MINUTES_RANGE.min}–${MINUTES_RANGE.max} min. Check it.`;
+        ? `Amount: must be ${ML_RANGE.min}–${ML_RANGE.max}\u00A0ml. Check it.`
+        : `Duration: must be ${MINUTES_RANGE.min}–${MINUTES_RANGE.max}\u00A0min. Check it.`;
     case 'before_start':
       return 'The end must be after the start.';
     case 'wet_or_dirty':
@@ -393,7 +394,7 @@ function summary(
   diaper: 'wet' | 'dirty' | 'both',
 ): string {
   if (type === 'feed') {
-    return feed.kind === 'bottle' ? `Bottle · ${feed.ml} ml` : `Breast · ${feed.side} · ${feed.minutes} min`;
+    return feedLabel(feed);
   }
   if (type === 'diaper') return `Diaper · ${diaper === 'both' ? 'wet and dirty' : diaper}`;
   return 'Sleep';

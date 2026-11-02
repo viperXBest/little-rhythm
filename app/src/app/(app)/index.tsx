@@ -74,7 +74,7 @@ function Header({ name, weeks }: { name: string; weeks: number }) {
         <ThemedText type="display" accessibilityRole="header">
           {name}
         </ThemedText>
-        <Chip label={weeks === 1 ? '1 week old' : `${weeks} weeks old`} tone="info" />
+        <Chip label={weeks === 1 ? '1\u00A0week old' : `${weeks}\u00A0weeks old`} tone="info" />
       </View>
       <View style={styles.headerSide}>
         <Mascot pose="sleeping" size={stacked ? 96 : 112} />

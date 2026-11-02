@@ -2,6 +2,7 @@ import { randomUUID } from 'expo-crypto';
 
 import type { Json, Tables } from '@/lib/database.types';
 import { supabase } from '@/lib/supabase';
+import { feedLabel } from '@/lib/units';
 
 export type EventRow = Tables<'events'>;
 export type EventType = 'feed' | 'sleep' | 'diaper';
@@ -146,9 +147,7 @@ export function describeEvent(row: EventRow): string {
   if (row.type === 'feed') {
     const feed = parseFeed(row.details);
     if (!feed) return 'Feed';
-    return feed.kind === 'bottle'
-      ? `Bottle · ${feed.ml} ml`
-      : `Breast · ${feed.side} · ${feed.minutes} min`;
+    return feedLabel(feed);
   }
   if (row.type === 'diaper') {
     const diaper = parseDiaper(row.details);

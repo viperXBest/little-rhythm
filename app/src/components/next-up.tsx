@@ -28,8 +28,8 @@ import { useTodayEvents } from '@/lib/today-events';
 const REFRESH_DEBOUNCE_MS = 2000;
 
 const BASIS_TEXT: Record<Basis, string> = {
-  personal: 'based on the last 7 days',
-  blend: 'based on the last 7 days and age',
+  personal: 'based on the last 7\u00A0days',
+  blend: 'based on the last 7\u00A0days and age',
   age: 'typical for this age',
 };
 

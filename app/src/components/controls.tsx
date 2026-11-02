@@ -23,7 +23,7 @@ export function Stepper({ label, value, onChange, step, min, max, unit }: Steppe
       <View style={styles.stepper}>
         <StepButton label={`Less ${unit}`} text="−" onPress={() => set(value - step)} disabled={value <= min} />
         <ThemedText type="time" style={styles.value} accessibilityLiveRegion="polite">
-          {value} {unit}
+          {value}{'\u00A0'}{unit}
         </ThemedText>
         <StepButton label={`More ${unit}`} text="+" onPress={() => set(value + step)} disabled={value >= max} />
       </View>
