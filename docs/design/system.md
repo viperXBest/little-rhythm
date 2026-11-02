@@ -104,7 +104,7 @@ on the system font with real weights (`setCustomFontsAvailable`).
 | `Shelf` | `components/card.tsx` | The raw shelf for custom pressables (`radius`, `shelf` token or null, `sunk`). |
 | `Button` | `components/form.tsx` | `variant`: `primary`, `secondary`, `danger` (flat), `quiet` (link text), `tint` (dark-glare quick-log look). `size="large"` = 64 dp quick-log. `icon` (decorative node), `busy`, `disabled` (primary/tint: muted surface look), `accessibilityLabel/Hint`. Min 52 dp. |
 | `Field` | `components/form.tsx` | Visible label = `accessibilityLabel` (override by passing one). `error` (red outline + message), `hint`. Focus ring `focus`. |
-| `ErrorText`, `Screen` | `components/form.tsx` | Unchanged API. |
+| `ErrorText`, `Screen` | `components/form.tsx` | `Screen` scrolls and resizes for the keyboard on edge-to-edge Android (`KeyboardAvoidingView` `height`); `top` pins content to the top. Chat keeps its own keyboard handling. |
 | `Segmented` | `components/controls.tsx` | Track `surface` + outline, active `primary`. 48 dp. Optional `accessibilityLabel` for the group. |
 | `Stepper` | `components/controls.tsx` | Unchanged API; outlined surface buttons, value in `time`. |
 | `Chip` | `components/controls.tsx` | `label`, `tone` (`neutral`/`feed`/`sleep`/`diaper`/`info`), `selected` (primary fill), `onPress` (omit for a static pill), `icon`. 48 dp when tappable. |

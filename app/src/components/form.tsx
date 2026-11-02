@@ -28,14 +28,17 @@ import {
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-export function Screen({ children }: { children: ReactNode }) {
+/**
+ * A scrolling page. On Android the window doesn't resize for the keyboard (edge-to-edge), so
+ * `height` shrinks the scroll view instead and Android scrolls the focused field into view.
+ * `top` pins the content to the top instead of centring it. Chat has its own keyboard handling.
+ */
+export function Screen({ children, top = false }: { children: ReactNode; top?: boolean }) {
   return (
     <ThemedView style={styles.fill}>
       <SafeAreaView style={styles.fill}>
-        <KeyboardAvoidingView
-          style={styles.fill}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView contentContainerStyle={[styles.content, top && styles.top]} keyboardShouldPersistTaps="handled">
             {children}
           </ScrollView>
         </KeyboardAvoidingView>
@@ -240,6 +243,7 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
+  top: { justifyContent: 'flex-start' },
   field: { gap: Spacing.one },
   input: {
     borderRadius: Radius.field,

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { FormScreen, Hero } from '@/components/account-ui';
+import { Hero } from '@/components/account-ui';
 import { Card } from '@/components/card';
-import { Button, ErrorText, Field } from '@/components/form';
+import { Button, ErrorText, Field, Screen } from '@/components/form';
 import { font, Spacing } from '@/constants/theme';
 import { pairErrorMessage, redeemPairCode } from '@/lib/pair';
 import { useSession } from '@/lib/session';
@@ -32,7 +32,7 @@ export default function Join() {
   }
 
   return (
-    <FormScreen>
+    <Screen>
       <Hero
         title="Join your partner"
         lead="On their phone: Home → Invite your partner. The code works once and expires after 24 hours."
@@ -53,7 +53,7 @@ export default function Join() {
         <ErrorText>{error}</ErrorText>
         <Button title="Join" onPress={onSubmit} busy={busy} />
       </Card>
-    </FormScreen>
+    </Screen>
   );
 }
 

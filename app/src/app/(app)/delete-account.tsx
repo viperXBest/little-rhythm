@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { FormScreen } from '@/components/account-ui';
 import { Card } from '@/components/card';
 import { Button, ErrorText, Field, Screen } from '@/components/form';
 import { Loading } from '@/components/states';
@@ -48,7 +47,7 @@ export default function DeleteAccount() {
 
   // Serious and calm: no mascot, no shelf on the explanation, flat danger buttons.
   return (
-    <FormScreen top>
+    <Screen top>
       <ThemedText type="title" accessibilityRole="header">
         Delete account
       </ThemedText>
@@ -97,7 +96,7 @@ export default function DeleteAccount() {
           <Button title="Back" variant="quiet" onPress={() => router.back()} />
         </>
       )}
-    </FormScreen>
+    </Screen>
   );
 }
 

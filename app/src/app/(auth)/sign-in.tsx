@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { FormScreen, Hero, TextLink } from '@/components/account-ui';
+import { Hero, TextLink } from '@/components/account-ui';
 import { Card } from '@/components/card';
-import { Button, ErrorText, Field } from '@/components/form';
+import { Button, ErrorText, Field, Screen } from '@/components/form';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
@@ -36,7 +36,7 @@ export default function SignIn() {
   }
 
   return (
-    <FormScreen>
+    <Screen>
       <Hero big title="Little Rhythm" lead="Sign in to see your baby’s day." />
       <Card style={styles.form}>
         <Field
@@ -61,7 +61,7 @@ export default function SignIn() {
         <Button title="Sign in" onPress={onSubmit} busy={busy} />
       </Card>
       <TextLink href="/sign-up">New here? Create an account</TextLink>
-    </FormScreen>
+    </Screen>
   );
 }
 
