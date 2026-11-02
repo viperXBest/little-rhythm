@@ -16,7 +16,9 @@ export const TRANSCRIBE_MODEL = "muse-voice-transcribe-1.0";
 const TRANSCRIBE_TIMEOUT_MS = 20_000;
 const CHAT_TIMEOUT_MS = 30_000;
 /** The health classifier runs beside the agent; a slow one must not hold the reply. */
-const CLASSIFY_TIMEOUT_MS = 10_000;
+// The classifier runs beside the agent (CHAT_TIMEOUT_MS), so matching its timeout adds no latency to a
+// typical turn; at 10 s a slow API (about 120 tokens/s on 2 Nov) timed out long classifications.
+const CLASSIFY_TIMEOUT_MS = 30_000;
 /** 16 kHz mono PCM16. */
 const WAV_BYTES_PER_SECOND = 32_000;
 
