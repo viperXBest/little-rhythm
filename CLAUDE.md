@@ -3,7 +3,7 @@
 ## Handoff (Nov 2, 21:00 Bucharest)
 
 **State**
-- **Release:** v1.1.0 = the Cloud Lullaby redesign + the server track. `main` at `ba15979` (app 1.1.0), pushed; CI green through `491b761`.
+- **Release:** v1.1.0 = the Cloud Lullaby redesign + the server track. `main` at `ba15979` (app 1.1.0), pushed; CI green on `b076118` (the handoff commit on top of `ba15979`; the `ba15979` run was cancelled by that push, same code).
 - **Hosted functions:**
 
   | Function | Version | Source | Note |
