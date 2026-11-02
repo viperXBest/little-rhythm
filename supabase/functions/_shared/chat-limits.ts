@@ -50,7 +50,7 @@ export const CHAT_LIMITS = {
  * Largest seen on 2 Nov (reasoning_effort "low"): agent 1201, summary 1059, classifier
  * 1468 (30 calls on hard urgent prompts; a first limit of 1024 cut 2 of 15 and cost
  * urgent agreement in a safety run). 4096 sits above what each call's timeout allows
- * (~180 tokens/s: 10 s classifier, 30 s agent and summary), so the timeout, not the
+ * (~180 tokens/s: 30 s for the classifier, the agent and the summary), so the timeout, not the
  * limit, ends a long call. See docs/chat.md, "Token limits".
  */
 export const MAX_TOKENS = {

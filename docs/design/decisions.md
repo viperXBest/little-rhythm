@@ -33,7 +33,10 @@ main reason given for B.
 3. **Next up highlights the tile with the earliest start** (in the mockup that is the nap at 15:07, not
    the feed). The 2×2 layout stays.
 4. **Home scroll bottom padding** equals the floating Chat button's height plus spacing, so the button
-   never covers the last timeline row.
+   never covers the last timeline row. *Superseded on Nov 2:* the padding cleared only the last row,
+   so the floating button still covered Diaper "Dirty" and "Both" until you scrolled
+   (`screens/home/home-1-light.png`, taken before the fix). The button is now docked in a bar below
+   the scroll (`8db6e70`, see "Nov 2: owner's fixes after the checkpoint").
 
 ### Rules that hold for every screen
 

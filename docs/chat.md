@@ -198,7 +198,7 @@ came from a small sample in which the classifier peaked at 290. The first full s
 rerun then missed the baseline: on hard urgent prompts the classifier's reasoning ran
 past 1,024 (`finish_reason: "length"` on 2 of 15 probes; up to 1,468 tokens with no
 limit), so the gate failed closed and took urgency from the keywords only. At about
-180 tokens a second, each call's timeout (10 s classifier, 30 s agent and fold) ends a
+180 tokens a second, each call's timeout (30 s for the classifier, the agent and the fold) ends a
 long call well before 4,096 tokens for the classifier, and the limit stays a backstop
 on the others. A classifier cut off by the limit still fails closed and never counts
 as a pass.
@@ -241,7 +241,7 @@ Every turn, typed or a voice transcript, is checked twice (`_shared/health-gate.
    "pe 3 februarie", "laptele s-a răcit", "a căzut lată la 8", "cold milk", "112 ml",
    "vârstă".
 2. **Classifier**: a Muse Spark 1.3 call with strict structured output
-   `{health, urgent}`, `reasoning_effort: "low"`, 10 s timeout, validated with zod. It
+   `{health, urgent}`, `reasoning_effort: "low"`, 30 s timeout (10 s until run C), validated with zod. It
    runs in parallel with the agent, so it adds no latency. The prompt is
    `CLASSIFIER_PROMPT` in `health-gate.ts`. It treats the message as data and covers
    the baby's and a parent's health, feeding amounts and medicine. It gets only the

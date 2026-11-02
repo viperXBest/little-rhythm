@@ -4,11 +4,12 @@
 //   2. a Muse Spark classifier with structured output, run in parallel with the
 //      agent so it adds no latency.
 // Either one positive: the reply carries an escalation and no model text. The
-// keyword check also runs on the model's reply (the output check, applyHealthGate). The
-// app shows a static card (never model-generated). Proposals from the same turn
-// still show: logging is not advice. A classifier failure with no keyword hit
-// gives the normal reply. The agent's system prompt keeps the no-advice rule as
-// a further layer, and its fixed referral sentence also escalates.
+// keyword check also runs on the model's reply (the output check, applyHealthGate).
+// The app shows a static card (never model-generated). Proposals from the same turn
+// still show: logging is not advice. The gate fails closed: a classifier failure
+// (error, timeout, bad JSON) escalates the turn even with no keyword hit. The agent's
+// system prompt keeps the no-advice rule as a further layer, and its fixed referral
+// sentence also escalates.
 
 import { z } from "npm:zod@4.6.6";
 
