@@ -181,3 +181,19 @@ font scale ≥ 1.6 the diaper tiles overlapped the check-in card. Fixed in the f
   shared `Screen` (KeyboardAvoidingView 'height' on Android, `top` prop). The reminder row is the switch:
   label "Reminders", the visible sentence as its hint. A wrapped "overdue" drops its "·" and sits on its
   own line. Titles and basis lines use balanced line breaks. In light, the mic's outline is `primary`.
+
+### Nov 2: owner's answers on the status page
+
+- **Confirmed:** the dark-glare rule as applied, and Sign out / Delete account on the Settings screen.
+- **Phone checkpoint replaced** by two emulators (Ana and Radu) for sync, the check-in reveal, the
+  night-feed balance, Settings, icon/splash/notification icon, the full keyboard, TalkBack, the mic
+  states and en-US/en-GB at font scale 1.0 and 2.0. Real voice and the hardware feel are checked on the
+  phones with the v1.1.0 EAS build.
+- **Server track moved** to the `server-track` branch with a revert on `main` (`acde973`, no history
+  rewrite). `main` and `server-track` pushed; CI green on both.
+- **Paired control** (urgent and non-health sets, v8 and the server track at the same time on the local
+  stack): urgent agreement v8 71/73, server track 70/72, every prompt escalated, same misses. The cause
+  is the API, not the server track. Proposed fix, pending the owner: raise the classifier timeout from
+  10 s to the agent's 30 s (they run in parallel, so a typical turn gets no slower). The non-health half
+  returned 401s because the runner's test tokens expire after an hour; it needs a token refresh before a
+  rerun.
