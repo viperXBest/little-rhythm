@@ -33,14 +33,16 @@ export const CHAT_LIMITS = {
 /**
  * max_completion_tokens per call. Reasoning tokens count against it (measured 2 Nov:
  * a 40-token cap ended with finish_reason "length", 38 of 40 tokens reasoning).
- * Largest seen on 2 Nov (reasoning_effort "low"): agent 1201 (a long plan; 381 of it
- * reasoning; the caption is cut at 1500 characters anyway), classifier 290, summary 1059
- * (a 150-message fold). See docs/chat.md, "Token limits".
+ * Largest seen on 2 Nov (reasoning_effort "low"): agent 1201, summary 1059, classifier
+ * 1468 (30 calls on hard urgent prompts; a first limit of 1024 cut 2 of 15 and cost
+ * urgent agreement in a safety run). 4096 sits above what each call's timeout allows
+ * (~180 tokens/s: 10 s classifier, 30 s agent and summary), so the timeout, not the
+ * limit, ends a long call. See docs/chat.md, "Token limits".
  */
 export const MAX_TOKENS = {
-  agent: 2048,
-  classifier: 1024,
-  summary: 2048,
+  agent: 4096,
+  classifier: 4096,
+  summary: 4096,
 } as const;
 
 export type CallKind = keyof typeof MAX_TOKENS;
@@ -78,7 +80,7 @@ export function asrMicros(seconds: number): number {
   return Math.ceil((seconds / 60) * PRICES.asrPerMinute * MICROS_PER_USD);
 }
 
-/** Every call at its worst, every attempt billed, a fold and a 30 s clip: ~$0.67 at the assumed prices. */
+/** Every call at its worst, every attempt billed, a fold and a 30 s clip: ~$0.78 at the assumed prices. */
 export const WORST_TURN_MICROS = (Object.keys(MAX_TOKENS) as CallKind[]).reduce(
   (sum, kind) => sum + CALLS_PER_TURN[kind] * ATTEMPTS[kind] * worstCallMicros(kind),
   asrMicros(ASR_SECONDS_MAX),

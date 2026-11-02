@@ -16,18 +16,18 @@ import { retryable } from "./muse.ts";
 import { VOICE_MAX_MS } from "./voice.ts";
 
 Deno.test("worst case per turn: every call at its bound, every attempt billed, a fold and a 30 s clip", () => {
-  // agent 4 x 2 x (40k + 2048 x 4) + classifier 1 x (4k + 1024 x 4) + summary 2 x 2 x (60k + 2048 x 4) + 3000
-  assertEquals(worstCallMicros("agent"), 48_192);
-  assertEquals(worstCallMicros("classifier"), 8_096);
-  assertEquals(worstCallMicros("summary"), 68_192);
-  assertEquals(WORST_TURN_MICROS, 385_536 + 8_096 + 272_768 + 3_000);
-  assertEquals(WORST_TURN_MICROS, 669_400); // ~$0.67 at the assumed prices
+  // agent 4 x 2 x (40k + 4096 x 4) + classifier 1 x (4k + 4096 x 4) + summary 2 x 2 x (60k + 4096 x 4) + 3000
+  assertEquals(worstCallMicros("agent"), 56_384);
+  assertEquals(worstCallMicros("classifier"), 20_384);
+  assertEquals(worstCallMicros("summary"), 76_384);
+  assertEquals(WORST_TURN_MICROS, 451_072 + 20_384 + 305_536 + 3_000);
+  assertEquals(WORST_TURN_MICROS, 779_992); // ~$0.78 at the assumed prices
 });
 
 Deno.test("the bounds match the code they describe", () => {
   assertEquals(CALLS_PER_TURN.agent, MAX_ITERATIONS);
   assertEquals(ASR_SECONDS_MAX * 1000, VOICE_MAX_MS);
-  assertEquals(MAX_TOKENS, { agent: 2048, classifier: 1024, summary: 2048 });
+  assertEquals(MAX_TOKENS, { agent: 4096, classifier: 4096, summary: 4096 });
 });
 
 Deno.test("the global budget is $10 a day and holds a dozen worst-case turns in flight", () => {
@@ -53,7 +53,7 @@ Deno.test("meter: a failed attempt or missing usage is charged at its worst; aud
   meter.call("summary", undefined);
   meter.call("classifier", { prompt_tokens: -1, completion_tokens: 3 });
   meter.audio(30);
-  assertEquals(meter.micros, 48_192 + 68_192 + 8_096 + 3_000);
+  assertEquals(meter.micros, 56_384 + 76_384 + 20_384 + 3_000);
 });
 
 Deno.test("retries follow the SDK's rule: 408, 409, 429, 5xx and connection errors only", () => {
