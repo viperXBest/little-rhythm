@@ -12,10 +12,16 @@ How to build a screen from the tokens and primitives. The spec is
   weight of a custom font from `fontWeight`); a `fontWeight` in `style` maps to the nearest bundled weight.
 - Touch targets ≥ 48 dp (`MinTouch`), no fixed heights on text containers (text scales to 200%), roles and
   labels on every control, `accessibilityRole="header"` on section titles, decorative art hidden.
-- **Dark-glare rule:** large lavender areas glare at night. Quick-log buttons and the parent's own chat
-  bubbles use the `primaryTint*` tokens (light: the full primary fill; dark: a tinted navy with a lavender
-  border and icon). Only Confirm (and other single primary actions) and the active segment use the full
-  `primary` fill in dark.
+- **Dark-glare rule:** large lavender areas glare at night. Persistent chrome uses the `primaryTint*`
+  tokens (light: the full primary fill; dark: a tinted navy with a lavender border and icon): the
+  quick-log buttons, the parent's own chat bubbles, the chat mic when idle (recording stays the `error`
+  fill), the Chat button's mic square and Send in chat. The Chat button's outline and shelf are `text`
+  in light (as in the mockup) and `primaryTintBorder` / `shelf` in dark. Only single form-completing
+  actions (Confirm, Save, Log feed now, Set up our baby, Show pairing code, Share once enabled), the
+  selected mood and the active segment use the full `primary` fill in dark.
+- **Disabled primary and tint buttons** use a muted look in both themes: `surface` fill, `border`
+  outline and shelf, `textSecondary` label (no opacity), and stay announced as disabled. Never a
+  lavender block while unavailable (Share before a choice, Send while empty).
 - **Escalation card stays serious:** `warningBackground`, `error` border (3 px urgent), ⚠ in `errorText`,
   flat red "Call 112" (`Button variant="danger"`, which has no shelf), radius `Radius.field`. Never a `Card`,
   shelf, mascot or illustration.
@@ -96,7 +102,7 @@ on the system font with real weights (`setCustomFontsAvailable`).
 |---|---|---|
 | `Card` | `components/card.tsx` | Sticker card. Props: `tone` (fill token, default `card`; e.g. `feedSoft`), `outline`, `raised` (shelf, default true), `padding`, `radius`, plus View props. `style` goes to the face. |
 | `Shelf` | `components/card.tsx` | The raw shelf for custom pressables (`radius`, `shelf` token or null, `sunk`). |
-| `Button` | `components/form.tsx` | `variant`: `primary`, `secondary`, `danger` (flat), `quiet` (link text), `tint` (dark-glare quick-log look). `size="large"` = 64 dp quick-log. `icon` (decorative node), `busy`, `disabled`, `accessibilityLabel/Hint`. Min 52 dp. |
+| `Button` | `components/form.tsx` | `variant`: `primary`, `secondary`, `danger` (flat), `quiet` (link text), `tint` (dark-glare quick-log look). `size="large"` = 64 dp quick-log. `icon` (decorative node), `busy`, `disabled` (primary/tint: muted surface look), `accessibilityLabel/Hint`. Min 52 dp. |
 | `Field` | `components/form.tsx` | Visible label = `accessibilityLabel` (override by passing one). `error` (red outline + message), `hint`. Focus ring `focus`. |
 | `ErrorText`, `Screen` | `components/form.tsx` | Unchanged API. |
 | `Segmented` | `components/controls.tsx` | Track `surface` + outline, active `primary`. 48 dp. Optional `accessibilityLabel` for the group. |

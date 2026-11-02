@@ -16,6 +16,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Timeline } from '@/components/timeline';
 import { font, MaxContentWidth, MinTouch, Radius, Spacing, Sticker } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { ageInWeeks } from '@/lib/dates';
@@ -115,6 +116,8 @@ function SettingsButton() {
 /** Sticker-style floating button: a primary mic square and the label, bottom right. */
 function ChatButton({ onHeight }: { onHeight: (height: number) => void }) {
   const theme = useTheme();
+  // Light: the mockup's `text` outline and shelf. Dark: the tint border and the dark shelf (no glare).
+  const dark = useColorScheme() === 'dark';
   return (
     <View
       pointerEvents="box-none"
@@ -124,14 +127,18 @@ function ChatButton({ onHeight }: { onHeight: (height: number) => void }) {
         {({ pressed }) => (
           <Shelf
             radius={Radius.fab}
-            shelf="text"
+            shelf={dark ? 'shelf' : 'text'}
             sunk={pressed}
             faceStyle={[
               styles.fab,
-              { backgroundColor: pressed ? theme.surface : theme.card, borderColor: theme.text },
+              {
+                backgroundColor: pressed ? theme.surface : theme.card,
+                borderColor: dark ? theme.primaryTintBorder : theme.text,
+              },
             ]}>
-            <View style={[styles.fabMic, { backgroundColor: theme.primary }]}>
-              <Icon name="mic" size={28} color="onPrimary" fill="primaryPressed" />
+            <View
+              style={[styles.fabMic, { backgroundColor: theme.primaryTint, borderColor: theme.primaryTintBorder }]}>
+              <Icon name="mic" size={28} color="primaryTintIcon" fill="primaryTintPressed" />
             </View>
             <ThemedText type="buttonLarge" style={styles.fabLabel}>
               Chat
@@ -254,6 +261,7 @@ const styles = StyleSheet.create({
     width: MinTouch,
     height: MinTouch,
     borderRadius: Radius.field,
+    borderWidth: Sticker.outline,
     alignItems: 'center',
     justifyContent: 'center',
   },

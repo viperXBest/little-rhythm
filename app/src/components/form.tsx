@@ -138,6 +138,18 @@ const LOOKS: Record<ButtonVariant, ButtonLook> = {
   },
 };
 
+/**
+ * Disabled primary and tint buttons: a muted surface look in both themes, so an unavailable action is
+ * never a big lavender block in dark. Same shelf height as the enabled look, so nothing moves.
+ */
+const DISABLED_LOOK: ButtonLook = {
+  fill: 'surface',
+  pressedFill: 'surface',
+  label: 'textSecondary',
+  outline: 'border',
+  shelf: 'border',
+};
+
 export function buttonLabelColor(theme: Palette, variant: ButtonVariant): string {
   return theme[LOOKS[variant].label];
 }
@@ -155,7 +167,8 @@ export function Button({
 }: ButtonProps) {
   const theme = useTheme();
   const inactive = busy || disabled;
-  const look = LOOKS[variant];
+  const muted = disabled && !busy && (variant === 'primary' || variant === 'tint');
+  const look = muted ? DISABLED_LOOK : LOOKS[variant];
   const label = theme[look.label];
   return (
     <Pressable
@@ -165,7 +178,7 @@ export function Button({
       accessibilityState={{ disabled: inactive, busy }}
       disabled={inactive}
       onPress={onPress}
-      style={inactive && styles.dimmed}>
+      style={inactive && !muted && styles.dimmed}>
       {({ pressed }) => {
         const fill = pressed ? look.pressedFill : look.fill;
         return (

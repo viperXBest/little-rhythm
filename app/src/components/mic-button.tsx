@@ -208,8 +208,13 @@ export function MicButton({ onClip, onError, disabled = false }: Props) {
         style={({ pressed }) => [
           styles.button,
           {
-            backgroundColor: isRecording ? theme.error : pressed || starting ? theme.primaryPressed : theme.primary,
-            borderColor: isRecording ? theme.errorText : theme.primaryPressed,
+            // Idle: the dark-glare tint look (full primary in light). Recording: the error fill.
+            backgroundColor: isRecording
+              ? theme.error
+              : pressed || starting
+                ? theme.primaryTintPressed
+                : theme.primaryTint,
+            borderColor: isRecording ? theme.errorText : theme.primaryTintBorder,
           },
           isRecording && styles.recording,
           disabled && !isRecording && styles.dimmed,
@@ -217,8 +222,8 @@ export function MicButton({ onClip, onError, disabled = false }: Props) {
         <Icon
           name={isRecording ? 'stop' : 'mic'}
           size={32}
-          color="onPrimary"
-          fill={isRecording ? 'error' : 'primaryPressed'}
+          color={isRecording ? 'onPrimary' : 'primaryTintIcon'}
+          fill={isRecording ? 'error' : 'primaryTintPressed'}
         />
       </Pressable>
     </View>

@@ -308,7 +308,13 @@ export default function Chat() {
                 ]}
               />
               <View style={styles.send}>
-                <Button title="Send" onPress={() => void onSend()} busy={busy} disabled={!text.trim() || !threadId} />
+                <Button
+                  title="Send"
+                  variant="tint"
+                  onPress={() => void onSend()}
+                  busy={busy}
+                  disabled={!text.trim() || !threadId}
+                />
               </View>
             </View>
             <MicButton
