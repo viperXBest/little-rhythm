@@ -131,5 +131,15 @@ Later decisions go below, newest last.
   under the title. Pure helper `app/src/lib/timeline-display.ts`, Deno-tested.
 - **Event edit:** fields grouped in a `Card`; Save primary, Delete the flat danger button with the delete
   icon (the existing confirmation stays), Cancel quiet. The diaper kind stays a `Segmented` control.
+- **Chat:** pinned header (round Back, title, Shared/Private) and pinned composer in two rows (field +
+  Send, then "Hold to talk" with the 64 dp mic at the bottom right). Own bubbles `primaryTint` +
+  `primaryTintBorder`; partner messages an outlined `card` without a shelf; replies `Card` stickers; the
+  newest reply is a polite live region. The visible "Message" label above the field is gone (TalkBack
+  still reads it). The Muse privacy note is a caption at the end of every thread. The empty-chat
+  illustration shows only when a thread has no messages, so it never sits beside an escalation card.
+- **Confirm cards:** the time field puts its label above the value with "Change ›" on the right, so it
+  fits at 100% and 200%. Feed fields share a row only when both fit (basis 200 dp). Confirm primary,
+  Discard secondary.
+- **Mic:** recording = `error` fill with the stop icon and a slight scale-up; announced once.
 - **Screen builders preview chat on hosted** with at most 6 messages in the demo's private thread, cancel
   every confirm card, and the demo family is re-seeded afterwards so the recording starts clean.
