@@ -3,6 +3,7 @@ import { StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import type { Prediction } from '@/lib/predict';
 import { disableReminders, enableReminders, remindersEnabled, syncCheckin, syncReminders } from '@/lib/reminders';
 
@@ -11,6 +12,7 @@ import { disableReminders, enableReminders, remindersEnabled, syncCheckin, syncR
  * start, and for the daily check-in at 21:00.
  */
 export function ReminderToggle({ prediction }: { prediction: Prediction | null }) {
+  const theme = useTheme();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -60,6 +62,9 @@ export function ReminderToggle({ prediction }: { prediction: Prediction | null }
           value={enabled === true}
           disabled={enabled === null || busy}
           onValueChange={(next) => void onChange(next)}
+          // Off: a textSecondary track (≥ 6.7:1 on the card) so the control reads in dark mode too.
+          trackColor={{ false: theme.textSecondary, true: theme.primary }}
+          thumbColor={enabled === true ? theme.onPrimary : theme.card}
           accessibilityLabel="Reminders"
         />
       </View>

@@ -1,14 +1,16 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { Empty, ErrorState, Loading } from '@/components/states';
+import { Card, Shelf } from '@/components/card';
+import { Icon, Illustration, Mascot, type IconName } from '@/components/illustrations';
 import { ReminderToggle } from '@/components/reminder-toggle';
+import { Empty, ErrorState, Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing, Sticker, TypeScale } from '@/constants/theme';
 import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
+import { earliestIndex } from '@/lib/earliest';
 import { formatTime } from '@/lib/events';
 import {
   fetchPrediction,
@@ -98,76 +100,136 @@ export function NextUp({ onNightFeeds }: { onNightFeeds?: (value: NightFeeds | n
     return () => clearTimeout(timer);
   }, [eventsStatus, signature, load]);
 
+
   const prediction = state.status === 'ready' ? state.prediction : state.status === 'error' ? state.last : null;
-  const theme = useTheme();
 
   return (
-    <ThemedView type="surface" style={[styles.card, { borderLeftColor: theme.accent }]}>
-      <ThemedText type="smallBold">Next up</ThemedText>
+    <Card>
+      <ThemedText type="cardTitle" accessibilityRole="header">
+        Next up
+      </ThemedText>
       {state.status === 'loading' ? <Loading label="Working out what’s next…" /> : null}
       {state.status === 'error' ? (
         <ErrorState
           message={ERROR_TEXT[state.error]}
+          // Art only when there is nothing else to show; never the mascot next to an error.
+          illustration={prediction ? undefined : <Illustration name="error" size={140} />}
           // A missing family or a second baby won't change on retry.
           onRetry={state.error === 'rate_limited' || state.error === 'unknown' ? () => void load() : undefined}
         />
       ) : null}
-      {prediction ? <Rows prediction={prediction} /> : null}
+      {prediction ? <Tiles prediction={prediction} /> : null}
       <ReminderToggle prediction={prediction} />
-    </ThemedView>
+    </Card>
   );
 }
 
-function Rows({ prediction }: { prediction: Prediction }) {
+type Tile = { label: string; slot: Slot; tone: 'feed' | 'sleep'; icon: IconName };
+
+/** Tile padding; the column rule below uses it. */
+const TILE_PADDING = Spacing.three - Spacing.one;
+/** Width of "18:45–" in the `time` type, in ems: one column when a tile can't fit it. */
+const RANGE_PIECE_EMS = 3.6;
+
+function Tiles({ prediction }: { prediction: Prediction }) {
   const now = useNow();
+  const { fontScale } = useWindowDimensions();
+  const [width, setWidth] = useState(0);
   const { feed, nap, wake, routine, bedtime } = prediction;
   const awake = wake.reason === 'not_asleep';
   if (feed.reason === 'no_feed_logged' && nap.reason === 'no_sleep_logged') {
-    return <Empty>Log a feed or sleep to see what’s next.</Empty>;
+    return (
+      <Empty illustration={<Mascot pose="cosy" size={96} />}>Log a feed or sleep to see what’s next.</Empty>
+    );
   }
+  const tiles: Tile[] = [
+    { label: 'Next feed', slot: feed, tone: 'feed', icon: 'feed' },
+    awake
+      ? { label: 'Next nap', slot: nap, tone: 'sleep', icon: 'sleep' }
+      : { label: 'Expected to wake', slot: wake, tone: 'sleep', icon: 'wake' },
+    { label: 'Bedtime routine', slot: routine, tone: 'sleep', icon: 'sleep' },
+    { label: 'Bedtime', slot: bedtime, tone: 'sleep', icon: 'sleep' },
+  ];
+  const earliest = earliestIndex(tiles.map((t) => t.slot.window));
+  // Two columns unless a tile would be too narrow for one half of a range at this font scale.
+  const tileInner = (width - Spacing.two) / 2 - 2 * TILE_PADDING - 2 * Sticker.outline;
+  const twoColumns = width === 0 || tileInner >= RANGE_PIECE_EMS * TypeScale.time.fontSize * fontScale;
+  const rows = twoColumns ? [tiles.slice(0, 2), tiles.slice(2)] : tiles.map((t) => [t]);
+
   return (
-    <View style={styles.rows}>
-      <Row label="Next feed" slot={feed} now={now} />
-      {awake ? <Row label="Next nap" slot={nap} now={now} /> : <Row label="Expected to wake" slot={wake} now={now} />}
-      <Row label="Bedtime routine" slot={routine} now={now} />
-      <Row label="Bedtime" slot={bedtime} now={now} />
+    <View style={styles.grid} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      {rows.map((row, r) => (
+        <View key={r} style={styles.gridRow}>
+          {row.map((tile) => {
+            const index = tiles.indexOf(tile);
+            return <TileView key={tile.label} tile={tile} now={now} highlighted={index === earliest} />;
+          })}
+        </View>
+      ))}
     </View>
   );
 }
 
-function Row({ label, slot, now }: { label: string; slot: Slot; now: Date }) {
-  const w = slot.window;
+function TileView({ tile, now, highlighted }: { tile: Tile; now: Date; highlighted: boolean }) {
+  const theme = useTheme();
+  const w = tile.slot.window;
   const overdue = w !== null && Date.parse(w.end) < now.getTime();
+  const start = w ? formatTime(w.start) : '';
+  const end = w ? formatTime(w.end) : '';
+  // One element for TalkBack; "earliest" names the highlight without visible copy.
+  const spoken = w
+    ? `${tile.label}, ${start}–${end}${overdue ? ', overdue' : ''}, ${BASIS_TEXT[w.basis]}${highlighted ? ', earliest' : ''}`
+    : `${tile.label}, ${REASON_TEXT[tile.slot.reason]}`;
   return (
-    <View style={styles.row}>
-      <ThemedText type="small" style={styles.label}>
-        {label}
-      </ThemedText>
-      <View style={styles.value}>
+    <Shelf
+      radius={Radius.small}
+      shelf={highlighted ? 'primaryPressed' : null}
+      style={[styles.cell, !highlighted && styles.unraised]}
+      faceStyle={[
+        styles.tile,
+        {
+          backgroundColor: theme[tile.tone === 'feed' ? 'feedSoft' : 'sleepSoft'],
+          borderColor: highlighted ? theme.primary : 'transparent',
+        },
+      ]}>
+      <View accessible accessibilityLabel={spoken} style={styles.tileBody}>
+        <View style={styles.tileHead}>
+          <Icon name={tile.icon} size={24} fill={tile.tone === 'feed' ? 'feedSoft' : 'sleepSoft'} />
+          <ThemedText type="smallBold" style={styles.flex}>
+            {tile.label}
+          </ThemedText>
+        </View>
         {w ? (
           <>
-            <ThemedText type="smallBold">
-              {formatTime(w.start)}–{formatTime(w.end)}
-              {overdue ? ' · overdue' : ''}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
+            {/* Separate pieces, so a range wraps only after the en dash. */}
+            <View style={styles.range}>
+              <ThemedText type="time">{start}–</ThemedText>
+              <ThemedText type="time">{end}</ThemedText>
+              {overdue ? <ThemedText type="smallBold"> · overdue</ThemedText> : null}
+            </View>
+            <ThemedText type="caption" themeColor="textSecondary">
               {BASIS_TEXT[w.basis]}
             </ThemedText>
           </>
         ) : (
           <ThemedText type="small" themeColor="textSecondary">
-            {REASON_TEXT[slot.reason]}
+            {REASON_TEXT[tile.slot.reason]}
           </ThemedText>
         )}
       </View>
-    </View>
+    </Shelf>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 16, borderLeftWidth: 4, padding: Spacing.three, gap: Spacing.two },
-  rows: { gap: Spacing.two },
-  row: { flexDirection: 'row', gap: Spacing.three },
-  label: { flex: 1 },
-  value: { flex: 1, alignItems: 'flex-end' },
+  grid: { gap: Spacing.two },
+  gridRow: { flexDirection: 'row', gap: Spacing.two },
+  cell: { flex: 1 },
+  // Unhighlighted tiles reserve the shelf's 4 px, so both tiles in a row line up.
+  unraised: { paddingBottom: Sticker.shelf },
+  tile: { flex: 1, borderWidth: Sticker.outline, padding: TILE_PADDING },
+  tileBody: { gap: Spacing.one },
+  tileHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  flex: { flexShrink: 1 },
+  range: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline' },
 });
