@@ -126,5 +126,10 @@ Later decisions go below, newest last.
 - **Reminder switch:** off = `textSecondary` thumb on a `border` track; on = `onPrimary` on `primary`.
 - The Chat button's outline and shelf use `text`, as in the mockup. Delete account uses the flat
   `danger` variant, separated from Sign out by a divider.
+- **Timeline rows:** `card` fill, radius `Radius.button`, a shelf, ≥ 64 dp, the whole row is the button.
+  An ongoing sleep gets a `sleepSoft` fill and a `sleep` outline. At font scale ≥ 1.5 the time moves
+  under the title. Pure helper `app/src/lib/timeline-display.ts`, Deno-tested.
+- **Event edit:** fields grouped in a `Card`; Save primary, Delete the flat danger button with the delete
+  icon (the existing confirmation stays), Cancel quiet. The diaper kind stays a `Segmented` control.
 - **Screen builders preview chat on hosted** with at most 6 messages in the demo's private thread, cancel
   every confirm card, and the demo family is re-seeded afterwards so the recording starts clean.
