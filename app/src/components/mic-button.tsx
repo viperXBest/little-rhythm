@@ -1,10 +1,11 @@
 import { useAudioRecorder } from '@siteed/audio-studio';
 import { File } from 'expo-file-system';
 import { useEffect, useRef, useState } from 'react';
-import { PermissionsAndroid, Platform, Pressable, StyleSheet } from 'react-native';
+import { AccessibilityInfo, PermissionsAndroid, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/illustrations';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Spacing, Sticker } from '@/constants/theme';
 import { VOICE_MAX_MS, VOICE_RECORDING } from '@/constants/voice';
 import { useTheme } from '@/hooks/use-theme';
 import { micLabel } from '@/lib/mic-label';
@@ -177,31 +178,66 @@ export function MicButton({ onClip, onError, disabled = false }: Props) {
     maxSeconds: VOICE_MAX_MS / 1000,
   });
 
+  // Announce the change into recording once (not every second of the timer).
+  useEffect(() => {
+    if (isRecording) AccessibilityInfo.announceForAccessibility(label);
+    // Only when recording starts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecording]);
+
+  // Round mic (64 dp) with its label beside it. Recording: error fill and the stop icon.
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Hold to record a voice log"
-      accessibilityState={{ disabled, busy: isRecording }}
-      disabled={disabled}
-      onPressIn={() => void onPressIn()}
-      onPressOut={() => void onPressOut()}
-      style={({ pressed }) => [
-        styles.button,
-        { backgroundColor: isRecording ? theme.error : pressed ? theme.primaryPressed : theme.primary },
-        disabled && !isRecording && styles.dimmed,
-      ]}>
-      <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+    <View style={styles.row}>
+      <ThemedText
+        type="smallBold"
+        themeColor={isRecording ? 'errorText' : 'textSecondary'}
+        style={styles.label}
+        importantForAccessibility="no"
+        accessibilityElementsHidden>
         {label}
       </ThemedText>
-    </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Hold to record a voice log"
+        accessibilityValue={{ text: label }}
+        accessibilityState={{ disabled, busy: isRecording || starting }}
+        disabled={disabled}
+        onPressIn={() => void onPressIn()}
+        onPressOut={() => void onPressOut()}
+        hitSlop={Spacing.two}
+        style={({ pressed }) => [
+          styles.button,
+          {
+            backgroundColor: isRecording ? theme.error : pressed || starting ? theme.primaryPressed : theme.primary,
+            borderColor: isRecording ? theme.errorText : theme.primaryPressed,
+          },
+          isRecording && styles.recording,
+          disabled && !isRecording && styles.dimmed,
+        ]}>
+        <Icon
+          name={isRecording ? 'stop' : 'mic'}
+          size={32}
+          color="onPrimary"
+          fill={isRecording ? 'error' : 'primaryPressed'}
+        />
+      </Pressable>
+    </View>
   );
 }
 
+const MIC_SIZE = 64;
+
 const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.three },
+  label: { flexShrink: 1, textAlign: 'right' },
   button: {
-    borderRadius: 12,
-    paddingVertical: Spacing.four,
+    width: MIC_SIZE,
+    height: MIC_SIZE,
+    borderRadius: MIC_SIZE / 2,
+    borderWidth: Sticker.outline,
     alignItems: 'center',
+    justifyContent: 'center',
   },
+  recording: { transform: [{ scale: 1.08 }] },
   dimmed: { opacity: 0.6 },
 });
