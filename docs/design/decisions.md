@@ -176,3 +176,8 @@ font scale ≥ 1.6 the diaper tiles overlapped the check-in card. Fixed in the f
 - **Accessibility text** changed in three places without visible copy changes (night-feed summary,
   timeline row order "title, time", Next up tiles as one stop with ", earliest"): accepted as
   improvements; visible copy stays frozen.
+- Fix-round details: disabled primary and tint buttons use a `surface` fill, `border` outline and shelf
+  and a `textSecondary` label (no opacity), still announced as disabled. `FormScreen` is folded into the
+  shared `Screen` (KeyboardAvoidingView 'height' on Android, `top` prop). The reminder row is the switch:
+  label "Reminders", the visible sentence as its hint. A wrapped "overdue" drops its "·" and sits on its
+  own line. Titles and basis lines use balanced line breaks. In light, the mic's outline is `primary`.

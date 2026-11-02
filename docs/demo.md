@@ -4,7 +4,10 @@ Under 3 minutes. Two Android phones side by side, signed in as **Mom** and **Dad
 the same baby.
 
 **Before every rehearsal and the recording:** run `seed-demo`, so the log, the windows
-and the check-in start from the same state each time.
+and the check-in start from the same state each time. **Then sign in again on both phones**
+(seed-demo resets the demo passwords, which ends existing sessions): until the old access
+token expires the log still loads, but Next up shows "Couldn't load what's next", and within
+the hour the app signs out.
 
 ```sh
 # scripts/seed-demo/.env from .env.example (gitignored): URL, service-role key, two demo logins
