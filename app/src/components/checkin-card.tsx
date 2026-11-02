@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 
 import { Card } from '@/components/card';
@@ -218,13 +218,15 @@ function MoodPicker({
 /** Both answers side by side: the small moment once you have both answered. */
 function Reveal({ mine, partner }: { mine: Checkin; partner: Checkin }) {
   const reduceMotion = useReducedMotion();
+  // Side by side at normal sizes; large text stacks them (the basis grows with the font scale).
+  const basis = { flexBasis: 150 * useWindowDimensions().fontScale };
   const enter = (delay: number) => (reduceMotion ? undefined : FadeInDown.duration(420).delay(delay));
   return (
     <View style={styles.reveal}>
-      <Animated.View entering={enter(0)} style={styles.revealItem}>
+      <Animated.View entering={enter(0)} style={[styles.revealItem, basis]}>
         <Answer who="You" checkin={mine} boxed />
       </Animated.View>
-      <Animated.View entering={enter(160)} style={styles.revealItem}>
+      <Animated.View entering={enter(160)} style={[styles.revealItem, basis]}>
         <Answer who="Your partner" checkin={partner} boxed />
       </Animated.View>
     </View>
@@ -280,7 +282,7 @@ const styles = StyleSheet.create({
   },
   dimmed: { opacity: 0.5 },
   reveal: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  revealItem: { flexGrow: 1, flexBasis: 140 },
+  revealItem: { flexGrow: 1 },
   answer: { gap: Spacing.half },
   moodLine: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
 });
