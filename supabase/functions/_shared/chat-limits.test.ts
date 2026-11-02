@@ -7,6 +7,7 @@ import {
   CALLS_PER_TURN,
   CHAT_LIMITS,
   GLOBAL_DAILY_MICROS,
+  globalDailyMicros,
   MAX_TOKENS,
   SpendMeter,
   WORST_TURN_MICROS,
@@ -35,6 +36,40 @@ Deno.test("the global budget is $10 a day and holds a dozen worst-case turns in 
   assertEquals(GLOBAL_DAILY_MICROS, 10_000_000);
   assert(Math.floor(GLOBAL_DAILY_MICROS / WORST_TURN_MICROS) >= 12);
   assert(CHAT_LIMITS.dailyPerUser <= CHAT_LIMITS.dailyPerFamily);
+});
+
+Deno.test("CHAT_GLOBAL_DAILY_USD: $1 to $100 overrides the budget; anything else is the $10 default", () => {
+  assertEquals(globalDailyMicros("25"), 25_000_000);
+  assertEquals(globalDailyMicros(" 12.5 "), 12_500_000);
+  assertEquals(globalDailyMicros("1"), 1_000_000);
+  assertEquals(globalDailyMicros("100"), 100_000_000);
+  for (
+    const raw of [
+      undefined,
+      "",
+      "abc",
+      "0",
+      "0.5",
+      "-5",
+      "100.01",
+      "250",
+      "1e2",
+      "NaN",
+      "Infinity",
+      "10,5",
+      "$20",
+    ]
+  ) {
+    assertEquals(globalDailyMicros(raw), GLOBAL_DAILY_MICROS, String(raw));
+  }
+  // The smallest accepted budget still holds one worst-case turn (or every turn would fail).
+  assert(globalDailyMicros(String(CHAT_LIMITS.globalDailyUsdMin)) >= WORST_TURN_MICROS);
+});
+
+Deno.test("new accounts: a small daily cap for the first hour, below the per-user cap", () => {
+  assertEquals(CHAT_LIMITS.newAccountDailyTurns, 10);
+  assertEquals(CHAT_LIMITS.newAccountSeconds, 3600);
+  assert(CHAT_LIMITS.newAccountDailyTurns < CHAT_LIMITS.dailyPerUser);
 });
 
 Deno.test("meter: reported usage at the assumed prices, reasoning billed as output", () => {

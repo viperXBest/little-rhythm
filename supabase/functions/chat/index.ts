@@ -10,7 +10,8 @@
 //
 // Limits (_shared/chat-limits.ts), all before any model call and all answered with
 // the same 429 rate_limited: 60 an hour per user, then (after the thread check, so
-// voice turns count too) a daily cap per user and per family and the global spend
+// voice turns count too) a daily cap per user (10 for accounts under an hour old) and
+// per family and the global spend
 // breaker. Each admitted turn reserves its worst-case cost and settles to what its
 // Muse calls (and any memory fold) actually reported.
 //
@@ -53,7 +54,7 @@ import {
 } from "../_shared/health-gate.ts";
 import { keywordHit } from "../_shared/health-keywords.ts";
 import { languageBias } from "../_shared/asr-language.ts";
-import { CHAT_LIMITS, GLOBAL_DAILY_MICROS, SpendMeter, WORST_TURN_MICROS } from "../_shared/chat-limits.ts";
+import { CHAT_LIMITS, globalDailyMicros, SpendMeter, WORST_TURN_MICROS } from "../_shared/chat-limits.ts";
 import { MuseError, sparkComplete, sparkJson, sparkText, transcribe } from "../_shared/muse.ts";
 import { predict } from "../_shared/predict.ts";
 import { EMPTY_SUMMARY, maybeFoldMemory, runInBackground } from "../_shared/thread-memory.ts";
@@ -282,11 +283,13 @@ Deno.serve(async (req) => {
   }
 });
 
-type Budget = { outcome: "ok" | "user" | "family" | "global"; dayStart: string };
+const OUTCOMES = ["ok", "user", "new_account", "family", "global"] as const;
+type Budget = { outcome: (typeof OUTCOMES)[number]; dayStart: string };
 
 /**
- * consume_chat_budget (service role): the daily cap per user, then per family, then a
- * worst-case reservation against the global daily budget. Null on a database error
+ * consume_chat_budget (service role): the daily cap per user (smaller for an account under
+ * an hour old: "new_account"), then per family, then a worst-case reservation against the
+ * global daily budget (CHAT_GLOBAL_DAILY_USD, $10 by default). Null on a database error
  * (the turn is refused: fails closed).
  */
 async function consumeBudget(admin: ReturnType<typeof adminClient>, userId: string): Promise<Budget | null> {
@@ -295,8 +298,10 @@ async function consumeBudget(admin: ReturnType<typeof adminClient>, userId: stri
       p_user_id: userId,
       p_user_max: CHAT_LIMITS.dailyPerUser,
       p_family_max: CHAT_LIMITS.dailyPerFamily,
-      p_global_max: GLOBAL_DAILY_MICROS,
+      p_global_max: globalDailyMicros(Deno.env.get("CHAT_GLOBAL_DAILY_USD")),
       p_reserve: WORST_TURN_MICROS,
+      p_new_account_max: CHAT_LIMITS.newAccountDailyTurns,
+      p_new_account_seconds: CHAT_LIMITS.newAccountSeconds,
     })
     .single<{ outcome: string; day_start: string }>();
   if (error || !data) {
@@ -304,11 +309,12 @@ async function consumeBudget(admin: ReturnType<typeof adminClient>, userId: stri
     return null;
   }
   const outcome = data.outcome;
-  if (outcome !== "ok" && outcome !== "user" && outcome !== "family" && outcome !== "global") {
+  const known = OUTCOMES.find((o) => o === outcome);
+  if (!known) {
     console.error("chat: budget failed", "bad_outcome");
     return null;
   }
-  return { outcome, dayStart: data.day_start };
+  return { outcome: known, dayStart: data.day_start };
 }
 
 /** settle_chat_spend (service role). A failure keeps the full reservation (fails safe). */

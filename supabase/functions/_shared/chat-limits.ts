@@ -6,10 +6,11 @@
 //
 // Per turn, before any model call, the chat function checks (consume_chat_budget):
 //   - the hourly cap per user (consume_rate_limit, unchanged since v1.0.0);
-//   - the daily cap per user and per family (turns);
+//   - the daily cap per user (10 for accounts under an hour old) and per family (turns);
 //   - the global daily spend: the turn reserves WORST_TURN_MICROS, runs with a
 //     SpendMeter, then settles to what it metered. With every in-flight turn holding
-//     its worst case, the day's spend can't pass GLOBAL_DAILY_USD.
+//     its worst case, the day's spend can't pass the budget (CHAT_GLOBAL_DAILY_USD, $10
+//     by default).
 // Any refusal is the existing 429 { error: "rate_limited" }.
 
 /** Assumed prices, USD. Reasoning tokens are billed as output (they count in completion_tokens). */
@@ -26,8 +27,21 @@ export const CHAT_LIMITS = {
   dailyPerUser: 60,
   /** Both parents together; one parent alone is held by dailyPerUser first. */
   dailyPerFamily: 100,
-  /** Global circuit breaker: the most the chat function may spend on Muse in one UTC day. */
+  /**
+   * Accounts younger than newAccountSeconds get at most this many turns that UTC day
+   * (v1.1.1): throwaway sign-ups can't drain the global breaker. The demo accounts are
+   * old (the seed updates them in place), and judges who keep testing pass the hour.
+   */
+  newAccountDailyTurns: 10,
+  newAccountSeconds: 3600,
+  /**
+   * Global circuit breaker, the default: the most the chat function may spend on Muse in
+   * one UTC day. The Edge secret CHAT_GLOBAL_DAILY_USD overrides it (globalDailyMicros).
+   */
   globalDailyUsd: 10,
+  /** The secret's accepted range, USD. At least one worst-case turn (~$0.78) must fit. */
+  globalDailyUsdMin: 1,
+  globalDailyUsdMax: 100,
 } as const;
 
 /**
@@ -86,7 +100,23 @@ export const WORST_TURN_MICROS = (Object.keys(MAX_TOKENS) as CallKind[]).reduce(
   asrMicros(ASR_SECONDS_MAX),
 );
 
+/** The default global budget ($10), in micro-USD. */
 export const GLOBAL_DAILY_MICROS = CHAT_LIMITS.globalDailyUsd * MICROS_PER_USD;
+
+/**
+ * The global daily budget in micro-USD from the Edge secret CHAT_GLOBAL_DAILY_USD (read per
+ * request, so `supabase secrets set` changes it without a redeploy). A plain decimal number
+ * of dollars from $1 to $100; missing, malformed or out of range -> the $10 default.
+ */
+export function globalDailyMicros(raw: string | undefined): number {
+  const text = raw?.trim() ?? "";
+  if (!/^\d{1,3}(?:\.\d{1,2})?$/.test(text)) return GLOBAL_DAILY_MICROS;
+  const usd = Number(text);
+  if (!(usd >= CHAT_LIMITS.globalDailyUsdMin && usd <= CHAT_LIMITS.globalDailyUsdMax)) {
+    return GLOBAL_DAILY_MICROS;
+  }
+  return Math.round(usd * MICROS_PER_USD);
+}
 
 export type Usage = { prompt_tokens?: number; completion_tokens?: number } | null | undefined;
 

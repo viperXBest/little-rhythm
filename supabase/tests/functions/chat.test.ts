@@ -341,6 +341,33 @@ Deno.test({
 });
 
 Deno.test({
+  name: "chat: an account under an hour old gets 429 rate_limited after 10 turns a day, text and voice",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    // Every test user here was just created, so this is the new-account cap, not the 60.
+    const parent = await createUser("chat-day-new");
+    let familyId: string | null = null;
+    try {
+      familyId = await createFamily([parent]);
+      const { private_id: threadId } = await threads(parent);
+      await fillWindow(admin, parent.id, "chat_day", 86_400, CHAT_LIMITS.newAccountDailyTurns);
+      const spendBefore = await globalSpend(admin);
+      await expectCapped(
+        await call({ text: "wet diaper", thread_id: threadId, ...ZONE }, parent.token),
+        "text",
+      );
+      await expectCapped(await callVoice(threadId, parent.token), "voice");
+      assertEquals(await messageCount(threadId), 0);
+      assertEquals(await globalSpend(admin), spendBefore, "a refused turn reserves nothing");
+    } finally {
+      if (familyId) await admin.from("families").delete().eq("id", familyId);
+      await admin.auth.admin.deleteUser(parent.id);
+    }
+  },
+});
+
+Deno.test({
   name:
     "chat: 429 rate_limited once the family's daily cap is reached, for both parents, before any model call",
   sanitizeOps: false,

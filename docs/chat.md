@@ -104,9 +104,29 @@ are known.
 | Check | Limit | Where | Counted |
 |---|---|---|---|
 | Per user, hourly | 60 an hour (unchanged) | `api_usage`, `consume_rate_limit` | every call after auth |
-| Per user, daily | 60 a UTC day | `api_usage` (`chat_day`), the same function | once the thread check passed |
+| Per user, daily | 60 a UTC day; **10 while the account is under an hour old** (v1.1.1) | `api_usage` (`chat_day`), the same function | once the thread check passed |
 | Per family, daily | 100 a UTC day | `usage_counters`, scope `family` | once the user cap passed |
-| Global spend | $10 a UTC day (assumed prices) | `usage_counters`, scope `global`, micro-USD | once the family cap passed |
+| Global spend | $10 a UTC day by default, or the Edge secret `CHAT_GLOBAL_DAILY_USD` (v1.1.1) | `usage_counters`, scope `global`, micro-USD | once the family cap passed |
+
+**v1.1.1 hardening** (sign-up stays open, so throwaway accounts are the risk to the breaker):
+- **`CHAT_GLOBAL_DAILY_USD`** (`globalDailyMicros` in `chat-limits.ts`) is read on every
+  request, so `supabase secrets set CHAT_GLOBAL_DAILY_USD=20` raises the day's budget with
+  no redeploy. A plain number of dollars from 1 to 100 (up to two decimals); missing,
+  malformed or out of range falls back to $10. $1 still holds one worst-case turn.
+- **New accounts:** an account whose `auth.users.created_at` is under an hour old gets at
+  most 10 turns that UTC day (`CHAT_LIMITS.newAccountDailyTurns`, `newAccountSeconds`),
+  counted in the same `chat_day` row; after the hour the normal 60 applies to the same
+  count. Refused as the same 429 `rate_limited` (the function logs `daily_cap_new_account`).
+  Migration `20261103090000_chat_new_account_cap.sql` adds a 7-argument
+  `consume_chat_budget`; the 5-argument v1.1.0 signature stays as a wrapper without the
+  new-account cap, so `chat` v9 keeps working until v10 is deployed (drop it afterwards).
+- **The demo accounts are not affected.** The seed (`scripts/seed-demo/seed.ts`,
+  `upsertUser`) finds existing demo users and updates their password and name, so their
+  `created_at` stays; it deletes families, not users. Only the first seed of a fresh
+  project (or the local stack after a reset) creates them, and then the cap holds for
+  that first hour only: seed at least an hour before a take on a fresh project. The
+  safety runner deletes each worker's `api_usage` before every prompt, so run D is not
+  affected either.
 
 - **Why 60 and 100.** A parent who logs every feed, sleep and diaper by voice makes
   about 25–35 turns a day (8–10 feeds, 5–6 sleeps started and ended, 8 diapers),
@@ -157,7 +177,8 @@ attempts were charged at their worst case (see `docs/safety.md`).
 graphs), so they have no spend to cap.
 
 Tests: `supabase/tests/08_chat_budget.test.sql` (caps, order, reservation, settle,
-client access); `supabase/tests/functions/chat.test.ts` (per-user, per-family and
+client access); `supabase/tests/09_chat_new_account.test.sql` (the new-account cap, the
+v1.1.0 wrapper, argument checks, client access); `supabase/tests/functions/chat.test.ts` (per-user, per-family and
 global caps each return 429 `rate_limited`, for text and voice, with nothing stored
 and nothing reserved; a refused-earlier request counts no daily turn);
 `_shared/chat-limits.test.ts` (the arithmetic, the meter, the retry rule).
