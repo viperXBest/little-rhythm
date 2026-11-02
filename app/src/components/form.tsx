@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -8,6 +9,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type ScrollViewInstance,
   type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,11 +36,29 @@ import { useTheme } from '@/hooks/use-theme';
  * `top` pins the content to the top instead of centring it. Chat has its own keyboard handling.
  */
 export function Screen({ children, top = false }: { children: ReactNode; top?: boolean }) {
+  const scroll = useRef<ScrollViewInstance>(null);
+  const [keyboard, setKeyboard] = useState(0);
+  // Android is edge-to-edge, so the window doesn't resize: pad the content by the keyboard's height and
+  // scroll to the end, which leaves the form's button just above the keyboard.
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboard(e.endCoordinates.height);
+      setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 80);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboard(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   return (
     <ThemedView style={styles.fill}>
       <SafeAreaView style={styles.fill}>
         <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView contentContainerStyle={[styles.content, top && styles.top]} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            ref={scroll}
+            contentContainerStyle={[styles.content, top && styles.top, keyboard > 0 && { paddingBottom: keyboard }]}
+            keyboardShouldPersistTaps="handled">
             {children}
           </ScrollView>
         </KeyboardAvoidingView>
