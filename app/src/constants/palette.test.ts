@@ -42,6 +42,8 @@ const TEXT: Pair[] = [
   ["link", "background"],
   ["link", "surface"],
   ["link", "card"],
+  ["textSecondary", "border"], // date field pressed (its label)
+  ["link", "border"], // date field pressed ("Change ›")
   ["onPrimary", "primary"],
   ["onPrimary", "primaryPressed"],
   ["onPrimary", "error"], // danger buttons, "Call 112", the mic while recording
@@ -70,12 +72,18 @@ const NON_TEXT: Pair[] = [
   ["error", "card"],
   ["primary", "background"], // a button's edge against the page
   ["primary", "card"],
+  ["primary", "surface"], // selected chip / active segment on the surface track
+  ["primary", "sleepSoft"], // the Next up highlight outline on a sleep tile
+  ["primary", "feedSoft"], // the Next up highlight outline on a feed tile
+  ["error", "surface"], // a field's error outline
   ["primaryTintBorder", "background"], // dark-glare: the tinted button's outline
   ["primaryTintBorder", "card"],
+  ["primaryTintBorder", "surface"], // the chat mic and Send above the composer
   ["primaryTintIcon", "primaryTint"], // the icon on a quick-log button
   ["primaryTintIcon", "primaryTintPressed"],
   ["feed", "background"],
   ["feed", "card"],
+  ["feed", "surface"],
   ["feed", "feedSoft"],
   ["sleep", "background"],
   ["sleep", "card"],

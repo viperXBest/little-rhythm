@@ -112,12 +112,13 @@ on the system font with real weights (`setCustomFontsAvailable`).
 
 ## Contrast pairs (`palette.test.ts`)
 
-Every pair passes in both themes (113 tests). Text ≥ 4.5:1: `text` and `textSecondary` on background,
-surface, card, infoBackground, warningBackground and the three soft fills (`text` on `border` too); `link` on
-background, surface, card; `onPrimary` on primary, primaryPressed, error; `onPrimaryTint` on primaryTint and
+Every pair passes in both themes (129 tests). Text ≥ 4.5:1: `text` and `textSecondary` on background,
+surface, card, infoBackground, warningBackground and the three soft fills (`text`, `textSecondary` and `link`
+on `border` too, for the pressed date field); `link` on background, surface, card; `onPrimary` on primary, primaryPressed, error; `onPrimaryTint` on primaryTint and
 primaryTintPressed; `errorText` on background, surface, card, warningBackground. Large-text 3:1: none (no
 text relies on it). Non-text ≥ 3:1: focus, accent on background/surface/card; success, error, primary,
-primaryTintBorder on background/card; error on warningBackground; primaryTintIcon on the tint fills; each
+primaryTintBorder on background/card; primary, error, primaryTintBorder and feed on surface; primary on
+sleepSoft and feedSoft (the Next up highlight); error on warningBackground; primaryTintIcon on the tint fills; each
 event colour on background, card and its soft fill.
 
 New dark-glare pairs (light / dark): `onPrimaryTint` on `primaryTint` 7.20 / 10.39, on `primaryTintPressed`
