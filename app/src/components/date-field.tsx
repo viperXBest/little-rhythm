@@ -2,7 +2,7 @@ import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { MinTouch, Radius, Spacing, Sticker } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type DateFieldProps = {
@@ -14,7 +14,7 @@ type DateFieldProps = {
   placeholder?: string;
   minimumDate?: Date;
   maximumDate?: Date;
-  /** What the field sits on: a card is already `surface`, so the field takes the page colour. */
+  /** What the field sits on: on a card the field takes the page colour (with an outline). */
   on?: 'page' | 'card';
 };
 
@@ -67,41 +67,43 @@ export function DateField({
     });
   }
 
+  // The label sits inside the field (C mockup), above the value, with "Change ›" on the right.
   return (
-    <View style={styles.field}>
-      <ThemedText type="smallBold">{label}</ThemedText>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${label}: ${value ? format(value, mode) : placeholder}`}
-        accessibilityHint={mode === 'date' ? 'Opens the date picker' : 'Opens the date and time picker'}
-        onPress={open}
-        style={({ pressed }) => [
-          styles.input,
-          { backgroundColor: on === 'card' ? theme.background : theme.surface, borderColor: theme.border },
-          pressed && styles.dimmed,
-        ]}>
-        <ThemedText style={styles.value} themeColor={value ? 'text' : 'textSecondary'}>
-          {value ? format(value, mode) : placeholder}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value ? format(value, mode) : placeholder}`}
+      accessibilityHint={mode === 'date' ? 'Opens the date picker' : 'Opens the date and time picker'}
+      onPress={open}
+      style={({ pressed }) => [
+        styles.input,
+        {
+          backgroundColor: pressed ? theme.border : on === 'card' ? theme.background : theme.surface,
+          borderColor: theme.border,
+        },
+      ]}>
+      <View style={styles.text}>
+        <ThemedText type="smallBold" themeColor="textSecondary">
+          {label}
         </ThemedText>
-        <ThemedText type="smallBold" themeColor="link">
-          {value ? 'Change ›' : 'Set ›'}
-        </ThemedText>
-      </Pressable>
-    </View>
+        <ThemedText themeColor={value ? 'text' : 'textSecondary'}>{value ? format(value, mode) : placeholder}</ThemedText>
+      </View>
+      <ThemedText type="link" themeColor="link">
+        {value ? 'Change ›' : 'Set ›'}
+      </ThemedText>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  field: { gap: Spacing.one },
   input: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth * 2,
+    minHeight: MinTouch + Spacing.two,
+    borderRadius: Radius.field,
+    borderWidth: Sticker.outline,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
   },
-  value: { flex: 1 },
-  dimmed: { opacity: 0.6 },
+  text: { flex: 1 },
 });

@@ -5,8 +5,10 @@ import { Segmented, Stepper } from '@/components/controls';
 import { DateField } from '@/components/date-field';
 import { Button, ErrorText } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Card } from '@/components/card';
+import { Icon, type IconName } from '@/components/illustrations';
+import { Radius, Spacing, type ThemeColor } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { proposalToRow, type ChatSource, type Proposal, type ProposalError } from '@/lib/chat';
 import { stillTimeAssumed, TIME_ASSUMED_NOTE } from '@/lib/chat-display';
 import {
@@ -27,6 +29,14 @@ const TITLES: Record<Proposal['type'], string> = {
   sleep: 'Sleep',
   sleep_end: 'Woke up',
   diaper: 'Diaper',
+};
+
+/** The type icon and its tinted square (C mockup). Waking up is part of the sleep. */
+const LOOKS: Record<Proposal['type'], { icon: IconName; tile: ThemeColor }> = {
+  feed: { icon: 'feed', tile: 'feedSoft' },
+  sleep: { icon: 'sleep', tile: 'sleepSoft' },
+  sleep_end: { icon: 'wake', tile: 'sleepSoft' },
+  diaper: { icon: 'diaper', tile: 'diaperSoft' },
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -78,6 +88,7 @@ type Props = {
 };
 
 export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
+  const theme = useTheme();
   const { session, family } = useSession();
   const { add, endSleep, find } = useTodayEvents();
 
@@ -195,13 +206,21 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
   }
 
   const now = new Date();
+  const look = LOOKS[proposal.type];
   return (
-    <ThemedView type="surface" style={styles.card}>
-      <ThemedText type="smallBold">{TITLES[proposal.type]}</ThemedText>
+    <Card style={styles.card}>
+      <View style={styles.header}>
+        <View style={[styles.tile, { backgroundColor: theme[look.tile] }]}>
+          <Icon name={look.icon} size={28} />
+        </View>
+        <ThemedText type="cardTitle" accessibilityRole="header" style={styles.title}>
+          {TITLES[proposal.type]}
+        </ThemedText>
+      </View>
       {timeAssumed ? (
-        <ThemedView type="infoBackground" style={styles.note}>
+        <View style={[styles.note, { backgroundColor: theme.infoBackground }]}>
           <ThemedText type="small">{TIME_ASSUMED_NOTE}</ThemedText>
-        </ThemedView>
+        </View>
       ) : null}
       {serverErrors.map((e) => (
         <ErrorText key={`${e.field}:${e.code}`}>{errorMessage(e)}</ErrorText>
@@ -272,59 +291,67 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
       ) : null}
 
       {proposal.type === 'feed' ? (
-        <>
-          <Segmented
-            options={[
-              { value: 'bottle', label: 'Bottle' },
-              { value: 'breast', label: 'Breast' },
-            ]}
-            value={feedKind}
-            onChange={(value) => {
-              setFeedKind(value);
-              edited('kind');
-            }}
-          />
-          {feedKind === 'bottle' ? (
-            <Stepper
-              label="Amount"
-              value={ml}
+        <View style={styles.wrapRow}>
+          <View style={styles.wrapItem}>
+            <Segmented
+              options={[
+                { value: 'bottle', label: 'Bottle' },
+                { value: 'breast', label: 'Breast' },
+              ]}
+              value={feedKind}
               onChange={(value) => {
-                setMl(value);
-                edited('ml');
+                setFeedKind(value);
+                edited('kind');
               }}
-              step={10}
-              min={ML_RANGE.min}
-              max={ML_RANGE.max}
-              unit="ml"
             />
+          </View>
+          {feedKind === 'bottle' ? (
+            <View style={styles.wrapItem}>
+              <Stepper
+                label="Amount"
+                value={ml}
+                onChange={(value) => {
+                  setMl(value);
+                  edited('ml');
+                }}
+                step={10}
+                min={ML_RANGE.min}
+                max={ML_RANGE.max}
+                unit="ml"
+              />
+            </View>
           ) : (
             <>
-              <Segmented
-                options={[
-                  { value: 'left', label: 'Left' },
-                  { value: 'right', label: 'Right' },
-                ]}
-                value={side}
-                onChange={(value) => {
-                  setSide(value);
-                  edited('side');
-                }}
-              />
-              <Stepper
-                label="Duration"
-                value={minutes}
-                onChange={(value) => {
-                  setMinutes(value);
-                  edited('minutes');
-                }}
-                step={5}
-                min={MINUTES_RANGE.min}
-                max={MINUTES_RANGE.max}
-                unit="min"
-              />
+              <View style={styles.wrapItem}>
+                <Segmented
+                  options={[
+                    { value: 'left', label: 'Left' },
+                    { value: 'right', label: 'Right' },
+                  ]}
+                  value={side}
+                  onChange={(value) => {
+                    setSide(value);
+                    edited('side');
+                  }}
+                />
+              </View>
+              <View style={styles.wrapItem}>
+                <Stepper
+                  label="Duration"
+                  value={minutes}
+                  onChange={(value) => {
+                    setMinutes(value);
+                    edited('minutes');
+                  }}
+                  step={5}
+                  min={MINUTES_RANGE.min}
+                  max={MINUTES_RANGE.max}
+                  unit="min"
+                />
+              </View>
             </>
           )}
-        </>
+        </View>
       ) : null}
 
       {proposal.type === 'diaper' ? (
@@ -356,7 +383,7 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
           <Button title="Discard" variant="secondary" onPress={onDiscard} disabled={busy} />
         </View>
       </View>
-    </ThemedView>
+    </Card>
   );
 }
 
@@ -373,8 +400,14 @@ function summary(
 }
 
 const styles = StyleSheet.create({
-  note: { borderRadius: 8, paddingHorizontal: Spacing.two, paddingVertical: Spacing.one },
-  card: { borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
-  actions: { flexDirection: 'row', gap: Spacing.two },
-  action: { flex: 1 },
+  card: { gap: Spacing.three },
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  tile: { width: 48, height: 48, borderRadius: Radius.small, alignItems: 'center', justifyContent: 'center' },
+  title: { flex: 1 },
+  note: { borderRadius: Radius.small, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+  // Bottle/Breast and the stepper share a row when they fit, and stack at large font sizes.
+  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: Spacing.three },
+  wrapItem: { flexGrow: 1, flexBasis: 200 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  action: { flexGrow: 1, flexBasis: 130 },
 });
