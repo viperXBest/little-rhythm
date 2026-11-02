@@ -46,6 +46,11 @@ module.exports = defineConfig([
             'JSXAttribute[name.name=/^(href|xlinkHref)$/] > JSXExpressionContainer > TemplateLiteral > TemplateElement[value.raw=/^\\s*(https?:)?\\/\\//i]',
           message: `${REMOTE_SVG} No remote href/xlinkHref.`,
         },
+        {
+          // The object form ({ uri: ... }) loads from a URL or a file; local refs are '#id' strings.
+          selector: 'JSXAttribute[name.name=/^(href|xlinkHref)$/] > JSXExpressionContainer > ObjectExpression',
+          message: `${REMOTE_SVG} No { uri } href/xlinkHref.`,
+        },
       ],
     },
   },

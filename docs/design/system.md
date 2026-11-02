@@ -129,4 +129,4 @@ on card 7.20 / 6.08. The palette values for the C tokens are pinned in the test.
 
 ESLint (`app/eslint.config.js`) bans importing `SvgUri`, `SvgCssUri`, `SvgFromUri`, `LocalSvg`, `SvgCss`,
 `WithLocalSvg` and `react-native-svg/css`, and any JSX `href`/`xlinkHref` whose string starts with `http(s):`
-or `//`. Local `#id` references are fine.
+or `//`, and the object form (`href={{ uri: ... }}`, `xlinkHref={{ uri: ... }}`). Local `#id` references are fine.
