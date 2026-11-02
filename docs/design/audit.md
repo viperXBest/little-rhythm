@@ -184,4 +184,23 @@ Next up → Quick log → Daily check-in → Night feeds → "Chat" button → T
 
 ## Baseline emulator screenshots
 
-To be added.
+v1.0.0 as it ships (release APK built from `0124ed8`, which only adds react-native-svg), on the Pixel 8 emulator
+(1080×2400, Android 16), signed in as the seeded demo parent Ana (Maia, 13 weeks), app locale en-GB (24 h times).
+Files are in [`audit/baseline/`](audit/baseline/), each in `light`, `dark` and `font2` (font scale 2.0):
+
+| Screen | Files |
+|---|---|
+| Sign-in | `sign-in-*.png` |
+| Home, top to bottom in four scrolls | `home-1-*.png` … `home-4-*.png` |
+| Chat (shared thread, empty) | `chat-*.png` |
+| Event edit (a bottle feed) | `event-edit-*.png` |
+| Delete account | `delete-account-*.png` |
+
+What the screenshots add to the audit above:
+
+- **12-hour locales break Next up at 200%.** With an en-US locale the ranges wrap mid-number ("12:08 PM–1 /
+  2:48 PM"). The new 2×2 tiles must let a range wrap only at the en dash.
+- **Sign out and Delete account sit at the bottom of home** as full-width grey buttons, the same weight as Chat.
+- **Disabled Send is a pale blue fill with pale text**, hard to tell from enabled at a glance.
+- **The dev client is not usable for review screenshots**: its menu, a floating Tools button and a navigation
+  warning toast (from the dev client's own navigator, not the app). Review screenshots come from a release APK.
