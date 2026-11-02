@@ -215,3 +215,18 @@ Open for the owner:
   The bottom padding only clears the last row.
 - At font scale 1.0 the keyboard covers part of Sign in (still tappable); at 2.0 the button needs one
   scroll. "Breast · right · 14 / min" orphans "min" at 2.0.
+
+### Nov 2: owner's fixes after the checkpoint
+
+- **Chat button docked** in a bar below the home scroll (page background, `border` top edge, safe-area
+  bottom inset). The scroll takes the remaining height by flex layout, so the button can't cover
+  anything at any screen size or font scale (checked on both emulators at 1.0 and 2.0).
+- **Notification icon** is a solid white cloud with no face or cut-outs (reached a device only with
+  the next native build).
+- **Keyboard:** the shared `Screen` pads by the keyboard height on `keyboardDidShow` and scrolls to the
+  end, so Sign in is fully visible above the keyboard at 1.0 and 2.0 (sign-up too).
+- **Non-breaking spaces** between numbers and units ("14 min", "90 ml", "13 weeks", "30 seconds"),
+  through `app/src/lib/units.ts` (Deno-tested). Copy is otherwise identical.
+- **Classifier timeout** raised to 30 s on `server-track` (`3a83a53`, with a runner token refresh) and
+  merged into `main` for the full safety rerun. The rerun is blocked: Windows denies access to the
+  Supabase CLI binary in the npx cache since 16:40 (likely endpoint protection). Pending the owner.
