@@ -384,6 +384,9 @@ export function ProposalCard({ proposal, source, onSaved, onDiscard }: Props) {
           <Button title="Discard" variant="secondary" onPress={onDiscard} disabled={busy} />
         </View>
       </View>
+      <ThemedText type="caption" themeColor="textSecondary">
+        Proposed by Muse Spark · confirm to save
+      </ThemedText>
     </Card>
   );
 }

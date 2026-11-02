@@ -283,7 +283,7 @@ export default function Chat() {
               </View>
             ) : null}
 
-            {busy ? <Loading label="Little Rhythm is thinking…" /> : null}
+            {busy ? <Loading label="Muse Spark is thinking…" /> : null}
             <ThemedText type="caption" themeColor="textSecondary" style={styles.privacy}>
               Voice clips are transcribed by Muse Voice Transcribe and not stored. The transcript is saved in this
               conversation.
