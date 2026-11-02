@@ -62,9 +62,9 @@ export function ReminderToggle({ prediction }: { prediction: Prediction | null }
           value={enabled === true}
           disabled={enabled === null || busy}
           onValueChange={(next) => void onChange(next)}
-          // Off: a textSecondary track (≥ 6.7:1 on the card) so the control reads in dark mode too.
-          trackColor={{ false: theme.textSecondary, true: theme.primary }}
-          thumbColor={enabled === true ? theme.onPrimary : theme.card}
+          // Off: a textSecondary thumb (≥ 6.7:1 on the card) so the off state reads in dark mode too.
+          trackColor={{ false: theme.border, true: theme.primary }}
+          thumbColor={enabled === true ? theme.onPrimary : theme.textSecondary}
           accessibilityLabel="Reminders"
         />
       </View>

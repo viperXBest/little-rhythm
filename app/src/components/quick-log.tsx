@@ -88,7 +88,7 @@ export function QuickLog() {
           )}
         </View>
       </View>
-      <Card padding={Spacing.two + Spacing.one} style={styles.diaper}>
+      <Card padding={Spacing.two + Spacing.one} style={fontScale < STACK_FONT_SCALE ? styles.diaper : undefined}>
         <View style={styles.diaperLabel}>
           <Icon name="diaper" size={28} />
           <ThemedText type="buttonLarge">Diaper</ThemedText>
@@ -235,22 +235,21 @@ const styles = StyleSheet.create({
   asleepHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   shrink: { flexShrink: 1 },
   panel: { gap: Spacing.three },
-  diaper: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
+  diaper: { flexDirection: 'row', alignItems: 'center' },
   diaperLabel: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    flexGrow: 1,
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: Spacing.one,
     minHeight: MinTouch,
   },
-  diaperChoices: { flexDirection: 'row', gap: Spacing.two, flexGrow: 1 },
+  diaperChoices: { flexDirection: 'row', gap: Spacing.two, flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
   choice: {
     flexGrow: 1,
+    flexShrink: 1,
     flexBasis: 0,
-    minWidth: 60,
     minHeight: MinTouch + Spacing.one,
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: Spacing.one,
     paddingVertical: Spacing.two,
     borderRadius: Radius.small,
     borderWidth: Sticker.outline,

@@ -195,7 +195,7 @@ function TileView({ tile, now, highlighted }: { tile: Tile; now: Date; highlight
       <View accessible accessibilityLabel={spoken} style={styles.tileBody}>
         <View style={styles.tileHead}>
           <Icon name={tile.icon} size={24} fill={tile.tone === 'feed' ? 'feedSoft' : 'sleepSoft'} />
-          <ThemedText type="smallBold" style={styles.flex}>
+          <ThemedText type="button" style={styles.flex}>
             {tile.label}
           </ThemedText>
         </View>
