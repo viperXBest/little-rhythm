@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
+import { FormScreen } from '@/components/account-ui';
 import { Card } from '@/components/card';
 import { Button, ErrorText, Field, Screen } from '@/components/form';
 import { Loading } from '@/components/states';
@@ -47,63 +48,59 @@ export default function DeleteAccount() {
 
   // Serious and calm: no mascot, no shelf on the explanation, flat danger buttons.
   return (
-    <Screen>
-      <View style={styles.page}>
-        <ThemedText type="title" accessibilityRole="header">
-          Delete account
-        </ThemedText>
-        <Card raised={false} style={styles.card}>
-          <ThemedText type="defaultBold">This can&apos;t be undone.</ThemedText>
-          {withPartner ? (
-            <ThemedText>
-              Your account, your private chat, your check-ins and your messages in the shared chat are
-              deleted. Your partner keeps {family.baby.name}&apos;s log; the events you logged stay
-              without your name.
-            </ThemedText>
-          ) : (
-            <ThemedText>
-              You are the only parent here, so {family.baby.name}&apos;s whole log goes too: every feed,
-              sleep and diaper, the chats, the check-ins and any pending invite.
-            </ThemedText>
-          )}
-        </Card>
-        <Field
-          label="Password"
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            setConfirming(false);
-          }}
-          secureTextEntry
-          autoCapitalize="none"
-          autoComplete="current-password"
-          maxLength={200}
-          editable={!busy}
-          onSubmitEditing={onContinue}
-        />
-        <ErrorText>{error}</ErrorText>
-        {busy ? <Loading label="Deleting your account…" /> : null}
-        {confirming ? (
-          <>
-            <ThemedText type="defaultBold" accessibilityRole="header">
-              Delete your account now?
-            </ThemedText>
-            <Button title="Yes, delete everything" variant="danger" onPress={() => void onDelete()} busy={busy} />
-            <Button title="Keep my account" variant="secondary" onPress={() => setConfirming(false)} disabled={busy} />
-          </>
+    <FormScreen top>
+      <ThemedText type="title" accessibilityRole="header">
+        Delete account
+      </ThemedText>
+      <Card raised={false} style={styles.card}>
+        <ThemedText type="defaultBold">This can&apos;t be undone.</ThemedText>
+        {withPartner ? (
+          <ThemedText>
+            Your account, your private chat, your check-ins and your messages in the shared chat are
+            deleted. Your partner keeps {family.baby.name}&apos;s log; the events you logged stay
+            without your name.
+          </ThemedText>
         ) : (
-          <>
-            <Button title="Delete my account" variant="danger" onPress={onContinue} />
-            <Button title="Back" variant="quiet" onPress={() => router.back()} />
-          </>
+          <ThemedText>
+            You are the only parent here, so {family.baby.name}&apos;s whole log goes too: every feed,
+            sleep and diaper, the chats, the check-ins and any pending invite.
+          </ThemedText>
         )}
-      </View>
-    </Screen>
+      </Card>
+      <Field
+        label="Password"
+        value={password}
+        onChangeText={(text) => {
+          setPassword(text);
+          setConfirming(false);
+        }}
+        secureTextEntry
+        autoCapitalize="none"
+        autoComplete="current-password"
+        maxLength={200}
+        editable={!busy}
+        onSubmitEditing={onContinue}
+      />
+      <ErrorText>{error}</ErrorText>
+      {busy ? <Loading label="Deleting your account…" /> : null}
+      {confirming ? (
+        <>
+          <ThemedText type="defaultBold" accessibilityRole="header">
+            Delete your account now?
+          </ThemedText>
+          <Button title="Yes, delete everything" variant="danger" onPress={() => void onDelete()} busy={busy} />
+          <Button title="Keep my account" variant="secondary" onPress={() => setConfirming(false)} disabled={busy} />
+        </>
+      ) : (
+        <>
+          <Button title="Delete my account" variant="danger" onPress={onContinue} />
+          <Button title="Back" variant="quiet" onPress={() => router.back()} />
+        </>
+      )}
+    </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  // Fills the screen so the content sits at the top, not centred.
-  page: { flexGrow: 1, gap: Spacing.three },
   card: { gap: Spacing.two },
 });

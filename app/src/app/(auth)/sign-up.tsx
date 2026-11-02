@@ -2,9 +2,9 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { Hero, TextLink } from '@/components/account-ui';
+import { FormScreen, Hero, TextLink } from '@/components/account-ui';
 import { Card } from '@/components/card';
-import { Button, ErrorText, Field, Screen } from '@/components/form';
+import { Button, ErrorText, Field } from '@/components/form';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
@@ -56,19 +56,19 @@ export default function SignUp() {
 
   if (checkEmail) {
     return (
-      <Screen>
+      <FormScreen>
         <Hero
           pose="waiting"
           title="Check your email"
           lead={`We sent a confirmation link to ${email.trim()}. Open it on this phone, then sign in.`}
         />
         <Button title="Go to sign in" onPress={() => router.replace('/sign-in')} />
-      </Screen>
+      </FormScreen>
     );
   }
 
   return (
-    <Screen>
+    <FormScreen>
       <Hero title="Create your account" lead="Your partner creates their own account and joins with a code." />
       <Card style={styles.form}>
         <Field
@@ -101,7 +101,7 @@ export default function SignUp() {
         <Button title="Create account" onPress={onSubmit} busy={busy} />
       </Card>
       <TextLink href="/sign-in">Already have an account? Sign in</TextLink>
-    </Screen>
+    </FormScreen>
   );
 }
 

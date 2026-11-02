@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { Hero } from '@/components/account-ui';
+import { FormScreen, Hero } from '@/components/account-ui';
 import { Card } from '@/components/card';
 import { DateField } from '@/components/date-field';
-import { Button, ErrorText, Field, Screen } from '@/components/form';
+import { Button, ErrorText, Field } from '@/components/form';
 import { Spacing } from '@/constants/theme';
 import { parseBirthDate, toLocalDateString } from '@/lib/dates';
 import { useSession } from '@/lib/session';
@@ -51,7 +51,7 @@ export default function CreateFamily() {
   }
 
   return (
-    <Screen>
+    <FormScreen>
       <Hero
         title="Your baby"
         lead="Only the first name and birth date. The birth date sets the age used for the rhythm."
@@ -65,12 +65,11 @@ export default function CreateFamily() {
           onChange={setBirthDate}
           minimumDate={threeYearsAgo}
           maximumDate={today}
-          on="card"
         />
         <ErrorText>{error}</ErrorText>
         <Button title="Continue" onPress={onSubmit} busy={busy} />
       </Card>
-    </Screen>
+    </FormScreen>
   );
 }
 

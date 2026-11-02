@@ -178,6 +178,8 @@ function InviteCard() {
         <View style={styles.inviteBody}>
           <View style={[styles.codeBox, { backgroundColor: theme.infoBackground, borderColor: theme.border }]}>
             <ThemedText
+              numberOfLines={1}
+              adjustsFontSizeToFit
               selectable={!expired}
               themeColor={expired ? 'textSecondary' : 'text'}
               style={[styles.code, font('heading', 800), expired && styles.expired]}>

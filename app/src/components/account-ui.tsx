@@ -1,13 +1,37 @@
 import { Link, router, type Href } from 'expo-router';
 import { type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, Mascot, type MascotProps } from '@/components/illustrations';
 import { ThemedText } from '@/components/themed-text';
-import { MinTouch, Radius, Spacing } from '@/constants/theme';
+import { ThemedView } from '@/components/themed-view';
+import { MaxContentWidth, MinTouch, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 // Shared pieces for the auth, onboarding and account screens (v1.1.0, Cloud Lullaby).
+
+/**
+ * `Screen` for forms: on Android the window doesn't resize for the keyboard (edge-to-edge),
+ * so the keyboard covered the focused field and the primary button. `height` shrinks the
+ * scroll view instead and Android scrolls the focused field into view (as in chat).
+ * `top` pins the content to the top instead of centring it.
+ */
+export function FormScreen({ children, top = false }: { children: ReactNode; top?: boolean }) {
+  return (
+    <ThemedView style={styles.fill}>
+      <SafeAreaView style={styles.fill}>
+        <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView
+            contentContainerStyle={[styles.content, top && styles.top]}
+            keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </ThemedView>
+  );
+}
 
 /**
  * A friendly screen header: Fluff (decorative), the title as a header and an optional lead line.
@@ -79,6 +103,17 @@ export function BackHeader({ title }: { title: string }) {
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  content: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    gap: Spacing.three,
+    padding: Spacing.four,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+  },
+  top: { justifyContent: 'flex-start' },
   hero: { alignItems: 'center', gap: Spacing.two, paddingBottom: Spacing.two },
   center: { textAlign: 'center' },
   link: {
