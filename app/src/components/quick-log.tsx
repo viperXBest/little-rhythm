@@ -54,6 +54,8 @@ export function QuickLog() {
   // The two big buttons share a row; an open sleep, the feed panel or a large font stacks them.
   // The tree is the same in both layouts, so nothing remounts mid-tap.
   const sideBySide = !openSleep && !feedOpen && fontScale < STACK_FONT_SCALE;
+  // The diaper label sits left of its choices below the stack scale; above it, the choices go under the label.
+  const diaperInline = fontScale < STACK_FONT_SCALE;
 
   return (
     <View style={styles.wrap}>
@@ -88,12 +90,12 @@ export function QuickLog() {
           )}
         </View>
       </View>
-      <Card padding={Spacing.two + Spacing.one} style={fontScale < STACK_FONT_SCALE ? styles.diaper : undefined}>
+      <Card padding={Spacing.two + Spacing.one} style={diaperInline ? styles.diaper : undefined}>
         <View style={styles.diaperLabel}>
           <Icon name="diaper" size={28} />
           <ThemedText type="buttonLarge">Diaper</ThemedText>
         </View>
-        <View style={styles.diaperChoices}>
+        <View style={[styles.diaperChoices, diaperInline ? styles.diaperChoicesInline : styles.diaperChoicesStacked]}>
           <DiaperChoice title="Wet" onPress={() => void log('diaper', { wet: true, dirty: false })} />
           <DiaperChoice title="Dirty" onPress={() => void log('diaper', { wet: false, dirty: true })} />
           <DiaperChoice title="Both" onPress={() => void log('diaper', { wet: true, dirty: true })} />
@@ -243,7 +245,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
     minHeight: MinTouch,
   },
-  diaperChoices: { flexDirection: 'row', gap: Spacing.two, flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+  diaperChoices: { flexDirection: 'row', gap: Spacing.two },
+  // Side by side the choices take the width left of the label; stacked they size to their content.
+  diaperChoicesInline: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+  diaperChoicesStacked: { flexBasis: 'auto', alignSelf: 'stretch' },
   choice: {
     flexGrow: 1,
     flexShrink: 1,
