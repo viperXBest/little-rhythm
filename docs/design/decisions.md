@@ -148,5 +148,11 @@ Later decisions go below, newest last.
 - **Night-feed balance:** counts in `display` type with colour dots; the bar is your share in `accent`,
   a 2 dp gap, your partner's share in `feed` (marigold; `sleep` was rejected as the same indigo as
   `accent`). TalkBack hears one summary of the period and both counts.
+- **Account screens** share `app/src/components/account-ui.tsx` (`Hero`, `TextLink`, `BackHeader`,
+  `FormScreen`). Sign-in and sign-up show Fluff waving; delete-account has no mascot, a flat explanation
+  card, and every destructive button is flat danger ("Delete my account" was primary). Sign out on
+  Welcome is a quiet button. Settings groups are Cards with no new headings (copy is frozen).
+- **Codes** (join field, invite card) use Baloo 2 with letter spacing instead of monospace: the code
+  alphabet has no 0/O or 1/I. The invite code stays on one line and selectable.
 - **Screen builders preview chat on hosted** with at most 6 messages in the demo's private thread, cancel
   every confirm card, and the demo family is re-seeded afterwards so the recording starts clean.
