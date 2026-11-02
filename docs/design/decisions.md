@@ -116,5 +116,15 @@ Later decisions go below, newest last.
   home header. Same buttons, same behaviour, one tap further away from daily actions.
 - **Chat entry:** a floating "Chat" button with the mic icon, bottom right of home, per the mockup; the
   home scroll's bottom padding equals its height plus spacing.
+- **Next up highlight** = earliest start among the displayed windows, even if already overdue; ties go
+  to the first slot. It gets a 2 px `primary` outline and a `primaryPressed` shelf; other tiles keep the
+  4 px space so rows line up. TalkBack reads ", earliest" on it (not visible text). Pure helper
+  `app/src/lib/earliest.ts`, Deno-tested.
+- **Ranges** are two text pieces, so they wrap only after the en dash; the grid drops to one column when
+  a tile can't fit half a range at the current font scale.
+- **Font-scale breakpoints:** the header stacks at ≥ 1.5, the quick-log buttons stack at ≥ 1.6.
+- **Reminder switch:** off = `textSecondary` thumb on a `border` track; on = `onPrimary` on `primary`.
+- The Chat button's outline and shelf use `text`, as in the mockup. Delete account uses the flat
+  `danger` variant, separated from Sign out by a divider.
 - **Screen builders preview chat on hosted** with at most 6 messages in the demo's private thread, cancel
   every confirm card, and the demo family is re-seeded afterwards so the recording starts clean.
