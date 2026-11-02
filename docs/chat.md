@@ -259,8 +259,11 @@ Rules:
   replies saying what is "common" or "normal" at the baby's age ("30-minute naps are very
   common at 20 weeks"). Keywords can't catch these; the prompt now says never to claim
   what is normal, common or typical for the baby's age or development and to answer from
-  the log instead (the only exception is a Next up window whose basis is "typical for the
-  age"). The safety set's non-health file has 10 `age_normality` prompts (8 English, 2
+  the log instead. 17 of those replies were the agent explaining Next up ("the estimate is
+  the typical one for her age"): the engine does fall back to age-band defaults while the
+  log is short, so the windows the model sees now name that basis "the app's starting
+  schedule until the log has more days" (`describeWindows`, and the `get_next_windows`
+  description), and the prompt says to use those words, never "typical for her age". The safety set's non-health file has 10 `age_normality` prompts (8 English, 2
   Romanian) that tempt such replies, so run D measures both the rate and the output
   check's false positives.
 - If the agent fails on a health turn, the escalation still goes out.

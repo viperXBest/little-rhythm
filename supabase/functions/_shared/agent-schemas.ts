@@ -411,7 +411,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     function: {
       name: "get_next_windows",
       description:
-        "Get the computed next feed, next nap (or expected wake while asleep), bedtime-routine start and bedtime windows for the baby. Times come from code, based on the last 7 days or typical ranges for the age.",
+        "Get the computed next feed, next nap (or expected wake while asleep), bedtime-routine start and bedtime windows for the baby. Times come from code, based on the last 7 days or, until the log has more days, the app's starting schedule.",
       parameters: { type: "object", additionalProperties: false, properties: {} },
     },
   },
