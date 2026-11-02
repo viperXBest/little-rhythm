@@ -1,12 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
+import { Card } from '@/components/card';
 import { Segmented, Stepper } from '@/components/controls';
 import { DateField } from '@/components/date-field';
 import { Button, ErrorText, Screen } from '@/components/form';
+import { Icon, Illustration } from '@/components/illustrations';
 import { ErrorState, Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
+import { Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import {
   MINUTES_RANGE,
   ML_RANGE,
@@ -17,6 +21,7 @@ import {
   type EventRow,
   type FeedDetails,
 } from '@/lib/events';
+import { eventVisual } from '@/lib/timeline-display';
 import { useTodayEvents } from '@/lib/today-events';
 
 // Allow a little clock drift between the two phones.
@@ -37,8 +42,14 @@ export default function EditEvent() {
   if (!row && status === 'error') {
     return (
       <Screen>
-        <ThemedText type="subtitle">Edit</ThemedText>
-        <ErrorState message="Couldn’t load today’s log. Check your connection." onRetry={() => void refresh()} />
+        <ThemedText type="title" accessibilityRole="header">
+          Edit
+        </ThemedText>
+        <ErrorState
+          message="Couldn’t load today’s log. Check your connection."
+          onRetry={() => void refresh()}
+          illustration={<Illustration name="error" size={180} />}
+        />
         <Button title="Back" variant="secondary" onPress={() => router.back()} />
       </Screen>
     );
@@ -47,7 +58,9 @@ export default function EditEvent() {
     // Deleted (here or on the partner's phone) or no longer today.
     return (
       <Screen>
-        <ThemedText type="subtitle">Event not found</ThemedText>
+        <ThemedText type="title" accessibilityRole="header">
+          Event not found
+        </ThemedText>
         <ThemedText themeColor="textSecondary">It may have been deleted.</ThemedText>
         <Button title="Back" onPress={() => router.back()} />
       </Screen>
@@ -57,6 +70,7 @@ export default function EditEvent() {
 }
 
 function EditForm({ row }: { row: EventRow }) {
+  const theme = useTheme();
   const { update, remove } = useTodayEvents();
   const feed = row.type === 'feed' ? parseFeed(row.details) : null;
   const diaper = row.type === 'diaper' ? parseDiaper(row.details) : null;
@@ -132,83 +146,113 @@ function EditForm({ row }: { row: EventRow }) {
     ]);
   }
 
+  const visual = eventVisual(row.type, row.type === 'feed' ? feedKind : null);
   const now = new Date();
   return (
     <Screen>
-      <ThemedText type="subtitle">{title}</ThemedText>
-      <DateField
-        label={row.type === 'sleep' ? 'Fell asleep' : 'Time'}
-        mode="datetime"
-        value={startedAt}
-        onChange={setStartedAt}
-        maximumDate={now}
-      />
-      {row.type === 'sleep' ? (
-        <>
-          <DateField
-            label="Woke up"
-            mode="datetime"
-            value={endedAt}
-            onChange={setEndedAt}
-            placeholder="Still asleep"
-            minimumDate={startedAt}
-            maximumDate={now}
-          />
-          {endedAt && row.ended_at === null ? (
-            <Button title="Still asleep" variant="secondary" onPress={() => setEndedAt(null)} />
-          ) : null}
-        </>
-      ) : null}
-      {row.type === 'feed' ? (
-        <>
+      <View style={styles.header}>
+        <View style={[styles.disc, { backgroundColor: theme[visual.soft] }]}>
+          <Icon name={visual.icon} size={32} fill={visual.soft} />
+        </View>
+        <ThemedText type="title" accessibilityRole="header" style={styles.flex}>
+          {title}
+        </ThemedText>
+      </View>
+      <Card style={styles.card}>
+        <DateField
+          label={row.type === 'sleep' ? 'Fell asleep' : 'Time'}
+          mode="datetime"
+          value={startedAt}
+          onChange={setStartedAt}
+          maximumDate={now}
+        />
+        {row.type === 'sleep' ? (
+          <>
+            <DateField
+              label="Woke up"
+              mode="datetime"
+              value={endedAt}
+              onChange={setEndedAt}
+              placeholder="Still asleep"
+              minimumDate={startedAt}
+              maximumDate={now}
+            />
+            {endedAt && row.ended_at === null ? (
+              <Button title="Still asleep" variant="secondary" onPress={() => setEndedAt(null)} />
+            ) : null}
+          </>
+        ) : null}
+        {row.type === 'feed' ? (
+          <>
+            <Segmented
+              options={[
+                { value: 'bottle', label: 'Bottle' },
+                { value: 'breast', label: 'Breast' },
+              ]}
+              value={feedKind}
+              onChange={setFeedKind}
+            />
+            {feedKind === 'bottle' ? (
+              <Stepper
+                label="Amount"
+                value={ml}
+                onChange={setMl}
+                step={10}
+                min={ML_RANGE.min}
+                max={ML_RANGE.max}
+                unit="ml"
+              />
+            ) : (
+              <>
+                <Segmented
+                  options={[
+                    { value: 'left', label: 'Left' },
+                    { value: 'right', label: 'Right' },
+                  ]}
+                  value={side}
+                  onChange={setSide}
+                />
+                <Stepper
+                  label="Duration"
+                  value={minutes}
+                  onChange={setMinutes}
+                  step={5}
+                  min={MINUTES_RANGE.min}
+                  max={MINUTES_RANGE.max}
+                  unit="min"
+                />
+              </>
+            )}
+          </>
+        ) : null}
+        {row.type === 'diaper' ? (
           <Segmented
             options={[
-              { value: 'bottle', label: 'Bottle' },
-              { value: 'breast', label: 'Breast' },
+              { value: 'wet', label: 'Wet' },
+              { value: 'dirty', label: 'Dirty' },
+              { value: 'both', label: 'Both' },
             ]}
-            value={feedKind}
-            onChange={setFeedKind}
+            value={diaperKind}
+            onChange={setDiaperKind}
           />
-          {feedKind === 'bottle' ? (
-            <Stepper label="Amount" value={ml} onChange={setMl} step={10} min={ML_RANGE.min} max={ML_RANGE.max} unit="ml" />
-          ) : (
-            <>
-              <Segmented
-                options={[
-                  { value: 'left', label: 'Left' },
-                  { value: 'right', label: 'Right' },
-                ]}
-                value={side}
-                onChange={setSide}
-              />
-              <Stepper
-                label="Duration"
-                value={minutes}
-                onChange={setMinutes}
-                step={5}
-                min={MINUTES_RANGE.min}
-                max={MINUTES_RANGE.max}
-                unit="min"
-              />
-            </>
-          )}
-        </>
-      ) : null}
-      {row.type === 'diaper' ? (
-        <Segmented
-          options={[
-            { value: 'wet', label: 'Wet' },
-            { value: 'dirty', label: 'Dirty' },
-            { value: 'both', label: 'Both' },
-          ]}
-          value={diaperKind}
-          onChange={setDiaperKind}
-        />
-      ) : null}
+        ) : null}
+      </Card>
       <ErrorText>{error}</ErrorText>
       <Button title="Save" onPress={() => void onSave()} busy={busy} />
-      <Button title="Delete" variant="secondary" onPress={onDelete} />
-      <Button title="Cancel" variant="secondary" onPress={() => router.back()} />
+      <Button
+        title="Delete"
+        variant="danger"
+        onPress={onDelete}
+        icon={<Icon name="delete" size={22} color="onPrimary" fill="error" />}
+      />
+      <Button title="Cancel" variant="quiet" onPress={() => router.back()} />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  disc: { width: 56, height: 56, borderRadius: Radius.small, alignItems: 'center', justifyContent: 'center' },
+  flex: { flexShrink: 1 },
+  card: { gap: Spacing.three },
+});
