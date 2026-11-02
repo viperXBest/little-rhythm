@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { StyleSheet } from 'react-native';
 
+import { Hero } from '@/components/account-ui';
+import { Card } from '@/components/card';
 import { DateField } from '@/components/date-field';
 import { Button, ErrorText, Field, Screen } from '@/components/form';
-import { ThemedText } from '@/components/themed-text';
+import { Spacing } from '@/constants/theme';
 import { parseBirthDate, toLocalDateString } from '@/lib/dates';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
@@ -49,21 +52,28 @@ export default function CreateFamily() {
 
   return (
     <Screen>
-      <ThemedText type="subtitle">Your baby</ThemedText>
-      <ThemedText themeColor="textSecondary">
-        Only the first name and birth date. The birth date sets the age used for the rhythm.
-      </ThemedText>
-      <Field label="First name" value={name} onChangeText={setName} maxLength={50} />
-      <DateField
-        label="Birth date"
-        mode="date"
-        value={birthDate}
-        onChange={setBirthDate}
-        minimumDate={threeYearsAgo}
-        maximumDate={today}
+      <Hero
+        title="Your baby"
+        lead="Only the first name and birth date. The birth date sets the age used for the rhythm."
       />
-      <ErrorText>{error}</ErrorText>
-      <Button title="Continue" onPress={onSubmit} busy={busy} />
+      <Card style={styles.form}>
+        <Field label="First name" value={name} onChangeText={setName} maxLength={50} />
+        <DateField
+          label="Birth date"
+          mode="date"
+          value={birthDate}
+          onChange={setBirthDate}
+          minimumDate={threeYearsAgo}
+          maximumDate={today}
+          on="card"
+        />
+        <ErrorText>{error}</ErrorText>
+        <Button title="Continue" onPress={onSubmit} busy={busy} />
+      </Card>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  form: { gap: Spacing.three },
+});

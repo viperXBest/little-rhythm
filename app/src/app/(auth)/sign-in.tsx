@@ -1,8 +1,10 @@
-import { Link } from 'expo-router';
 import { useState } from 'react';
+import { StyleSheet } from 'react-native';
 
+import { Hero, TextLink } from '@/components/account-ui';
+import { Card } from '@/components/card';
 import { Button, ErrorText, Field, Screen } from '@/components/form';
-import { ThemedText } from '@/components/themed-text';
+import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 export default function SignIn() {
@@ -35,31 +37,34 @@ export default function SignIn() {
 
   return (
     <Screen>
-      <ThemedText type="subtitle">Little Rhythm</ThemedText>
-      <ThemedText themeColor="textSecondary">Sign in to see your baby’s day.</ThemedText>
-      <Field
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        textContentType="emailAddress"
-      />
-      <Field
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoComplete="current-password"
-        textContentType="password"
-        onSubmitEditing={onSubmit}
-      />
-      <ErrorText>{error}</ErrorText>
-      <Button title="Sign in" onPress={onSubmit} busy={busy} />
-      <Link href="/sign-up" replace>
-        <ThemedText type="linkPrimary">New here? Create an account</ThemedText>
-      </Link>
+      <Hero big title="Little Rhythm" lead="Sign in to see your baby’s day." />
+      <Card style={styles.form}>
+        <Field
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+        />
+        <Field
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="current-password"
+          textContentType="password"
+          onSubmitEditing={onSubmit}
+        />
+        <ErrorText>{error}</ErrorText>
+        <Button title="Sign in" onPress={onSubmit} busy={busy} />
+      </Card>
+      <TextLink href="/sign-up">New here? Create an account</TextLink>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  form: { gap: Spacing.three },
+});

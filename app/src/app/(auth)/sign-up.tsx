@@ -1,8 +1,11 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
+import { StyleSheet } from 'react-native';
 
+import { Hero, TextLink } from '@/components/account-ui';
+import { Card } from '@/components/card';
 import { Button, ErrorText, Field, Screen } from '@/components/form';
-import { ThemedText } from '@/components/themed-text';
+import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 const MIN_PASSWORD = 8;
@@ -54,10 +57,11 @@ export default function SignUp() {
   if (checkEmail) {
     return (
       <Screen>
-        <ThemedText type="subtitle">Check your email</ThemedText>
-        <ThemedText themeColor="textSecondary">
-          We sent a confirmation link to {email.trim()}. Open it on this phone, then sign in.
-        </ThemedText>
+        <Hero
+          pose="waiting"
+          title="Check your email"
+          lead={`We sent a confirmation link to ${email.trim()}. Open it on this phone, then sign in.`}
+        />
         <Button title="Go to sign in" onPress={() => router.replace('/sign-in')} />
       </Screen>
     );
@@ -65,41 +69,42 @@ export default function SignUp() {
 
   return (
     <Screen>
-      <ThemedText type="subtitle">Create your account</ThemedText>
-      <ThemedText themeColor="textSecondary">
-        Your partner creates their own account and joins with a code.
-      </ThemedText>
-      <Field
-        label="Your first name"
-        value={name}
-        onChangeText={setName}
-        autoComplete="given-name"
-        textContentType="givenName"
-        maxLength={50}
-      />
-      <Field
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        textContentType="emailAddress"
-      />
-      <Field
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoComplete="new-password"
-        textContentType="newPassword"
-        onSubmitEditing={onSubmit}
-      />
-      <ErrorText>{error}</ErrorText>
-      <Button title="Create account" onPress={onSubmit} busy={busy} />
-      <Link href="/sign-in" replace>
-        <ThemedText type="linkPrimary">Already have an account? Sign in</ThemedText>
-      </Link>
+      <Hero title="Create your account" lead="Your partner creates their own account and joins with a code." />
+      <Card style={styles.form}>
+        <Field
+          label="Your first name"
+          value={name}
+          onChangeText={setName}
+          autoComplete="given-name"
+          textContentType="givenName"
+          maxLength={50}
+        />
+        <Field
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+        />
+        <Field
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="new-password"
+          textContentType="newPassword"
+          onSubmitEditing={onSubmit}
+        />
+        <ErrorText>{error}</ErrorText>
+        <Button title="Create account" onPress={onSubmit} busy={busy} />
+      </Card>
+      <TextLink href="/sign-in">Already have an account? Sign in</TextLink>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  form: { gap: Spacing.three },
+});
