@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=412">
+<title>Cloud Lullaby · Escalation · dark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Atkinson+Hyperlegible:wght@400;700&display=block" rel="stylesheet">
+<style>:root{--text:#E7E5F7;--textSecondary:#B4B1D3;--background:#191A2E;--surface:#232540;--card:#272A47;--border:#3C3F63;--primary:#A9A2F5;--primaryPressed:#9089E8;--onPrimary:#1B1840;--accent:#A9A2F5;--link:#B9B3FA;--focus:#A9A2F5;--infoBackground:#2A2C52;--success:#7FD1A4;--error:#EE6A6F;--errorText:#FF9AAA;--warningBackground:#3D2230;--feed:#F2C179;--feedSoft:#3A3024;--sleep:#A9A2F5;--sleepSoft:#2C2B52;--diaper:#7FD3DE;--diaperSoft:#1F3540;
+      --r-card:22px; --r-btn:16px; --r-field:14px; --r-row:16px; --r-seg:14px;
+      --shadow: 0 4px 0 var(--shadow-c); --bw:2px;--shadow-c:#11122A;--icon-cut:var(--card);--duo:var(--card);
+    --fh:'Baloo 2',sans-serif;--fb:'Atkinson Hyperlegible',sans-serif;color-scheme:dark;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:412px;height:915px;overflow:hidden;background:var(--background);color:var(--text);font-family:var(--fb);-webkit-font-smoothing:antialiased}
+.phone{position:relative;width:412px;height:915px;overflow:hidden;background:var(--background)}
+.status{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font:600 14px var(--fb);color:var(--text)}
+.status .dots{display:flex;gap:6px;align-items:center}.status .dots i{display:block;width:14px;height:10px;border-radius:3px;background:var(--text);opacity:.8}
+.gesture{position:absolute;bottom:8px;left:50%;width:120px;height:4px;margin-left:-60px;border-radius:2px;background:var(--text);opacity:.5}
+.scroll{padding:8px 20px 140px;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--fh);font-weight:600}
+.small{font-size:15px;line-height:22px}
+.muted{color:var(--textSecondary)}
+.card{background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow);border:var(--bw) solid var(--border);padding:18px;display:flex;flex-direction:column;gap:12px}
+.card-title{display:flex;align-items:center;gap:10px;font:600 19px/26px var(--fh)}
+.ic{width:24px;height:24px;flex:none}
+.btn{min-height:52px;border-radius:var(--r-btn);display:flex;align-items:center;justify-content:center;gap:8px;font:700 16px var(--fb);border:none;padding:0 18px}
+.btn.primary{background:var(--primary);color:var(--onPrimary)}
+.btn.secondary{background:var(--surface);color:var(--text);border:var(--bw) solid var(--border)}
+.btn.danger{background:var(--error);color:var(--onPrimary)}
+.row2{display:flex;gap:10px}.row2>*{flex:1}
+.seg{display:flex;background:var(--surface);border-radius:var(--r-seg);padding:4px;gap:4px}
+.seg span{flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-seg);font:700 16px var(--fb);color:var(--text)}
+.seg span.on{background:var(--primary);color:var(--onPrimary)}
+.field-l{font:700 14px var(--fb);margin-bottom:6px}
+.field{min-height:54px;border-radius:var(--r-field);border:1.5px solid var(--border);background:var(--background);display:flex;align-items:center;padding:0 16px;gap:10px;font-size:17px}
+.field .v{flex:1}.field .chg{font-weight:700;font-size:15px;color:var(--link)}
+.stepper{display:flex;align-items:center;justify-content:space-between}
+.stepper .sb{width:56px;height:48px;border-radius:var(--r-field);background:var(--surface);border:var(--bw) solid var(--border);display:flex;align-items:center;justify-content:center;font:600 28px var(--fb);color:var(--text)}
+.stepper .val{font:700 26px var(--fh)}
+.note{background:var(--infoBackground);border-radius:12px;padding:10px 12px;font-size:15px;line-height:21px;color:var(--text)}
+.bubble{max-width:88%;border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.bubble.me{align-self:flex-end;background:var(--primary);color:var(--onPrimary);border-bottom-right-radius:6px}
+.bubble.me .meta{color:var(--onPrimary);opacity:.9}
+.bubble.bot{align-self:flex-start;background:var(--card);border:var(--bw) solid var(--border);box-shadow:var(--shadow);border-bottom-left-radius:6px}
+.meta{font-size:13px;line-height:18px;color:var(--textSecondary);font-weight:600}
+.btext{font-size:17px;line-height:25px}
+.topbar{display:flex;align-items:center;gap:12px;padding:6px 16px 10px}
+.iconbtn{width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:var(--text);background:var(--surface)}
+.composer{position:absolute;z-index:3;left:0;right:0;bottom:0;padding:12px 16px 22px;background:var(--background);border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.composer .input{flex:1;min-height:52px;border-radius:999px;background:var(--surface);border:1.5px solid var(--border);display:flex;align-items:center;padding:0 18px;color:var(--textSecondary);font-size:16px}
+.mic{width:64px;height:64px;border-radius:999px;background:var(--primary);color:var(--onPrimary);display:flex;align-items:center;justify-content:center;flex:none}
+.mic .ic{width:30px;height:30px}
+.miclabel{font:700 12px var(--fb);color:var(--textSecondary);text-align:center;margin-top:3px}
+/* escalation: identical in every direction except font + radius */
+.esc{background:var(--warningBackground);border:2px solid var(--error);border-radius:var(--r-field);padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:none}
+.esc.urgent{border-width:3px}
+.esc .t{display:flex;gap:10px;font:700 17px/24px var(--fb)}
+.esc .warn{color:var(--errorText);font-size:20px;line-height:24px}
+.esc .b{font-size:17px;line-height:25px}
+</style></head>
+<body><div class="phone"><div class="status"><span>14:52</span><span class="dots"><i></i><i></i><i style="width:22px"></i></span></div>
+<div class="topbar"><span class="iconbtn" aria-label="Back"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></g></svg></span>
+  <h2 style="font-size:26px;flex:1">Chat</h2></div>
+  <div style="padding:0 20px 10px"><div class="seg"><span class="on">Shared</span><span>Private</span></div>
+  <div class="small muted" style="margin-top:8px">You and your partner both see this conversation.</div></div><div class="scroll" style="padding-top:2px;gap:12px">
+  <div class="bubble me"><span class="meta">You · 14:46</span><span class="btext">she feels warm, is that normal?</span></div>
+  <div class="esc" role="alert"><div class="t"><span class="warn" aria-hidden="true">⚠</span><span style="flex:1">I can’t help with health questions</span></div>
+    <div class="b">Please contact your paediatrician or doctor. In an emergency, call 112.</div></div>
+  <div class="bubble me"><span class="meta">You · 14:49</span><span class="btext">she’s breathing really fast</span></div>
+  <div class="esc urgent" role="alert"><div class="t"><span class="warn" aria-hidden="true">⚠</span><span style="flex:1;color:var(--errorText)">This may be an emergency</span></div>
+    <div class="b">Call 112 now.</div><span class="btn danger">Call 112</span></div>
+  </div><div class="composer"><div class="input">Wet and dirty diaper just now</div>
+  <div><div class="mic" aria-label="Hold to record a voice log"><svg class="ic" viewBox="0 0 24 24"><g fill="var(--duo)" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.5h6v8.5a3 3 0 0 1-6 0z"/></g><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></g></svg></div><div class="miclabel">Hold to talk</div></div></div><div class="gesture"></div></div></body></html>

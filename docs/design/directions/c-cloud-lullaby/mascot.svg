@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="192" viewBox="0 0 150 120" aria-hidden="true">
+  <path d="M120 14l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z" fill="var(--feed)"/>
+  <path d="M18 22h8l-8 8h8M30 10h6l-6 6h6" stroke="var(--sleep)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M46 94v14M64 96v12M92 96v12M110 94v14" stroke="var(--text)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M40 96c-16 0-24-14-16-26c-8-14 6-28 20-22c4-14 24-18 34-8c10-10 30-6 34 8c16-4 26 12 18 24c8 14-4 28-18 24c-6 8-20 10-28 2c-10 8-30 8-44-2z" fill="var(--card)" stroke="var(--text)" stroke-width="3.5" stroke-linejoin="round"/>
+  <ellipse cx="78" cy="68" rx="24" ry="20" fill="var(--sleep)"/>
+  <path d="M66 66q4 4 8 0M82 66q4 4 8 0" stroke="var(--onPrimary)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M74 76q4 3 8 0" stroke="var(--onPrimary)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="54" cy="58" rx="8" ry="5" fill="var(--sleep)" transform="rotate(-24 54 58)"/><ellipse cx="102" cy="58" rx="8" ry="5" fill="var(--sleep)" transform="rotate(24 102 58)"/>
+</svg>

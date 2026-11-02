@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="180" viewBox="0 0 160 120" aria-hidden="true">
+  <path d="M6 70q70-14 148 6" stroke="var(--accent)" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M120 72q8-16 22-14q-6 14-22 14z" fill="var(--accent)"/><path d="M30 66q-4-16-18-18q2 14 18 18z" fill="var(--accent)"/>
+  <g><path d="M44 66c-14 0-20-12-14-24c6-12 26-12 32 0l12 4l-10 4c0 10-8 16-20 16z" fill="var(--primary)"/>
+     <path d="M36 60c4 4 14 4 18-2c-6 2-12 2-18 2z" fill="var(--card)"/>
+     <circle cx="52" cy="44" r="3" fill="var(--onPrimary)"/><path d="M70 44l8 3l-8 2z" fill="var(--feed)"/></g>
+  <g><path d="M116 66c14 0 20-12 14-24c-6-12-26-12-32 0l-12 4l10 4c0 10 8 16 20 16z" fill="var(--sleep)"/>
+     <path d="M124 60c-4 4-14 4-18-2c6 2 12 2 18 2z" fill="var(--card)"/>
+     <circle cx="108" cy="44" r="3" fill="var(--card)"/><path d="M90 44l-8 3l8 2z" fill="var(--feed)"/></g>
+  <path d="M80 30c-3-6-11-4-10 2c1 5 10 9 10 9s9-4 10-9c1-6-7-8-10-2z" fill="var(--diaper)"/>
+  <path d="M50 92q30 16 60 0l-4 16q-26 10-52 0z" fill="var(--feed)"/>
+  <path d="M54 96q26 10 52 0M56 102q24 8 48 0" stroke="var(--feedSoft)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="80" cy="91" rx="12" ry="7" fill="var(--card)"/>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 120 120" aria-hidden="true">
+  <circle cx="16" cy="24" r="3" fill="var(--sleep)"/><circle cx="104" cy="18" r="2.5" fill="var(--sleep)"/><circle cx="100" cy="46" r="2" fill="var(--feed)"/>
+  <path d="M98 26l2 4 4 .6-3 2.9.7 4.1-3.7-2-3.7 2 .7-4.1-3-2.9 4-.6z" fill="var(--feed)"/>
+  <circle cx="58" cy="62" r="36" fill="var(--accent)"/>
+  <circle cx="44" cy="44" r="5" fill="var(--onPrimary)" opacity=".18"/><circle cx="74" cy="82" r="4" fill="var(--onPrimary)" opacity=".18"/>
+  <path d="M40 60q6 6 12 0M64 60q6 6 12 0" stroke="var(--onPrimary)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <circle cx="38" cy="70" r="5" fill="var(--onPrimary)" opacity=".3"/><circle cx="78" cy="70" r="5" fill="var(--onPrimary)" opacity=".3"/>
+  <path d="M53 72q5 4 10 0" stroke="var(--onPrimary)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M12 86q48-14 96 0v14a8 8 0 0 1-8 8H20a8 8 0 0 1-8-8z" fill="var(--sleep)"/>
+  <path d="M12 86q48-14 96 0" stroke="var(--sleepSoft)" stroke-width="5" fill="none"/>
+  <path d="M28 98h10M55 98h10M82 98h10" stroke="var(--sleepSoft)" stroke-width="4" stroke-linecap="round"/>
+</svg>

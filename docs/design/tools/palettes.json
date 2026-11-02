@@ -1,0 +1,32 @@
+{
+ "a-apricot-moon": {
+  "light": {"text":"#3A2A22","textSecondary":"#6B574B","background":"#FFF8F1","surface":"#FBEBDD","card":"#FFFFFF","border":"#EAD6C4",
+   "primary":"#B04E28","primaryPressed":"#923E1F","onPrimary":"#FFFFFF","accent":"#CC6334","link":"#A2461F","focus":"#B04E28",
+   "infoBackground":"#FDEBD3","success":"#3B8552","error":"#C8323A","errorText":"#A8232B","warningBackground":"#FCE8E6",
+   "feed":"#C2622D","feedSoft":"#FDE6D4","sleep":"#6B5BA8","sleepSoft":"#ECE7F7","diaper":"#2F8273","diaperSoft":"#DDF0EA"},
+  "dark": {"text":"#F3E6DA","textSecondary":"#C8B5A6","background":"#1E1714","surface":"#2A211D","card":"#30261F","border":"#4A3B33",
+   "primary":"#F0A57A","primaryPressed":"#E08E60","onPrimary":"#2A1810","accent":"#F0A57A","link":"#F5B48E","focus":"#F0A57A",
+   "infoBackground":"#3A2B22","success":"#7CC08F","error":"#E8675F","errorText":"#FF9A93","warningBackground":"#3E2220",
+   "feed":"#F0A57A","feedSoft":"#3B2A20","sleep":"#B3A6EC","sleepSoft":"#2E2838","diaper":"#84CBB9","diaperSoft":"#22302C"}
+ },
+ "b-sage-nest": {
+  "light": {"text":"#26302A","textSecondary":"#56604F","background":"#F7F5EE","surface":"#ECEADF","card":"#FDFCF8","border":"#D8D4C3",
+   "primary":"#3F6B4E","primaryPressed":"#31573E","onPrimary":"#FFFFFF","accent":"#5A8766","link":"#2F6A47","focus":"#3F6B4E",
+   "infoBackground":"#E3EDE2","success":"#3F7F4F","error":"#C23B32","errorText":"#A32A22","warningBackground":"#FBE9E5",
+   "feed":"#AE6A2A","feedSoft":"#F6E7D3","sleep":"#4E6A9A","sleepSoft":"#E2E8F3","diaper":"#8A5A86","diaperSoft":"#F0E3EE"},
+  "dark": {"text":"#E6EAE2","textSecondary":"#AEB8AD","background":"#171C19","surface":"#212823","card":"#252D28","border":"#3A443D",
+   "primary":"#9CC4A5","primaryPressed":"#85B190","onPrimary":"#14201A","accent":"#9CC4A5","link":"#A8D4B2","focus":"#9CC4A5",
+   "infoBackground":"#22322A","success":"#8CC79A","error":"#E8695D","errorText":"#FF9C92","warningBackground":"#3A2220",
+   "feed":"#E2B07A","feedSoft":"#33291D","sleep":"#9DB4DE","sleepSoft":"#232B38","diaper":"#D3A4CF","diaperSoft":"#33263A"}
+ },
+ "c-cloud-lullaby": {
+  "light": {"text":"#24213F","textSecondary":"#5A5676","background":"#F6F5FC","surface":"#ECEAF8","card":"#FFFFFF","border":"#D5D1EC",
+   "primary":"#5146B8","primaryPressed":"#42399A","onPrimary":"#FFFFFF","accent":"#7066D8","link":"#4A40AE","focus":"#5146B8",
+   "infoBackground":"#E6E4FA","success":"#2F8A5E","error":"#C9304B","errorText":"#A8203A","warningBackground":"#FCE8EC",
+   "feed":"#B8650F","feedSoft":"#FCEFD9","sleep":"#6355CC","sleepSoft":"#E6E4FA","diaper":"#23808F","diaperSoft":"#DAF0F2"},
+  "dark": {"text":"#E7E5F7","textSecondary":"#B4B1D3","background":"#191A2E","surface":"#232540","card":"#272A47","border":"#3C3F63",
+   "primary":"#A9A2F5","primaryPressed":"#9089E8","onPrimary":"#1B1840","accent":"#A9A2F5","link":"#B9B3FA","focus":"#A9A2F5",
+   "infoBackground":"#2A2C52","success":"#7FD1A4","error":"#EE6A6F","errorText":"#FF9AAA","warningBackground":"#3D2230",
+   "feed":"#F2C179","feedSoft":"#3A3024","sleep":"#A9A2F5","sleepSoft":"#2C2B52","diaper":"#7FD3DE","diaperSoft":"#1F3540"}
+ }
+}

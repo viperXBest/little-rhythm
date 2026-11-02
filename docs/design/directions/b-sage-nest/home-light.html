@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=412">
+<title>Sage Nest · Home · light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,500..700,100&family=Lexend:wght@400;500;600&display=block" rel="stylesheet">
+<style>:root{--text:#26302A;--textSecondary:#56604F;--background:#F7F5EE;--surface:#ECEADF;--card:#FDFCF8;--border:#D8D4C3;--primary:#3F6B4E;--primaryPressed:#31573E;--onPrimary:#FFFFFF;--accent:#5A8766;--link:#2F6A47;--focus:#3F6B4E;--infoBackground:#E3EDE2;--success:#3F7F4F;--error:#C23B32;--errorText:#A32A22;--warningBackground:#FBE9E5;--feed:#AE6A2A;--feedSoft:#F6E7D3;--sleep:#4E6A9A;--sleepSoft:#E2E8F3;--diaper:#8A5A86;--diaperSoft:#F0E3EE;
+      --r-card:26px 26px 26px 8px; --r-btn:16px 16px 16px 6px; --r-field:14px; --r-row:16px; --r-seg:14px;
+      --shadow: none; --bw:1.5px;--shadow-c:transparent;--icon-cut:var(--card);--duo:var(--card);
+    --fh:'Fraunces',sans-serif;--fb:'Lexend',sans-serif;color-scheme:light;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:412px;height:915px;overflow:hidden;background:var(--background);color:var(--text);font-family:var(--fb);-webkit-font-smoothing:antialiased}
+.phone{position:relative;width:412px;height:915px;overflow:hidden;background:var(--background)}
+.status{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font:600 14px var(--fb);color:var(--text)}
+.status .dots{display:flex;gap:6px;align-items:center}.status .dots i{display:block;width:14px;height:10px;border-radius:3px;background:var(--text);opacity:.8}
+.gesture{position:absolute;bottom:8px;left:50%;width:120px;height:4px;margin-left:-60px;border-radius:2px;background:var(--text);opacity:.5}
+.scroll{padding:8px 20px 140px;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--fh);font-weight:600}
+.small{font-size:15px;line-height:22px}
+.muted{color:var(--textSecondary)}
+.card{background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow);border:var(--bw) solid var(--border);padding:18px;display:flex;flex-direction:column;gap:12px}
+.card-title{display:flex;align-items:center;gap:10px;font:600 19px/26px var(--fh)}
+.ic{width:24px;height:24px;flex:none}
+.btn{min-height:52px;border-radius:var(--r-btn);display:flex;align-items:center;justify-content:center;gap:8px;font:700 16px var(--fb);border:none;padding:0 18px}
+.btn.primary{background:var(--primary);color:var(--onPrimary)}
+.btn.secondary{background:var(--surface);color:var(--text);border:var(--bw) solid var(--border)}
+.btn.danger{background:var(--error);color:var(--onPrimary)}
+.row2{display:flex;gap:10px}.row2>*{flex:1}
+.seg{display:flex;background:var(--surface);border-radius:var(--r-seg);padding:4px;gap:4px}
+.seg span{flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-seg);font:700 16px var(--fb);color:var(--text)}
+.seg span.on{background:var(--primary);color:var(--onPrimary)}
+.field-l{font:700 14px var(--fb);margin-bottom:6px}
+.field{min-height:54px;border-radius:var(--r-field);border:1.5px solid var(--border);background:var(--background);display:flex;align-items:center;padding:0 16px;gap:10px;font-size:17px}
+.field .v{flex:1}.field .chg{font-weight:700;font-size:15px;color:var(--link)}
+.stepper{display:flex;align-items:center;justify-content:space-between}
+.stepper .sb{width:56px;height:48px;border-radius:var(--r-field);background:var(--surface);border:var(--bw) solid var(--border);display:flex;align-items:center;justify-content:center;font:600 28px var(--fb);color:var(--text)}
+.stepper .val{font:700 26px var(--fh)}
+.note{background:var(--infoBackground);border-radius:12px;padding:10px 12px;font-size:15px;line-height:21px;color:var(--text)}
+.bubble{max-width:88%;border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.bubble.me{align-self:flex-end;background:var(--primary);color:var(--onPrimary);border-bottom-right-radius:6px}
+.bubble.me .meta{color:var(--onPrimary);opacity:.9}
+.bubble.bot{align-self:flex-start;background:var(--card);border:var(--bw) solid var(--border);box-shadow:var(--shadow);border-bottom-left-radius:6px}
+.meta{font-size:13px;line-height:18px;color:var(--textSecondary);font-weight:600}
+.btext{font-size:17px;line-height:25px}
+.topbar{display:flex;align-items:center;gap:12px;padding:6px 16px 10px}
+.iconbtn{width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:var(--text);background:var(--surface)}
+.composer{position:absolute;z-index:3;left:0;right:0;bottom:0;padding:12px 16px 22px;background:var(--background);border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.composer .input{flex:1;min-height:52px;border-radius:999px;background:var(--surface);border:1.5px solid var(--border);display:flex;align-items:center;padding:0 18px;color:var(--textSecondary);font-size:16px}
+.mic{width:64px;height:64px;border-radius:999px;background:var(--primary);color:var(--onPrimary);display:flex;align-items:center;justify-content:center;flex:none}
+.mic .ic{width:30px;height:30px}
+.miclabel{font:700 12px var(--fb);color:var(--textSecondary);text-align:center;margin-top:3px}
+/* escalation: identical in every direction except font + radius */
+.esc{background:var(--warningBackground);border:2px solid var(--error);border-radius:var(--r-field);padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:none}
+.esc.urgent{border-width:3px}
+.esc .t{display:flex;gap:10px;font:700 17px/24px var(--fb)}
+.esc .warn{color:var(--errorText);font-size:20px;line-height:24px}
+.esc .b{font-size:17px;line-height:25px}
+
+.hdr{display:grid;grid-template-columns:auto 1fr;align-items:end;gap:0 8px;padding-top:4px}
+.hdr svg{grid-row:1/3;margin-left:-14px}
+.hdr h1{font-size:44px;line-height:46px;font-variation-settings:'SOFT' 100}.age{font:500 16px var(--fb);color:var(--textSecondary)}
+.together{grid-column:1/3;margin-top:2px}
+.card-title{font-size:21px}
+.path{position:relative;display:flex;flex-direction:column;gap:14px;padding-left:4px}
+.path:before{content:'';position:absolute;left:11px;top:12px;bottom:12px;width:2px;background:var(--border)}
+.step{display:flex;align-items:center;gap:14px;position:relative}
+.node{width:16px;height:16px;border-radius:999px;border:3px solid currentColor;background:var(--card);flex:none;margin-left:0}
+.t-feed{color:var(--feed)}.t-sleep{color:var(--sleep)}.t-diaper{color:var(--diaper)}
+.step.first .node{background:currentColor}
+.sl{flex:1}.lbl{font:600 16px var(--fb)}.basis{font-size:13px;line-height:18px;color:var(--textSecondary)}
+.nt{font:600 21px var(--fh);color:var(--text)}
+.step.first .nt{font-size:25px}
+.rem{display:flex;gap:12px;align-items:center;border-top:1.5px dashed var(--border);padding-top:12px}
+.tog{width:52px;height:32px;border-radius:999px;background:var(--primary);flex:none;position:relative}.tog b{position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:999px;background:var(--onPrimary)}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.q{background:var(--card);border:1.5px solid var(--border);border-radius:var(--r-btn);min-height:76px;padding:14px 16px;display:flex;align-items:center;gap:12px;font:600 17px var(--fb);color:var(--text)}
+.q .big{width:30px;height:30px}.q.t-sleep .big{color:var(--sleep)}.q.t-feed .big{color:var(--feed)}.q.t-diaper .big{color:var(--diaper)}
+.diap{grid-column:1/3}.dw{margin-left:auto;display:flex;gap:6px}.dw i{font-style:normal;min-height:48px;min-width:60px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--diaperSoft);color:var(--text);font:600 15px var(--fb)}
+.tl{display:flex;align-items:center;gap:12px;min-height:52px;border-top:1px solid var(--border);padding-top:8px}
+.tl:first-of-type{border-top:none}
+.tm{width:92px;font:500 14px var(--fb);color:var(--textSecondary)}.tic .ic{width:22px;height:22px}.tt{font:500 16px var(--fb)}
+.bar{position:absolute;left:16px;right:16px;bottom:24px;height:64px;border-radius:24px 24px 24px 8px;background:var(--card);border:1.5px solid var(--border);display:flex;align-items:center;padding:6px;gap:6px}
+.bar span{flex:1;height:100%;border-radius:18px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--textSecondary)}
+.bar span b{font:600 15px var(--fb)}.bar .on{background:var(--infoBackground);color:var(--text)}
+.bar .chat{background:var(--primary);color:var(--onPrimary)}
+</style></head>
+<body><div class="phone"><div class="status"><span>14:52</span><span class="dots"><i></i><i></i><i style="width:22px"></i></span></div>
+<div class="scroll">
+  <header class="hdr"><svg width="150" height="112.5" viewBox="0 0 160 120" aria-hidden="true">
+  <path d="M6 70q70-14 148 6" stroke="var(--accent)" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M120 72q8-16 22-14q-6 14-22 14z" fill="var(--accent)"/><path d="M30 66q-4-16-18-18q2 14 18 18z" fill="var(--accent)"/>
+  <g><path d="M44 66c-14 0-20-12-14-24c6-12 26-12 32 0l12 4l-10 4c0 10-8 16-20 16z" fill="var(--primary)"/>
+     <path d="M36 60c4 4 14 4 18-2c-6 2-12 2-18 2z" fill="var(--card)"/>
+     <circle cx="52" cy="44" r="3" fill="var(--onPrimary)"/><path d="M70 44l8 3l-8 2z" fill="var(--feed)"/></g>
+  <g><path d="M116 66c14 0 20-12 14-24c-6-12-26-12-32 0l-12 4l10 4c0 10 8 16 20 16z" fill="var(--sleep)"/>
+     <path d="M124 60c-4 4-14 4-18-2c6 2 12 2 18 2z" fill="var(--card)"/>
+     <circle cx="108" cy="44" r="3" fill="var(--card)"/><path d="M90 44l-8 3l8 2z" fill="var(--feed)"/></g>
+  <path d="M80 30c-3-6-11-4-10 2c1 5 10 9 10 9s9-4 10-9c1-6-7-8-10-2z" fill="var(--diaper)"/>
+  <path d="M50 92q30 16 60 0l-4 16q-26 10-52 0z" fill="var(--feed)"/>
+  <path d="M54 96q26 10 52 0M56 102q24 8 48 0" stroke="var(--feedSoft)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="80" cy="91" rx="12" ry="7" fill="var(--card)"/>
+</svg><div class="hdr-t"><h1>Mia</h1><div class="age">13 weeks old</div></div>
+  <div class="small muted together">You and your partner are both here.</div></header>
+  <section class="card nextup"><div class="card-title" role="heading">Next up</div>
+    <div class="path"><div class="step first"><span class="node t-feed"></span>
+      <div class="sl"><div class="lbl">Next feed</div><div class="basis">based on the last 7 days and age</div></div><div class="nt">15:10–15:40</div></div><div class="step "><span class="node t-sleep"></span>
+      <div class="sl"><div class="lbl">Next nap</div><div class="basis">based on the last 7 days and age</div></div><div class="nt">15:07–15:37</div></div><div class="step "><span class="node t-sleep"></span>
+      <div class="sl"><div class="lbl">Bedtime routine</div><div class="basis">typical for this age</div></div><div class="nt">18:15–18:45</div></div><div class="step "><span class="node t-sleep"></span>
+      <div class="sl"><div class="lbl">Bedtime</div><div class="basis">typical for this age</div></div><div class="nt">18:45–19:30</div></div></div>
+    <div class="rem"><span class="small muted">Remind me before feeds, naps and the bedtime routine, and about the check-in at 21:00</span><span class="tog" aria-hidden="true"><b></b></span></div></section>
+  <section class="quick">
+    <div class="q t-sleep"><svg class="ic big" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.8A8 8 0 1 1 9.2 4.5a6.4 6.4 0 0 0 10.3 10.3z"/><path d="M15 4h3l-3 3h3"/></g></svg><span>Start sleep</span></div>
+    <div class="q t-feed"><svg class="ic big" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5h4v2.5h-4z"/><path d="M8 5h8v3H8z"/><path d="M7.5 8h9v11.5a2.5 2.5 0 0 1-2.5 2.5h-4a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M10 12h3M10 15h3M10 18h3"/></g></svg><span>Feed</span></div>
+    <div class="q t-diaper diap"><svg class="ic big" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5h18v3.2c0 5-4 8.8-9 8.8s-9-3.8-9-8.8z"/><path d="M7 7.5c0 3 2 5.5 5 5.5s5-2.5 5-5.5"/></g></svg><span>Diaper</span><div class="dw"><i>Wet</i><i>Dirty</i><i>Both</i></div></div>
+  </section>
+  <section class="card"><div class="card-title">Today</div>
+    <div class="tl"><span class="tm">13:50</span><span class="tic t-diaper"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5h18v3.2c0 5-4 8.8-9 8.8s-9-3.8-9-8.8z"/><path d="M7 7.5c0 3 2 5.5 5 5.5s5-2.5 5-5.5"/></g></svg></span><div style="flex:1"><div class="tt">Diaper · wet</div><div class="small muted">by your partner</div></div></div><div class="tl"><span class="tm">12:35–13:40</span><span class="tic t-sleep"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.8A8 8 0 1 1 9.2 4.5a6.4 6.4 0 0 0 10.3 10.3z"/><path d="M15 4h3l-3 3h3"/></g></svg></span><div style="flex:1"><div class="tt">Sleep · 1h 5m</div></div></div><div class="tl"><span class="tm">12:20</span><span class="tic t-feed"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5h4v2.5h-4z"/><path d="M8 5h8v3H8z"/><path d="M7.5 8h9v11.5a2.5 2.5 0 0 1-2.5 2.5h-4a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M10 12h3M10 15h3M10 18h3"/></g></svg></span><div style="flex:1"><div class="tt">Bottle · 120 ml</div></div></div><div class="tl"><span class="tm">10:40</span><span class="tic t-diaper"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5h18v3.2c0 5-4 8.8-9 8.8s-9-3.8-9-8.8z"/><path d="M7 7.5c0 3 2 5.5 5 5.5s5-2.5 5-5.5"/></g></svg></span><div style="flex:1"><div class="tt">Diaper · wet and dirty</div></div></div>
+  </section></div>
+  <nav class="bar"><span class="on"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-5h4v5"/></g></svg><b>Home</b></span><span class="chat"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.5h6v8.5a3 3 0 0 1-6 0z"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></g></svg><b>Chat</b></span></nav><div class="gesture"></div></div></body></html>

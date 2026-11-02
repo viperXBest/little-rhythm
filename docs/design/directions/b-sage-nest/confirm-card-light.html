@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=412">
+<title>Sage Nest · Confirm card · light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,500..700,100&family=Lexend:wght@400;500;600&display=block" rel="stylesheet">
+<style>:root{--text:#26302A;--textSecondary:#56604F;--background:#F7F5EE;--surface:#ECEADF;--card:#FDFCF8;--border:#D8D4C3;--primary:#3F6B4E;--primaryPressed:#31573E;--onPrimary:#FFFFFF;--accent:#5A8766;--link:#2F6A47;--focus:#3F6B4E;--infoBackground:#E3EDE2;--success:#3F7F4F;--error:#C23B32;--errorText:#A32A22;--warningBackground:#FBE9E5;--feed:#AE6A2A;--feedSoft:#F6E7D3;--sleep:#4E6A9A;--sleepSoft:#E2E8F3;--diaper:#8A5A86;--diaperSoft:#F0E3EE;
+      --r-card:26px 26px 26px 8px; --r-btn:16px 16px 16px 6px; --r-field:14px; --r-row:16px; --r-seg:14px;
+      --shadow: none; --bw:1.5px;--shadow-c:transparent;--icon-cut:var(--card);--duo:var(--card);
+    --fh:'Fraunces',sans-serif;--fb:'Lexend',sans-serif;color-scheme:light;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:412px;height:915px;overflow:hidden;background:var(--background);color:var(--text);font-family:var(--fb);-webkit-font-smoothing:antialiased}
+.phone{position:relative;width:412px;height:915px;overflow:hidden;background:var(--background)}
+.status{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font:600 14px var(--fb);color:var(--text)}
+.status .dots{display:flex;gap:6px;align-items:center}.status .dots i{display:block;width:14px;height:10px;border-radius:3px;background:var(--text);opacity:.8}
+.gesture{position:absolute;bottom:8px;left:50%;width:120px;height:4px;margin-left:-60px;border-radius:2px;background:var(--text);opacity:.5}
+.scroll{padding:8px 20px 140px;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--fh);font-weight:600}
+.small{font-size:15px;line-height:22px}
+.muted{color:var(--textSecondary)}
+.card{background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow);border:var(--bw) solid var(--border);padding:18px;display:flex;flex-direction:column;gap:12px}
+.card-title{display:flex;align-items:center;gap:10px;font:600 19px/26px var(--fh)}
+.ic{width:24px;height:24px;flex:none}
+.btn{min-height:52px;border-radius:var(--r-btn);display:flex;align-items:center;justify-content:center;gap:8px;font:700 16px var(--fb);border:none;padding:0 18px}
+.btn.primary{background:var(--primary);color:var(--onPrimary)}
+.btn.secondary{background:var(--surface);color:var(--text);border:var(--bw) solid var(--border)}
+.btn.danger{background:var(--error);color:var(--onPrimary)}
+.row2{display:flex;gap:10px}.row2>*{flex:1}
+.seg{display:flex;background:var(--surface);border-radius:var(--r-seg);padding:4px;gap:4px}
+.seg span{flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-seg);font:700 16px var(--fb);color:var(--text)}
+.seg span.on{background:var(--primary);color:var(--onPrimary)}
+.field-l{font:700 14px var(--fb);margin-bottom:6px}
+.field{min-height:54px;border-radius:var(--r-field);border:1.5px solid var(--border);background:var(--background);display:flex;align-items:center;padding:0 16px;gap:10px;font-size:17px}
+.field .v{flex:1}.field .chg{font-weight:700;font-size:15px;color:var(--link)}
+.stepper{display:flex;align-items:center;justify-content:space-between}
+.stepper .sb{width:56px;height:48px;border-radius:var(--r-field);background:var(--surface);border:var(--bw) solid var(--border);display:flex;align-items:center;justify-content:center;font:600 28px var(--fb);color:var(--text)}
+.stepper .val{font:700 26px var(--fh)}
+.note{background:var(--infoBackground);border-radius:12px;padding:10px 12px;font-size:15px;line-height:21px;color:var(--text)}
+.bubble{max-width:88%;border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.bubble.me{align-self:flex-end;background:var(--primary);color:var(--onPrimary);border-bottom-right-radius:6px}
+.bubble.me .meta{color:var(--onPrimary);opacity:.9}
+.bubble.bot{align-self:flex-start;background:var(--card);border:var(--bw) solid var(--border);box-shadow:var(--shadow);border-bottom-left-radius:6px}
+.meta{font-size:13px;line-height:18px;color:var(--textSecondary);font-weight:600}
+.btext{font-size:17px;line-height:25px}
+.topbar{display:flex;align-items:center;gap:12px;padding:6px 16px 10px}
+.iconbtn{width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:var(--text);background:var(--surface)}
+.composer{position:absolute;z-index:3;left:0;right:0;bottom:0;padding:12px 16px 22px;background:var(--background);border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.composer .input{flex:1;min-height:52px;border-radius:999px;background:var(--surface);border:1.5px solid var(--border);display:flex;align-items:center;padding:0 18px;color:var(--textSecondary);font-size:16px}
+.mic{width:64px;height:64px;border-radius:999px;background:var(--primary);color:var(--onPrimary);display:flex;align-items:center;justify-content:center;flex:none}
+.mic .ic{width:30px;height:30px}
+.miclabel{font:700 12px var(--fb);color:var(--textSecondary);text-align:center;margin-top:3px}
+/* escalation: identical in every direction except font + radius */
+.esc{background:var(--warningBackground);border:2px solid var(--error);border-radius:var(--r-field);padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:none}
+.esc.urgent{border-width:3px}
+.esc .t{display:flex;gap:10px;font:700 17px/24px var(--fb)}
+.esc .warn{color:var(--errorText);font-size:20px;line-height:24px}
+.esc .b{font-size:17px;line-height:25px}
+
+.pc{gap:9px;padding:14px 16px}
+.cf .bubble{padding:9px 14px;gap:2px}.cf .btext{font-size:16px;line-height:23px}
+.cf .field{min-height:50px}.cf .field-l{margin-bottom:4px}.cf .btn{min-height:50px}.cf .note{padding:7px 12px;font-size:14px;line-height:20px}
+.cf .card-title{font-size:18px}.cf .pi{width:36px;height:36px}
+.cf .seg span{min-height:44px}
+.pin{position:relative;z-index:2;background:var(--background);box-shadow:0 8px 10px -6px var(--shadow-c);border-bottom:1px solid var(--border)}
+.cf{position:relative;z-index:1}
+.fl{font:700 14px var(--fb);color:var(--textSecondary);width:84px}
+.cf .v{font-size:16px}
+.fr{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
+.fr .seg span{min-height:48px;padding:0 8px}
+.fr .stepper{gap:6px}.fr .sb{width:48px}.fr .val{font-size:22px;min-width:66px;text-align:center}
+.pi{width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center}
+.t-feed .pi{background:var(--feedSoft);color:var(--feed);--icon-cut:var(--feedSoft);--duo:var(--card)}
+.t-sleep .pi{background:var(--sleepSoft);color:var(--sleep);--icon-cut:var(--sleepSoft);--duo:var(--card)}
+.mic{--icon-cut:var(--primary);--duo:var(--primaryPressed)}
+</style></head>
+<body><div class="phone"><div class="status"><span>14:52</span><span class="dots"><i></i><i></i><i style="width:22px"></i></span></div>
+<div class="topbar pin"><span class="iconbtn" aria-label="Back"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></g></svg></span>
+  <h2 style="font-size:24px;flex:1">Chat</h2><div class="seg" style="width:200px;background:var(--surface)"><span class="on">Shared</span><span>Private</span></div></div><div class="scroll cf" style="padding-top:0;gap:10px;margin-top:-30px">
+  <div class="bubble me"><span class="meta">You · 14:51 · voice</span><span class="btext">she drank 90 ml twenty minutes ago, she’s asleep now</span></div>
+  <div class="bubble bot"><span class="meta">Little Rhythm · 14:51</span><span class="btext">Got it. Check the times, then confirm.</span></div>
+  <section class="card pc t-feed"><div class="card-title"><span class="pi"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5h4v2.5h-4z"/><path d="M8 5h8v3H8z"/><path d="M7.5 8h9v11.5a2.5 2.5 0 0 1-2.5 2.5h-4a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M10 12h3M10 15h3M10 18h3"/></g></svg></span>Feed</div>
+    <div class="field"><span class="fl">Time</span><span class="v">Mon 2 Nov, 14:31</span><span class="chg">Change ›</span></div>
+    <div class="fr"><div class="seg"><span class="on">Bottle</span><span>Breast</span></div>
+    <div><div class="field-l">Amount</div><div class="stepper"><span class="sb">−</span><span class="val">90 ml</span><span class="sb">+</span></div></div></div>
+    <div class="row2"><span class="btn primary">Confirm</span><span class="btn secondary">Discard</span></div></section>
+  <section class="card pc t-sleep"><div class="card-title"><span class="pi"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.8A8 8 0 1 1 9.2 4.5a6.4 6.4 0 0 0 10.3 10.3z"/><path d="M15 4h3l-3 3h3"/></g></svg></span>Sleep</div>
+    <div class="note">Time not mentioned, set to now. Edit if wrong.</div>
+    <div class="field"><span class="fl">Fell asleep</span><span class="v">Mon 2 Nov, 14:51</span><span class="chg">Change ›</span></div>
+    <div class="field"><span class="fl">Woke up</span><span class="v muted">Still asleep</span><span class="chg">Set ›</span></div>
+    <div class="row2"><span class="btn primary">Confirm</span><span class="btn secondary">Discard</span></div></section>
+  </div><div class="composer"><div class="input">Wet and dirty diaper just now</div>
+  <div><div class="mic" aria-label="Hold to record a voice log"><svg class="ic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.5h6v8.5a3 3 0 0 1-6 0z"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></g></svg></div><div class="miclabel">Hold to talk</div></div></div><div class="gesture"></div></div></body></html>

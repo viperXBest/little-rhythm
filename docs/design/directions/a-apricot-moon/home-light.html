@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=412">
+<title>Apricot Moon · Home · light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@500;600;700;800&display=block" rel="stylesheet">
+<style>:root{--text:#3A2A22;--textSecondary:#6B574B;--background:#FFF8F1;--surface:#FBEBDD;--card:#FFFFFF;--border:#EAD6C4;--primary:#B04E28;--primaryPressed:#923E1F;--onPrimary:#FFFFFF;--accent:#CC6334;--link:#A2461F;--focus:#B04E28;--infoBackground:#FDEBD3;--success:#3B8552;--error:#C8323A;--errorText:#A8232B;--warningBackground:#FCE8E6;--feed:#C2622D;--feedSoft:#FDE6D4;--sleep:#6B5BA8;--sleepSoft:#ECE7F7;--diaper:#2F8273;--diaperSoft:#DDF0EA;
+      --r-card:28px; --r-btn:999px; --r-field:18px; --r-row:20px; --r-seg:999px;
+      --shadow: 0 6px 18px var(--shadow-c); --bw:0px;--shadow-c:rgba(160,90,50,.14);--icon-cut:var(--card);--duo:var(--card);
+    --fh:'Fredoka',sans-serif;--fb:'Nunito',sans-serif;color-scheme:light;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:412px;height:915px;overflow:hidden;background:var(--background);color:var(--text);font-family:var(--fb);-webkit-font-smoothing:antialiased}
+.phone{position:relative;width:412px;height:915px;overflow:hidden;background:var(--background)}
+.status{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font:600 14px var(--fb);color:var(--text)}
+.status .dots{display:flex;gap:6px;align-items:center}.status .dots i{display:block;width:14px;height:10px;border-radius:3px;background:var(--text);opacity:.8}
+.gesture{position:absolute;bottom:8px;left:50%;width:120px;height:4px;margin-left:-60px;border-radius:2px;background:var(--text);opacity:.5}
+.scroll{padding:8px 20px 140px;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--fh);font-weight:600}
+.small{font-size:15px;line-height:22px}
+.muted{color:var(--textSecondary)}
+.card{background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow);border:var(--bw) solid var(--border);padding:18px;display:flex;flex-direction:column;gap:12px}
+.card-title{display:flex;align-items:center;gap:10px;font:600 19px/26px var(--fh)}
+.ic{width:24px;height:24px;flex:none}
+.btn{min-height:52px;border-radius:var(--r-btn);display:flex;align-items:center;justify-content:center;gap:8px;font:700 16px var(--fb);border:none;padding:0 18px}
+.btn.primary{background:var(--primary);color:var(--onPrimary)}
+.btn.secondary{background:var(--surface);color:var(--text);border:var(--bw) solid var(--border)}
+.btn.danger{background:var(--error);color:var(--onPrimary)}
+.row2{display:flex;gap:10px}.row2>*{flex:1}
+.seg{display:flex;background:var(--surface);border-radius:var(--r-seg);padding:4px;gap:4px}
+.seg span{flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-seg);font:700 16px var(--fb);color:var(--text)}
+.seg span.on{background:var(--primary);color:var(--onPrimary)}
+.field-l{font:700 14px var(--fb);margin-bottom:6px}
+.field{min-height:54px;border-radius:var(--r-field);border:1.5px solid var(--border);background:var(--background);display:flex;align-items:center;padding:0 16px;gap:10px;font-size:17px}
+.field .v{flex:1}.field .chg{font-weight:700;font-size:15px;color:var(--link)}
+.stepper{display:flex;align-items:center;justify-content:space-between}
+.stepper .sb{width:56px;height:48px;border-radius:var(--r-field);background:var(--surface);border:var(--bw) solid var(--border);display:flex;align-items:center;justify-content:center;font:600 28px var(--fb);color:var(--text)}
+.stepper .val{font:700 26px var(--fh)}
+.note{background:var(--infoBackground);border-radius:12px;padding:10px 12px;font-size:15px;line-height:21px;color:var(--text)}
+.bubble{max-width:88%;border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.bubble.me{align-self:flex-end;background:var(--primary);color:var(--onPrimary);border-bottom-right-radius:6px}
+.bubble.me .meta{color:var(--onPrimary);opacity:.9}
+.bubble.bot{align-self:flex-start;background:var(--card);border:var(--bw) solid var(--border);box-shadow:var(--shadow);border-bottom-left-radius:6px}
+.meta{font-size:13px;line-height:18px;color:var(--textSecondary);font-weight:600}
+.btext{font-size:17px;line-height:25px}
+.topbar{display:flex;align-items:center;gap:12px;padding:6px 16px 10px}
+.iconbtn{width:48px;height:48px;border-radius:999px;display:flex;align-items:center;justify-content:center;color:var(--text);background:var(--surface)}
+.composer{position:absolute;z-index:3;left:0;right:0;bottom:0;padding:12px 16px 22px;background:var(--background);border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.composer .input{flex:1;min-height:52px;border-radius:999px;background:var(--surface);border:1.5px solid var(--border);display:flex;align-items:center;padding:0 18px;color:var(--textSecondary);font-size:16px}
+.mic{width:64px;height:64px;border-radius:999px;background:var(--primary);color:var(--onPrimary);display:flex;align-items:center;justify-content:center;flex:none}
+.mic .ic{width:30px;height:30px}
+.miclabel{font:700 12px var(--fb);color:var(--textSecondary);text-align:center;margin-top:3px}
+/* escalation: identical in every direction except font + radius */
+.esc{background:var(--warningBackground);border:2px solid var(--error);border-radius:var(--r-field);padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:none}
+.esc.urgent{border-width:3px}
+.esc .t{display:flex;gap:10px;font:700 17px/24px var(--fb)}
+.esc .warn{color:var(--errorText);font-size:20px;line-height:24px}
+.esc .b{font-size:17px;line-height:25px}
+
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 0 0}
+.hdr h1{font-size:40px;line-height:44px}.hello{font:700 15px var(--fb)}
+.dot{width:40px;height:40px;border-radius:999px;display:flex;align-items:center;justify-content:center;flex:none}
+.dot.sm{width:36px;height:36px}.dot .ic{width:22px;height:22px}
+.t-feed{background:var(--feedSoft);color:var(--feed);--icon-cut:var(--feedSoft)}
+.t-sleep{background:var(--sleepSoft);color:var(--sleep);--icon-cut:var(--sleepSoft)}
+.t-diaper{background:var(--diaperSoft);color:var(--diaper);--icon-cut:var(--diaperSoft)}
+.nextup{gap:8px}.nrow{display:flex;align-items:center;gap:12px;padding:8px 6px;border-radius:var(--r-row)}
+.nrow.hero{background:var(--sleepSoft);padding:12px 10px}.nrow.hero .nt{font-size:24px}
+.nl{flex:1}.lbl{font:700 16px var(--fb)}.basis{font-size:13px;line-height:18px;color:var(--textSecondary)}
+.nt{font:600 20px var(--fh);white-space:nowrap}
+.rem{display:flex;gap:12px;align-items:center;border-top:1px solid var(--border);padding-top:12px;margin-top:4px}
+.tog{width:52px;height:32px;border-radius:999px;background:var(--primary);flex:none;position:relative}.tog b{position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:999px;background:var(--onPrimary)}
+.quick{display:flex;gap:12px}.tile{flex:1;border-radius:var(--r-card);padding:14px 18px;display:flex;flex-direction:column;gap:10px;font:600 20px var(--fh);box-shadow:var(--shadow);color:var(--text)}
+.tile .big{width:40px;height:40px}.tile.t-sleep .big{color:var(--sleep)}.tile.t-feed .big{color:var(--feed)}
+.dcard{flex-direction:row;align-items:center;justify-content:space-between;padding:12px 12px 12px 14px}
+.chips{display:flex;gap:8px}.chips span{min-height:48px;min-width:60px;padding:0 12px;border-radius:999px;background:var(--diaperSoft);display:flex;align-items:center;justify-content:center;font:700 16px var(--fb)}
+.tl{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:var(--r-row);padding:10px 14px;min-height:60px;margin-bottom:8px;box-shadow:var(--shadow)}
+.tt{font:600 16px var(--fb)}.tm{font:600 15px var(--fb);color:var(--textSecondary)}
+.fab{position:absolute;right:20px;bottom:30px;height:60px;border-radius:999px;background:var(--primary);color:var(--onPrimary);display:flex;align-items:center;gap:10px;padding:0 24px 0 20px;font:700 18px var(--fb);box-shadow:0 8px 20px var(--shadow-c);--icon-cut:var(--primary)}
+</style></head>
+<body><div class="phone"><div class="status"><span>14:52</span><span class="dots"><i></i><i></i><i style="width:22px"></i></span></div>
+<div class="scroll" style="gap:18px">
+  <header class="hdr"><div><div class="hello muted">13 weeks old</div><h1>Mia</h1>
+    <div class="small muted">You and your partner are both here.</div></div><svg width="108" height="108" viewBox="0 0 120 120" aria-hidden="true">
+  <circle cx="16" cy="24" r="3" fill="var(--sleep)"/><circle cx="104" cy="18" r="2.5" fill="var(--sleep)"/><circle cx="100" cy="46" r="2" fill="var(--feed)"/>
+  <path d="M98 26l2 4 4 .6-3 2.9.7 4.1-3.7-2-3.7 2 .7-4.1-3-2.9 4-.6z" fill="var(--feed)"/>
+  <circle cx="58" cy="62" r="36" fill="var(--accent)"/>
+  <circle cx="44" cy="44" r="5" fill="var(--onPrimary)" opacity=".18"/><circle cx="74" cy="82" r="4" fill="var(--onPrimary)" opacity=".18"/>
+  <path d="M40 60q6 6 12 0M64 60q6 6 12 0" stroke="var(--onPrimary)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <circle cx="38" cy="70" r="5" fill="var(--onPrimary)" opacity=".3"/><circle cx="78" cy="70" r="5" fill="var(--onPrimary)" opacity=".3"/>
+  <path d="M53 72q5 4 10 0" stroke="var(--onPrimary)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M12 86q48-14 96 0v14a8 8 0 0 1-8 8H20a8 8 0 0 1-8-8z" fill="var(--sleep)"/>
+  <path d="M12 86q48-14 96 0" stroke="var(--sleepSoft)" stroke-width="5" fill="none"/>
+  <path d="M28 98h10M55 98h10M82 98h10" stroke="var(--sleepSoft)" stroke-width="4" stroke-linecap="round"/>
+</svg></header>
+  <section class="card nextup"><div class="card-title" role="heading">Next up</div>
+    <div class="nrow "><span class="dot t-feed"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M10 2.5h4v2.5h-4z"/><path d="M8 5h8v3H8z"/><path d="M7.5 8h9v11.5a2.5 2.5 0 0 1-2.5 2.5h-4a2.5 2.5 0 0 1-2.5-2.5z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h3M10 15h3M10 18h3"/></g></svg></span>
+      <div class="nl"><div class="lbl">Next feed</div><div class="basis">based on the last 7 days and age</div></div><div class="nt">15:10–15:40</div></div><div class="nrow hero"><span class="dot t-sleep"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M19.5 14.8A8 8 0 1 1 9.2 4.5a6.4 6.4 0 0 0 10.3 10.3z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3l-3 3h3"/></g></svg></span>
+      <div class="nl"><div class="lbl">Next nap</div><div class="basis">based on the last 7 days and age</div></div><div class="nt">15:07–15:37</div></div><div class="nrow "><span class="dot t-sleep"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M19.5 14.8A8 8 0 1 1 9.2 4.5a6.4 6.4 0 0 0 10.3 10.3z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3l-3 3h3"/></g></svg></span>
+      <div class="nl"><div class="lbl">Bedtime routine</div><div class="basis">typical for this age</div></div><div class="nt">18:15–18:45</div></div><div class="nrow "><span class="dot t-sleep"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M19.5 14.8A8 8 0 1 1 9.2 4.5a6.4 6.4 0 0 0 10.3 10.3z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3l-3 3h3"/></g></svg></span>
+      <div class="nl"><div class="lbl">Bedtime</div><div class="basis">typical for this age</div></div><div class="nt">18:45–19:30</div></div>
+    <div class="rem"><span class="small muted">Remind me before feeds, naps and the bedtime routine, and about the check-in at 21:00</span><span class="tog" aria-hidden="true"><b></b></span></div></section>
+  <section class="quick">
+    <div class="tile t-sleep"><svg class="ic big" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M19.5 14.8A8 8 0 1 1 9.2 4.5a6.4 6.4 0 0 0 10.3 10.3z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3l-3 3h3"/></g></svg><span>Start sleep</span></div>
+    <div class="tile t-feed"><svg class="ic big" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M10 2.5h4v2.5h-4z"/><path d="M8 5h8v3H8z"/><path d="M7.5 8h9v11.5a2.5 2.5 0 0 1-2.5 2.5h-4a2.5 2.5 0 0 1-2.5-2.5z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h3M10 15h3M10 18h3"/></g></svg><span>Feed</span></div>
+  </section>
+  <section class="card dcard"><div class="card-title"><span class="dot t-diaper"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M3 7.5h18v3.2c0 5-4 8.8-9 8.8s-9-3.8-9-8.8z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7.5c0 3 2 5.5 5 5.5s5-2.5 5-5.5"/></g></svg></span>Diaper</div>
+    <div class="chips"><span>Wet</span><span>Dirty</span><span>Both</span></div></section>
+  <section><div class="card-title" style="margin:0 4px 10px">Today</div>
+    <div class="tl"><span class="dot sm t-diaper"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M3 7.5h18v3.2c0 5-4 8.8-9 8.8s-9-3.8-9-8.8z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7.5c0 3 2 5.5 5 5.5s5-2.5 5-5.5"/></g></svg></span><div style="flex:1"><div class="tt">Diaper · wet</div><div class="small muted">by your partner</div></div><div class="tm">13:50</div></div><div class="tl"><span class="dot sm t-sleep"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M19.5 14.8A8 8 0 1 1 9.2 4.5a6.4 6.4 0 0 0 10.3 10.3z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3l-3 3h3"/></g></svg></span><div style="flex:1"><div class="tt">Sleep · 1h 5m</div></div><div class="tm">12:35–13:40</div></div><div class="tl"><span class="dot sm t-feed"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M10 2.5h4v2.5h-4z"/><path d="M8 5h8v3H8z"/><path d="M7.5 8h9v11.5a2.5 2.5 0 0 1-2.5 2.5h-4a2.5 2.5 0 0 1-2.5-2.5z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h3M10 15h3M10 18h3"/></g></svg></span><div style="flex:1"><div class="tt">Bottle · 120 ml</div></div><div class="tm">12:20</div></div><div class="tl"><span class="dot sm t-diaper"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M3 7.5h18v3.2c0 5-4 8.8-9 8.8s-9-3.8-9-8.8z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7.5c0 3 2 5.5 5 5.5s5-2.5 5-5.5"/></g></svg></span><div style="flex:1"><div class="tt">Diaper · wet and dirty</div></div><div class="tm">10:40</div></div>
+  </section></div>
+  <div class="fab"><svg class="ic" viewBox="0 0 24 24"><g fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M4 5.5h16v10.5H10l-5 4v-4H4z"/></g><g fill="none" stroke="var(--icon-cut)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10.5h.01M12 10.5h.01M16 10.5h.01"/></g></svg><span>Chat</span></div><div class="gesture"></div></div></body></html>
