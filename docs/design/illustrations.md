@@ -67,7 +67,7 @@ to token). PNGs in `app/assets/images/` keep the sizes Expo already used:
 | `android-icon-background.svg` | `android-icon-background.png` | 512² | `primary` with a few `accent` dots |
 | `android-icon-monochrome.svg` | `android-icon-monochrome.png` | 432² | White + alpha, face cut out (themed icons) |
 | `splash-icon.svg` | `splash-icon.png` | 228×213 | Transparent, on the splash background |
-| `notification-icon.svg` | `notification-icon.png` | 96² | Pure white + alpha, Fluff silhouette, no text |
+| `notification-icon.svg` | `notification-icon.png` | 96² | Pure white + alpha, solid cloud silhouette (no face, no cut-outs; the Fluff version read as an eye at 24 dp). Reaches a device only with the next native build |
 | `favicon.svg` | `favicon.png` | 48² | Fluff on a `primary` rounded square |
 
 `app/app.json`: splash `backgroundColor`, adaptive-icon `backgroundColor` and the expo-notifications

@@ -1,17 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
 <!-- Little Rhythm notification icon (original). Pure white (#FFFFFF) on transparent, no text, no logo:
-     Fluff's cloud body and legs with the face cut out. Android tints it with the expo-notifications
-     colour (primary #5146B8). Readable at 24 dp in the status bar. -->
-  <defs>
-    <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="150" height="120">
-      <rect x="0" y="0" width="150" height="120" fill="#FFFFFF"/>
-      <ellipse cx="78" cy="68" rx="25" ry="21" fill="#000000"/>
-    </mask>
-  </defs>
-  <g transform="translate(-6.4 -3) scale(0.68)">
-    <g mask="url(#cut)" fill="#FFFFFF">
-      <path d="M46 94v14M64 96v12M92 96v12M110 94v14" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round"/>
-      <path d="M40 96c-16 0-24-14-16-26c-8-14 6-28 20-22c4-14 24-18 34-8c10-10 30-6 34 8c16-4 26 12 18 24c8 14-4 28-18 24c-6 8-20 10-28 2c-10 8-30 8-44-2z" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round"/>
-    </g>
+     a solid cloud silhouette with no face, no cut-outs and no thin details, so it stays a cloud at 24 dp
+     in the status bar. Android tints it with the expo-notifications colour (primary). -->
+  <g fill="#FFFFFF">
+    <circle cx="30" cy="56" r="20"/>
+    <circle cx="48" cy="40" r="24"/>
+    <circle cx="68" cy="54" r="20"/>
+    <rect x="30" y="56" width="38" height="20"/>
+    <circle cx="32" cy="64" r="12"/>
+    <circle cx="66" cy="64" r="12"/>
   </g>
 </svg>
