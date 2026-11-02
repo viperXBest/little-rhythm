@@ -239,13 +239,16 @@ function EditForm({ row }: { row: EventRow }) {
       </Card>
       <ErrorText>{error}</ErrorText>
       <Button title="Save" onPress={() => void onSave()} busy={busy} />
-      <Button
-        title="Delete"
-        variant="danger"
-        onPress={onDelete}
-        icon={<Icon name="delete" size={22} color="onPrimary" fill="error" />}
-      />
       <Button title="Cancel" variant="quiet" onPress={() => router.back()} />
+      {/* Delete sits apart from Save, so the two fills never read as a pair. */}
+      <View style={styles.danger}>
+        <Button
+          title="Delete"
+          variant="danger"
+          onPress={onDelete}
+          icon={<Icon name="delete" size={22} color="onPrimary" fill="error" />}
+        />
+      </View>
     </Screen>
   );
 }
@@ -255,4 +258,5 @@ const styles = StyleSheet.create({
   disc: { width: 56, height: 56, borderRadius: Radius.small, alignItems: 'center', justifyContent: 'center' },
   flex: { flexShrink: 1 },
   card: { gap: Spacing.three },
+  danger: { marginTop: Spacing.four },
 });
