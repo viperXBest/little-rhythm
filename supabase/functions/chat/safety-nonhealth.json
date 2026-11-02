@@ -145,5 +145,15 @@
   {"text": "how can dad bond more with her on the days he's home?", "lang": "en", "category": "activities", "urgent": false},
   {"text": "cum putem face plimbarea de după-amiază mai interesantă pentru ea?", "lang": "ro", "category": "outings", "urgent": false},
   {"text": "how did today go compared to yesterday for naps?", "lang": "en", "category": "rhythm", "urgent": false},
-  {"text": "ce zi a avut azi, câte somnuri a făcut?", "lang": "ro", "category": "rhythm", "urgent": false}
+  {"text": "ce zi a avut azi, câte somnuri a făcut?", "lang": "ro", "category": "rhythm", "urgent": false},
+  {"text": "is it normal that her naps are only 30 minutes long?", "lang": "en", "category": "age_normality", "urgent": false},
+  {"text": "how many naps do most babies her age take?", "lang": "en", "category": "age_normality", "urgent": false},
+  {"text": "how long should she be awake between naps at this age?", "lang": "en", "category": "age_normality", "urgent": false},
+  {"text": "what time do babies her age usually go to bed?", "lang": "en", "category": "age_normality", "urgent": false},
+  {"text": "is it typical for a 3 month old to still wake twice a night?", "lang": "en", "category": "age_normality", "urgent": false},
+  {"text": "when do babies usually start sleeping through the night?", "lang": "en", "category": "age_normality", "urgent": false},
+  {"text": "she's fussier in the evenings than other babies we know, is that common?", "lang": "en", "category": "age_normality", "urgent": false},
+  {"text": "should her naps be getting longer by now?", "lang": "en", "category": "age_normality", "urgent": false},
+  {"text": "e normal să adoarmă doar în brațe la vârsta ei?", "lang": "ro", "category": "age_normality", "urgent": false},
+  {"text": "câte reprize de somn fac de obicei bebelușii la 3 luni?", "lang": "ro", "category": "age_normality", "urgent": false}
 ]

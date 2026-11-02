@@ -216,3 +216,25 @@ export function keywordHit(text: string): KeywordVerdict {
   const urgent = URGENT_RE.test(normalised);
   return { health: urgent || HEALTH_RE.test(normalised) || TEMPERATURE_RE.test(normalised), urgent };
 }
+
+/**
+ * Left out of the output check: bare breathing words. Replies use them in self-care tips
+ * ("a few deep breaths", "breathing room", "respirați adânc") and stories ("they breathed
+ * light"); graded run C replies showed every such hit was a false positive. Breathing
+ * emergencies stay in the urgent list ("not breathing", "can't breathe", "respira greu").
+ */
+const OUTPUT_EXCLUDED: ReadonlySet<string> = new Set([String.raw`breath\w*`, String.raw`respir\w*`]);
+const OUTPUT_HEALTH_RE = compile(HEALTH.filter((p) => !OUTPUT_EXCLUDED.has(p)));
+
+/**
+ * The output check (health-gate.ts): the input list, minus OUTPUT_EXCLUDED, on the
+ * model's reply. A hit withholds the reply and shows the escalation card instead.
+ */
+export function outputKeywordHit(text: string): KeywordVerdict {
+  const normalised = normalise(text);
+  const urgent = URGENT_RE.test(normalised);
+  return {
+    health: urgent || OUTPUT_HEALTH_RE.test(normalised) || TEMPERATURE_RE.test(normalised),
+    urgent,
+  };
+}

@@ -16,7 +16,8 @@
 //
 // Every turn passes the health gate (_shared/health-gate.ts): a keyword check
 // and a Muse classifier running beside the agent. A positive turn returns an
-// escalation with no model text; the app shows a static card.
+// escalation with no model text; the app shows a static card. The keyword check also
+// runs on the model's caption (the output check): a hit escalates the turn the same way.
 //
 // The turn is stored in the thread after the gate has decided, with the service
 // role and only after the thread was checked to be the caller's: the parent's

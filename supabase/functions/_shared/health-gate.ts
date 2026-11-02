@@ -4,6 +4,7 @@
 //   2. a Muse Spark classifier with structured output, run in parallel with the
 //      agent so it adds no latency.
 // Either one positive: the reply carries an escalation and no model text. The
+// keyword check also runs on the model's reply (the output check, applyHealthGate). The
 // app shows a static card (never model-generated). Proposals from the same turn
 // still show: logging is not advice. A classifier failure with no keyword hit
 // gives the normal reply. The agent's system prompt keeps the no-advice rule as
@@ -11,7 +12,7 @@
 
 import { z } from "npm:zod@4.6.6";
 
-import type { KeywordVerdict } from "./health-keywords.ts";
+import { type KeywordVerdict, outputKeywordHit } from "./health-keywords.ts";
 
 export type HealthVerdict = { health: boolean; urgent: boolean };
 export type Escalation = { urgent: boolean };
@@ -143,8 +144,15 @@ export async function classifyHealth(
 }
 
 /**
- * Combines both checks and the agent's own referral. Returns the escalation, or null
- * for a normal reply. Fails closed: a failed classifier (null) escalates the turn.
+ * Combines both input checks, the output check and the agent's own referral. Returns
+ * the escalation, or null for a normal reply. Fails closed: a failed classifier (null)
+ * escalates the turn.
+ *
+ * Output check (v1.1.1): the keyword list, minus bare breathing words (outputKeywordHit),
+ * runs on the model's caption. A reply that
+ * talks about symptoms, care, medicine or doses is withheld exactly like a health
+ * question: no model text, the static card, the parent's message stored gated. Proposals
+ * from the turn still show (logging is not advice).
  */
 export function applyHealthGate(input: {
   keyword: KeywordVerdict;
@@ -155,5 +163,7 @@ export function applyHealthGate(input: {
   if (classifier === null) return { urgent: keyword.urgent };
   if (keyword.health || classifier.health) return { urgent: keyword.urgent || classifier.urgent };
   if (input.caption?.includes(REFERRAL_SENTENCE)) return { urgent: false };
+  const output = input.caption === null ? null : outputKeywordHit(input.caption);
+  if (output?.health) return { urgent: output.urgent };
   return null;
 }

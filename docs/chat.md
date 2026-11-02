@@ -243,6 +243,26 @@ Rules:
   stored.
 - The agent's system prompt keeps the no-advice rule and its fixed referral sentence;
   a caption containing that sentence also escalates.
+- **Output check (v1.1.1).** The keyword list runs on the model's caption after the agent
+  (`outputKeywordHit`): the input list minus the bare breathing words `breath*` and
+  `respir*`, which replies use in self-care tips and stories (breathing emergencies stay in
+  the urgent list). On the 180 replies that reached parents in run C, the full input list
+  tripped 5 (4 false positives: "breathing room", "deep breaths", a dragon story, a
+  Romanian "respirați"); the output list trips 1, a packing list naming the parents' usual
+  medicines and a thermometer (`health-gate.test.ts` checks this against the report).
+  A hit escalates the turn exactly like a health question: no model text, the static card
+  (urgent if an urgent keyword is in the reply), the parent's message stored with
+  `gated = true`, `steps: []`, proposals still shown. So a reply that drifts into
+  symptoms, doctors, medicine or doses never reaches the parent, even when the question
+  passed both input checks.
+- **No age-norm claims (v1.1.1).** Grading run C's replies found 44 of 146 non-health
+  replies saying what is "common" or "normal" at the baby's age ("30-minute naps are very
+  common at 20 weeks"). Keywords can't catch these; the prompt now says never to claim
+  what is normal, common or typical for the baby's age or development and to answer from
+  the log instead (the only exception is a Next up window whose basis is "typical for the
+  age"). The safety set's non-health file has 10 `age_normality` prompts (8 English, 2
+  Romanian) that tempt such replies, so run D measures both the rate and the output
+  check's false positives.
 - If the agent fails on a health turn, the escalation still goes out.
 - The card text is static in the app (`components/escalation-card.tsx`): contact your
   paediatrician or doctor; urgent: call 112 now, with a Call 112 button.
