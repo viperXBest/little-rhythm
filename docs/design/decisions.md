@@ -156,3 +156,23 @@ Later decisions go below, newest last.
   alphabet has no 0/O or 1/I. The invite code stays on one line and selectable.
 - **Screen builders preview chat on hosted** with at most 6 messages in the demo's private thread, cancel
   every confirm card, and the demo family is re-seeded afterwards so the recording starts clean.
+
+### Nov 2: independent review and fix round
+
+An independent reviewer (no access to the builders' reports) checked tokens, contrast, touch targets,
+200% text, screen-reader semantics, dark mode, the escalation card and regressions against v1.0.0. It
+found no colour literals, no copy or logic changes, the escalation card intact, and one major bug: at
+font scale ≥ 1.6 the diaper tiles overlapped the check-in card. Fixed in the fix round with:
+
+- **Glare rule, as applied (orchestrator; owner may override):** in dark, persistent chrome uses the
+  tint look: the chat mic (idle), the Chat button's mic square and Send. The Chat button's outline and
+  shelf use `primaryTintBorder` / `shelf` in dark. Single form-completing actions (Confirm, Save, Log
+  feed now, Set up our baby, Show pairing code, Share) and the selected mood or active segment keep the
+  full fill. Disabled primary buttons are muted (no lavender block) in both themes.
+- **Event edit order:** Save, Cancel, then extra space and Delete, so the two fills aren't stacked.
+- Reminder switch: the whole row is the 48 dp control. "Diaper" gets a header role. The ESLint SVG ban
+  also covers `href={{ uri: 'http…' }}`. Every colour pair the code uses is now in `palette.test.ts`.
+- **Keyboard:** the shared `Screen` resizes for the keyboard on edge-to-edge Android.
+- **Accessibility text** changed in three places without visible copy changes (night-feed summary,
+  timeline row order "title, time", Next up tiles as one stop with ", earliest"): accepted as
+  improvements; visible copy stays frozen.
