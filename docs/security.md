@@ -198,6 +198,74 @@ global bound, and sign-up is cheap.
 Auth's own sign-in limit applies to the password check too; `delete-account` reports it
 as 429, not as a wrong password.
 
+**Hosted settings for the judging window (2 Nov).** Sign-up stays open, so judges can
+create their own family.
+- **Auth rate limit:** hosted Auth rate-limits sign-ups and sign-ins per IP (set in the
+  dashboard, Authentication → Rate Limits). It doesn't touch the demo seed, which uses
+  the admin API (`auth.admin.createUser` / `updateUserById`). A demo take signs in twice.
+- **Not enabled:**
+  - **Email confirmation:** Supabase's built-in SMTP sends only to the project team's
+    addresses, so a judge couldn't confirm.
+  - **Captcha:** it needs a widget in the app and a new build.
+- **Money:** the Meta account has no spend-limit setting. The prepaid credits are the
+  hard cap, and the $10/day breaker keeps one day's spend well inside them.
+
+### Runbook: chat paused by the global breaker
+
+**Symptom:** every chat or voice turn returns `429 rate_limited` for every family while
+the per-user and per-family caps aren't reached. Tap logging, sync, Next up and the
+check-in keep working; only chat waits for the next UTC day.
+
+Run the steps in the hosted dashboard's SQL editor (it runs as `postgres`, which bypasses
+RLS). Each step reads before it writes.
+
+1. **Check today's global spend** (micro-USD; 10,000,000 is the $10 cap):
+
+   ```sql
+   select window_start, count from public.usage_counters
+   where scope = 'global' and function = 'chat_spend'
+   order by window_start desc limit 3;
+   ```
+
+2. **Find who used it.** These are today's chat turns per user, with each account's age:
+
+   ```sql
+   select a.user_id, a.count, u.created_at
+   from public.api_usage a join auth.users u on u.id = a.user_id
+   where a.function = 'chat_day'
+     and a.window_start = to_timestamp(floor(extract(epoch from now()) / 86400) * 86400)
+   order by a.count desc limit 20;
+   ```
+
+   A real family stays far below 60 turns a day. Many new accounts near 60 at once is the
+   abuse pattern.
+3. **Remove the abusive accounts.** Delete them in Authentication → Users. Their
+   memberships, private threads and usage rows cascade. Never delete the two demo
+   accounts.
+   - **Optional cleanup:** a family left with no members is unreachable through RLS.
+     List those families first, then delete them; babies, events, threads and check-ins
+     cascade.
+
+     ```sql
+     select f.id, f.created_at from public.families f
+     where not exists (select 1 from public.family_members m where m.family_id = f.id);
+     ```
+
+4. **Give the budget back.** Only after step 3, or the same accounts drain it again:
+
+   ```sql
+   update public.usage_counters set count = 0
+   where scope = 'global' and function = 'chat_spend'
+     and window_start = to_timestamp(floor(extract(epoch from now()) / 86400) * 86400);
+   ```
+
+   This allows another $10 of spend today, so check the remaining Meta credits first.
+   Deleting accounts never lowers the counter by itself (see above).
+5. **Verify:** one chat turn from a demo account returns a reply, not 429.
+
+**Never** raise the cap in code or point the safety set at hosted during judging. One
+full safety run meters about $4–5.
+
 ## Logging
 
 - **What functions log:** a fixed code and, at most, an HTTP status or Postgres error
