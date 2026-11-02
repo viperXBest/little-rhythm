@@ -15,7 +15,7 @@ import { Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Timeline } from '@/components/timeline';
-import { Fonts, MaxContentWidth, MinTouch, Radius, Spacing, Sticker } from '@/constants/theme';
+import { font, MaxContentWidth, MinTouch, Radius, Spacing, Sticker } from '@/constants/theme';
 import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { ageInWeeks } from '@/lib/dates';
@@ -144,6 +144,7 @@ function ChatButton({ onHeight }: { onHeight: (height: number) => void }) {
 }
 
 function InviteCard() {
+  const theme = useTheme();
   const { refreshFamily } = useSession();
   const [invite, setInvite] = useState<Invite | null>(null);
   const [busy, setBusy] = useState(false);
@@ -167,19 +168,22 @@ function InviteCard() {
   return (
     <Card>
       <View style={styles.art} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Illustration name="invitePartner" size={180} />
+        {/* While a live code waits for the partner, Fluff waits too. */}
+        {invite && !expired ? <Mascot pose="waiting" size={140} /> : <Illustration name="invitePartner" size={180} />}
       </View>
       <ThemedText type="cardTitle" accessibilityRole="header">
         Invite your partner
       </ThemedText>
       {invite ? (
         <View style={styles.inviteBody}>
-          <ThemedText
-            selectable={!expired}
-            themeColor={expired ? 'textSecondary' : 'text'}
-            style={[styles.code, expired && styles.expired]}>
-            {invite.code}
-          </ThemedText>
+          <View style={[styles.codeBox, { backgroundColor: theme.infoBackground, borderColor: theme.border }]}>
+            <ThemedText
+              selectable={!expired}
+              themeColor={expired ? 'textSecondary' : 'text'}
+              style={[styles.code, font('heading', 800), expired && styles.expired]}>
+              {invite.code}
+            </ThemedText>
+          </View>
           {expired ? (
             <ThemedText type="small" themeColor="textSecondary">
               This code has expired. Make a new one for your partner.
@@ -254,11 +258,12 @@ const styles = StyleSheet.create({
   fabLabel: { flexShrink: 1 },
   art: { alignItems: 'center' },
   inviteBody: { gap: Spacing.two },
+  codeBox: { borderRadius: Radius.field, borderWidth: Sticker.outline, paddingHorizontal: Spacing.two },
+  // Baloo 2 800, spaced. The code alphabet has no 0/O or 1/I, so it reads unambiguously.
   code: {
-    fontFamily: Fonts.mono,
-    fontSize: 32,
-    lineHeight: 44,
-    letterSpacing: 4,
+    fontSize: 34,
+    lineHeight: 46,
+    letterSpacing: 5,
     textAlign: 'center',
     paddingVertical: Spacing.two,
   },
