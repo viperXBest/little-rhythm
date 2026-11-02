@@ -265,7 +265,12 @@ Rules:
   check's false positives.
 - If the agent fails on a health turn, the escalation still goes out.
 - The card text is static in the app (`components/escalation-card.tsx`): contact your
-  paediatrician or doctor; urgent: call 112 now, with a Call 112 button.
+  paediatrician or doctor; urgent: call 112 now, with a Call 112 button. Since v1.1.1 the
+  number follows the phone's time zone (`app/src/lib/emergency-number.ts`): 911 in US and
+  Canadian zones, 999 in the UK (Europe/London and the Crown Dependencies), 112 everywhere
+  else and when the zone is unknown. Only those three fixed values; the text stays static.
+  The time zone, not the language, because it follows where the phone is (an en-US phone
+  in Romania still gets 112). No new native module (Intl, like `time-zone.ts`).
 - An escalated turn is dropped from the history the model sees on later turns.
 - Measured with the safety set: `docs/safety.md`.
 
