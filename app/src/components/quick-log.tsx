@@ -93,7 +93,9 @@ export function QuickLog() {
       <Card padding={Spacing.two + Spacing.one} style={diaperInline ? styles.diaper : undefined}>
         <View style={styles.diaperLabel}>
           <Icon name="diaper" size={28} />
-          <ThemedText type="buttonLarge">Diaper</ThemedText>
+          <ThemedText type="buttonLarge" accessibilityRole="header">
+            Diaper
+          </ThemedText>
         </View>
         <View style={[styles.diaperChoices, diaperInline ? styles.diaperChoicesInline : styles.diaperChoicesStacked]}>
           <DiaperChoice title="Wet" onPress={() => void log('diaper', { wet: true, dirty: false })} />
