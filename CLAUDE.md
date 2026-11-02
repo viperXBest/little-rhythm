@@ -1,5 +1,47 @@
 # Little Rhythm — project spec
 
+## Handoff (Nov 2, 21:00 Bucharest)
+
+**State**
+- **Release:** v1.1.0 = the Cloud Lullaby redesign + the server track. `main` at `ba15979` (app 1.1.0), pushed; CI green through `491b761`.
+- **Hosted functions:**
+
+  | Function | Version | Source | Note |
+  |---|---|---|---|
+  | `chat` | v9 | `20242e8` | |
+  | `predict` | v4 | `491b761` | |
+  | `pair` | v4 | `3191717` | import graph identical to HEAD |
+  | `delete-account` | v2 | `3191717` | import graph identical to HEAD |
+
+  `supabase/functions` at HEAD equals all four. Latest migration on hosted: `20261102120000_chat_daily_caps.sql`.
+- **EAS production build** `d0b4ad46-17f3-490f-9653-72bac4984a38` from `ba15979`, versionCode 5, started 20:55, not yet checked.
+  - Check it: `cd app && npx -y eas-cli@latest build:view d0b4ad46-17f3-490f-9653-72bac4984a38`
+  - Logs: https://expo.dev/accounts/viperxbest/projects/little-rhythm/builds/d0b4ad46-17f3-490f-9653-72bac4984a38
+- **Supabase CLI:** always `npx -y supabase@2.122.0 …`. Bare `npx supabase` gets 3.0.0, which Defender ASR blocks on this PC.
+- **Safety:** run C (`docs/safety.md`) is the v1.1.0 result. The owner accepted its 1/147 non-health false positive as noise.
+- **This PC:**
+  - Two emulators (`pixel8`: Ana, `pixel8b`: Radu) and Metro on 8081 may still be running, both set to Europe/London with the app in en-GB.
+  - The local Supabase stack is stopped; `docker stop` the `*_little-rhythm` containers if `supabase stop` fails.
+  - No Gradle build while both emulators run.
+
+**Open items**
+- Seen only on emulators, never on a phone:
+  - the new launcher icon, splash and solid-cloud notification icon (the cloud icon is in no build yet except this EAS one);
+  - real voice;
+  - the "Starting…" mic state (under 0.4 s);
+  - TalkBack gestures (only the accessibility tree was checked).
+- Muse prices in `_shared/chat-limits.ts` are assumptions; set a spending limit on the Meta account.
+- Hosted Auth dashboard settings (email confirmation, captcha, sign-up rate) are unchecked. Captcha and email confirmation are out of scope for v1.1.0.
+
+**Next steps**
+1. When the build finishes: on both phones uninstall the old app (signature and versionCode differ from any local build), install the v1.1.0 APK and record its SHA-256.
+2. Re-seed (`docs/demo.md`; after 18:35 Bucharest use `--tz Europe/London` and set the phones to London), then sign in again on both phones. Seeding ends the sessions.
+3. Real-phone checks: the voice log (demo line), launcher icon, splash, notification icon in the status bar, the check-in reveal, sync.
+4. Tag `v1.1.0` on `ba15979` after the phone checks, only if `git diff 20242e8 ba15979 -- supabase/functions` is still empty. Ask before pushing the tag.
+5. Release notes for a manual GitHub Release (no `gh` on this PC): APK and `release-notes.md` in the local release folder.
+6. README: new screenshots (`docs/design/screens/`), links to the design docs and safety run C.
+7. A judge pass: the Meta AI tooling (Muse Spark agent, Muse Voice Transcribe) is visible in the demo and README; no medical advice anywhere.
+
 Android app (sideloaded APK) where two parents share one baby, log by tap, chat or voice, see the next feed, nap and bedtime windows, and coordinate with each other. Built for the Meta Global AI Developer Hackathon (Indie Developer track). Code and security are production-grade; only hosting is demo-tier.
 
 - App name: Little Rhythm · Android package: `com.viperxbest.littlerhythm` · Expo slug: `little-rhythm`
