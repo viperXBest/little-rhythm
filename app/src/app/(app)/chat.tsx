@@ -1,16 +1,29 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  type ScrollViewInstance,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Card } from '@/components/card';
 import { Segmented } from '@/components/controls';
 import { EscalationCard } from '@/components/escalation-card';
-import { Button, ErrorText, Field, Screen } from '@/components/form';
+import { Button, ErrorText } from '@/components/form';
+import { Icon, Illustration } from '@/components/illustrations';
 import { MicButton } from '@/components/mic-button';
 import { Empty, ErrorState, Loading } from '@/components/states';
 import { ProposalCard } from '@/components/proposal-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { font, MaxContentWidth, Radius, Spacing, Sticker, TypeScale, type ThemeColor } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import {
   chatErrorMessage,
   ensureThreads,
@@ -57,6 +70,11 @@ function merge(list: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
 
 export default function Chat() {
   const { session } = useSession();
+  const theme = useTheme();
+  const scroller = useRef<ScrollViewInstance>(null);
+  // Follow new content to the bottom until the parent scrolls back to read.
+  const follow = useRef(true);
+  const [focused, setFocused] = useState(false);
   const userId = session?.user.id ?? null;
   const [scope, setScope] = useState<Scope>('shared');
   const [threads, setThreads] = useState<ThreadIds | null>(null);
@@ -142,92 +160,168 @@ export default function Chat() {
   const list = threadId ? (messages[threadId] ?? []) : [];
   const reply = threadId ? replies[threadId] : undefined;
   const withCards = cardMessageId(list, reply);
+  const newestAssistant = [...list].reverse().find((m) => m.role === 'assistant')?.id ?? null;
   const loadState: Load = threadsStatus !== 'ready' ? threadsStatus : threadId ? (listStatus[threadId] ?? 'loading') : 'loading';
 
+  // A new message, reply, thinking state or thread scrolls to the newest content.
+  useEffect(() => {
+    follow.current = true;
+  }, [list.length, reply, busy, threadId]);
+
   return (
-    <Screen>
-      <ThemedText type="subtitle">Chat</ThemedText>
-      <Segmented options={SCOPES} value={scope} onChange={setScope} />
-      <ThemedText type="small" themeColor="textSecondary">
-        {SCOPE_NOTE[scope]} Log by voice or text (“90 ml bottle twenty minutes ago, she’s asleep now”), or ask about the log
-        and what’s next. No health advice: for anything health-related, contact your paediatrician.
-      </ThemedText>
+    <ThemedView style={styles.fill}>
+      <SafeAreaView style={styles.fill}>
+        <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          {/* Pinned header: Back, title, the Shared / Private switch. */}
+          <View style={[styles.header, { borderColor: theme.border }]}>
+            <View style={styles.titleRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+                onPress={() => router.back()}
+                style={({ pressed }) => [styles.back, { backgroundColor: pressed ? theme.border : theme.surface }]}>
+                <Icon name="back" size={26} />
+              </Pressable>
+              <ThemedText type="title" accessibilityRole="header" style={styles.title}>
+                Chat
+              </ThemedText>
+            </View>
+            <Segmented options={SCOPES} value={scope} onChange={setScope} accessibilityLabel="Thread" />
+          </View>
 
-      {threadsStatus === 'error' ? (
-        <ErrorState message="Couldn’t open the chat. Check your connection." onRetry={() => void retryThreads()} />
-      ) : loadState === 'error' && threadId ? (
-        <ErrorState message="Couldn’t load the messages. Check your connection." onRetry={() => void refresh(threadId)} />
-      ) : loadState === 'loading' ? (
-        <Loading label="Opening the chat…" />
-      ) : list.length === 0 ? (
-        <Empty>{EMPTY[scope]}</Empty>
-      ) : null}
-      <View style={styles.list}>
-        {list.map((m) => (
-          <Message
-            key={m.id}
-            message={m}
-            mine={m.author_id === userId}
-            shared={scope === 'shared'}
-            withCards={m.id === withCards}
-          />
-        ))}
-      </View>
+          <ScrollView
+            ref={scroller}
+            style={styles.fill}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={() => {
+              follow.current = false;
+            }}
+            onContentSizeChange={() => {
+              // After the frame: the native scroll range updates after this event on Android.
+              if (follow.current) setTimeout(() => scroller.current?.scrollToEnd({ animated: false }), 50);
+            }}>
+            <ThemedText type="small" themeColor="textSecondary">
+              {SCOPE_NOTE[scope]} Log by voice or text (“90 ml bottle twenty minutes ago, she’s asleep now”), or ask
+              about the log and what’s next. No health advice: for anything health-related, contact your
+              paediatrician.
+            </ThemedText>
 
-      {reply && reply.proposals.length > 0 ? (
-        <View style={styles.cards}>
-          {reply.proposals.map((proposal) => {
-            const state = cards[proposal.id];
-            if (!state || state.kind === 'discarded') return null;
-            if (state.kind === 'saved') {
-              return (
-                <ThemedText key={proposal.id} type="small">
-                  <ThemedText type="smallBold" themeColor="success">
-                    ✓
-                  </ThemedText>{' '}
-                  Saved · {state.summary}
-                </ThemedText>
-              );
-            }
-            return (
-              <ProposalCard
-                key={proposal.id}
-                proposal={proposal}
-                source={reply.source}
-                onSaved={(summary) => setCards((prev) => ({ ...prev, [proposal.id]: { kind: 'saved', summary } }))}
-                onDiscard={() => setCards((prev) => ({ ...prev, [proposal.id]: { kind: 'discarded' } }))}
+            {threadsStatus === 'error' ? (
+              <ErrorState
+                message="Couldn’t open the chat. Check your connection."
+                onRetry={() => void retryThreads()}
+                illustration={<Illustration name="error" size={180} />}
               />
-            );
-          })}
-        </View>
-      ) : null}
+            ) : loadState === 'error' && threadId ? (
+              <ErrorState
+                message="Couldn’t load the messages. Check your connection."
+                onRetry={() => void refresh(threadId)}
+                illustration={<Illustration name="error" size={180} />}
+              />
+            ) : loadState === 'loading' ? (
+              <Loading label="Opening the chat…" />
+            ) : list.length === 0 ? (
+              // Only for a thread with no messages, so the art never sits next to an escalation card.
+              <Empty illustration={<Illustration name="emptyChat" size={200} />}>{EMPTY[scope]}</Empty>
+            ) : null}
 
-      {busy ? <Loading label="Little Rhythm is thinking…" /> : null}
-      <MicButton
-        onClip={async (uri) => {
-          await run((id) => sendVoice(uri, id));
-        }}
-        onError={setError}
-        disabled={busy || !threadId}
-      />
-      <ThemedText type="small" themeColor="textSecondary">
-        Voice clips are transcribed by Muse Voice Transcribe and not stored. The transcript is saved in this
-        conversation.
-      </ThemedText>
-      <Field
-        label="Message"
-        value={text}
-        onChangeText={setText}
-        placeholder="Wet and dirty diaper just now"
-        maxLength={MAX_TEXT}
-        multiline
-        editable={!busy}
-        onSubmitEditing={() => void onSend()}
-      />
-      <Button title="Send" onPress={() => void onSend()} busy={busy} disabled={!text.trim() || !threadId} />
-      <ErrorText>{error}</ErrorText>
-      <Button title="Back" variant="secondary" onPress={() => router.back()} />
-    </Screen>
+            <View style={styles.list}>
+              {list.map((m) => (
+                <Message
+                  key={m.id}
+                  message={m}
+                  mine={m.author_id === userId}
+                  shared={scope === 'shared'}
+                  withCards={m.id === withCards}
+                  newest={m.id === newestAssistant}
+                />
+              ))}
+            </View>
+
+            {reply && reply.proposals.length > 0 ? (
+              <View style={styles.cards}>
+                {reply.proposals.map((proposal) => {
+                  const state = cards[proposal.id];
+                  if (!state || state.kind === 'discarded') return null;
+                  if (state.kind === 'saved') {
+                    return (
+                      <ThemedText key={proposal.id} type="small" accessibilityLiveRegion="polite">
+                        <ThemedText type="smallBold" themeColor="success">
+                          ✓
+                        </ThemedText>{' '}
+                        Saved · {state.summary}
+                      </ThemedText>
+                    );
+                  }
+                  return (
+                    <ProposalCard
+                      key={proposal.id}
+                      proposal={proposal}
+                      source={reply.source}
+                      onSaved={(summary) =>
+                        setCards((prev) => ({ ...prev, [proposal.id]: { kind: 'saved', summary } }))
+                      }
+                      onDiscard={() => setCards((prev) => ({ ...prev, [proposal.id]: { kind: 'discarded' } }))}
+                    />
+                  );
+                })}
+              </View>
+            ) : null}
+
+            {busy ? <Loading label="Little Rhythm is thinking…" /> : null}
+            <ThemedText type="caption" themeColor="textSecondary" style={styles.privacy}>
+              Voice clips are transcribed by Muse Voice Transcribe and not stored. The transcript is saved in this
+              conversation.
+            </ThemedText>
+          </ScrollView>
+
+          {/* Pinned composer: error line, message field and Send, then the mic with its label. */}
+          <View style={[styles.composer, { borderColor: theme.border, backgroundColor: theme.background }]}>
+            <ErrorText>{error}</ErrorText>
+            <View style={styles.inputRow}>
+              <TextInput
+                accessibilityLabel="Message"
+                value={text}
+                onChangeText={setText}
+                placeholder="Wet and dirty diaper just now"
+                placeholderTextColor={theme.textSecondary}
+                selectionColor={theme.focus}
+                cursorColor={theme.focus}
+                maxLength={MAX_TEXT}
+                multiline
+                editable={!busy}
+                onSubmitEditing={() => void onSend()}
+                onFocus={() => {
+                  setFocused(true);
+                  follow.current = true;
+                }}
+                onBlur={() => setFocused(false)}
+                style={[
+                  styles.input,
+                  font('body', 400),
+                  {
+                    color: theme.text,
+                    backgroundColor: theme.surface,
+                    borderColor: focused ? theme.focus : theme.border,
+                  },
+                ]}
+              />
+              <View style={styles.send}>
+                <Button title="Send" onPress={() => void onSend()} busy={busy} disabled={!text.trim() || !threadId} />
+              </View>
+            </View>
+            <MicButton
+              onClip={async (uri) => {
+                await run((id) => sendVoice(uri, id));
+              }}
+              onError={setError}
+              disabled={busy || !threadId}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </ThemedView>
   );
 }
 
@@ -236,39 +330,129 @@ function Message({
   mine,
   shared,
   withCards,
+  newest,
 }: {
   message: ChatMessage;
   mine: boolean;
   shared: boolean;
   /** This phone's cards for the message are shown below the list: they carry the proposal and the note. */
   withCards: boolean;
+  /** The newest assistant message is a polite live region, so a new reply is read out. */
+  newest: boolean;
 }) {
+  const theme = useTheme();
+  const live = newest ? 'polite' : undefined;
   if (message.role === 'assistant' && message.escalation) {
-    return <EscalationCard urgent={message.escalation === 'urgent'} />;
+    return (
+      <View accessibilityLiveRegion={live}>
+        <EscalationCard urgent={message.escalation === 'urgent'} />
+      </View>
+    );
   }
   const who = message.role === 'assistant' ? 'Little Rhythm' : mine || !shared ? 'You' : 'Your partner';
   const { content, summary } = messageText(message, withCards);
-  return (
-    <ThemedView
-      type={message.role === 'user' ? 'surface' : 'background'}
-      style={[styles.bubble, message.role === 'user' && mine ? styles.mine : styles.theirs]}>
-      <ThemedText type="small" themeColor="textSecondary">
+  const own = message.role === 'user' && mine;
+  // On the tint, meta and text are both onPrimaryTint (no opacity); elsewhere meta is secondary.
+  const meta: ThemeColor = own ? 'onPrimaryTint' : 'textSecondary';
+  const body = (
+    <>
+      <ThemedText type="caption" themeColor={meta}>
         {who} · {formatTime(message.created_at)}
       </ThemedText>
-      {content ? <ThemedText>{content}</ThemedText> : null}
+      {content ? <ThemedText themeColor={own ? 'onPrimaryTint' : 'text'}>{content}</ThemedText> : null}
       {summary ? (
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="small" themeColor={meta}>
           {summary}
         </ThemedText>
       ) : null}
-    </ThemedView>
+    </>
+  );
+
+  if (message.role === 'assistant') {
+    // Little Rhythm: a card sticker on the left.
+    return (
+      <View style={styles.theirs}>
+        <Card radius={Radius.bubble} style={styles.assistant} accessibilityLiveRegion={live}>
+          {body}
+        </Card>
+      </View>
+    );
+  }
+  if (own) {
+    // Dark-glare rule: primary in light; a tinted navy with a lavender border in dark.
+    return (
+      <View
+        style={[
+          styles.bubble,
+          styles.mine,
+          { backgroundColor: theme.primaryTint, borderColor: theme.primaryTintBorder },
+        ]}>
+        {body}
+      </View>
+    );
+  }
+  // The partner's message: an outlined card on the left, no shelf, with the "Your partner" label.
+  return (
+    <View
+      style={[styles.bubble, styles.partner, styles.theirs, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      {body}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { gap: Spacing.two },
-  cards: { gap: Spacing.two },
-  bubble: { borderRadius: 16, padding: Spacing.three, gap: Spacing.one, maxWidth: '90%' },
-  mine: { alignSelf: 'flex-end' },
-  theirs: { alignSelf: 'flex-start' },
+  fill: { flex: 1 },
+  header: {
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
+    borderBottomWidth: Sticker.outline,
+  },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  back: { width: 52, height: 52, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
+  title: { flex: 1 },
+  content: {
+    gap: Spacing.three,
+    padding: Spacing.three,
+    paddingBottom: Spacing.four,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+  },
+  list: { gap: Spacing.three },
+  cards: { gap: Spacing.three },
+  bubble: {
+    borderRadius: Radius.bubble,
+    borderWidth: Sticker.outline,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
+    gap: Spacing.one,
+    maxWidth: '88%',
+  },
+  assistant: { gap: Spacing.one, paddingVertical: Spacing.two + Spacing.one },
+  mine: { alignSelf: 'flex-end', borderBottomRightRadius: Spacing.one + Spacing.half },
+  theirs: { alignSelf: 'flex-start', maxWidth: '88%' },
+  partner: { borderBottomLeftRadius: Spacing.one + Spacing.half },
+  privacy: { textAlign: 'center' },
+  composer: {
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two + Spacing.one,
+    paddingBottom: Spacing.two,
+    borderTopWidth: Sticker.outline,
+  },
+  // Fixed minimum width, so the field doesn't jump when Send shows its spinner.
+  send: { minWidth: 96 },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two },
+  input: {
+    flex: 1,
+    minHeight: 56,
+    maxHeight: 160,
+    borderRadius: Radius.bubble,
+    borderWidth: Sticker.outline,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    fontSize: TypeScale.default.fontSize,
+  },
 });
