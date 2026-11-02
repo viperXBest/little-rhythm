@@ -14,17 +14,23 @@ details are in [`docs/security.md`](docs/security.md).
 | Prompt injection | The model logs events for another baby, or gives medical advice | `baby_id` and `family_id` come from the session, never from the model; tool arguments validated with zod; health gate (keywords plus classifier) returns only a static card |
 | Going around the AI | A client writes chat messages directly, skipping the health gate | Only the chat function writes `chat_messages` (no client INSERT) |
 | The APK | Keys pulled from the app | The APK holds only the public Supabase URL and anon key; the model key and service role stay in Edge Function secrets |
-| Abuse and cost | Brute-forcing pairing codes or passwords; running up model calls | Per-user rate limits on `chat`, `predict`, `pair` and `delete-account`; pairing codes are random, HMAC-hashed, single use and expire in 24 h |
+| Abuse and cost | Brute-forcing pairing codes or passwords; running up model calls | Per-user rate limits on `chat`, `predict`, `pair` and `delete-account`; chat daily caps (60 per user, 100 per family) and a $10/day global spend breaker that reserves each turn's worst case before any model call; a 4,096-token cap on every Muse Spark call; hosted Auth rate-limits sign-ups per IP; pairing codes are random, HMAC-hashed, single use and expire in 24 h |
 | Leaks | Chat content, transcripts, audio, tokens or emails in logs or git | Functions log error codes only; audio is never stored; gitleaks on every push |
 
-Out of scope for this demo build: the realtime DELETE caveat (deleted rows' primary
-keys reach every subscriber, with no content; see `docs/security.md`), and hosting
-for the AI (the Meta Model API is outside the EU).
+Out of scope for this demo build:
+- **The realtime DELETE caveat:** deleted rows' primary keys reach every subscriber,
+  with no content; see `docs/security.md`.
+- **EU hosting for the AI:** the Meta Model API is outside the EU.
+- **Captcha and email confirmation:** sign-up stays open for judges. Throwaway accounts
+  could trip the global breaker and pause chat for everyone until the next UTC day;
+  logging and sync keep working. The prepaid Meta credits are the hard money cap (the
+  account has no spend-limit setting). Runbook: `docs/security.md`, "Runbook: chat
+  paused by the global breaker".
 
 ## Controls in short
 
 - **Database:**
-  - Postgres row-level security on all 11 tables from their first migration.
+  - Postgres row-level security on all 12 tables from their first migration.
   - SECURITY DEFINER functions with an empty `search_path`, callable only where
     needed.
   - Clients can update only the columns that should change.

@@ -63,6 +63,10 @@ npx -y deno@2 run --env-file=scripts/seed-demo/.env --allow-env --allow-net \
 
 ## Notes for the recording
 
+- **Before a take, if chat answers 429 for both parents:** the global spend breaker
+  tripped. Follow the runbook in [`docs/security.md`](security.md), "Runbook: chat
+  paused by the global breaker". Seeding also clears the demo accounts' own counters, but
+  not the global one.
 - **Step 2:** check the card against the "Next up at …" line seed-demo printed before
   recording. Show it before the voice log: once she is asleep, the nap row shows when
   she is expected to wake instead of the nap window.
