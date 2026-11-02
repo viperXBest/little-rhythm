@@ -4,7 +4,7 @@
 
 `events`, `family_members`, `chat_messages` and `checkins` are in the
 `supabase_realtime` publication (`20261029090000_events_realtime.sql`,
-`20261029100000_chat_checkin.sql`). `chat_threads`, `invites`, `api_usage`, `usage_counters`,
+`20261029100000_chat_checkin.sql`). `chat_threads`, `invites`, `api_usage`,
 `profiles`, `babies` and `families` are not; `supabase/tests/05_events.test.sql`
 asserts both.
 
@@ -162,39 +162,12 @@ returns `429 rate_limited` before any model call, password check or code lookup.
 | Function | Limit | Why | Test |
 |---|---|---|---|
 | `chat` | 60 an hour | Each turn makes 2 or more model calls | `tests/functions/chat.test.ts` |
-| `chat` | 60 a UTC day per user, 100 per family | A real family stays well under (`docs/chat.md`, "Limits and spend") | `tests/08_chat_budget.test.sql`, `tests/functions/chat.test.ts` |
-| `chat` | $10 a UTC day across everyone (assumed prices) | Global circuit breaker on Muse spend | `tests/08_chat_budget.test.sql`, `tests/functions/chat.test.ts` |
 | `predict` | 240 an hour | Cheap, but called on every app focus | `tests/functions/predict.test.ts` |
 | `pair` create | 10 an hour | New codes | `tests/functions/pair.test.ts` |
 | `pair` redeem | 5 per 15 min | Each attempt is a guess at a code | `tests/functions/pair.test.ts` |
 | `delete-account` | 5 an hour | Each attempt is a password guess | `tests/functions/delete-account.test.ts` |
 
 The tests fill the caller's current window and check that the next call gets 429.
-
-**Chat daily caps and the spend breaker (v1.1.0).** From the 2 Nov review (item 4):
-the hourly limit alone allowed 1,440 chat calls a day per account, with no family or
-global bound, and sign-up is cheap.
-- The chat function calls `consume_chat_budget` after the thread check and before
-  transcription or any model call. It returns the first cap that refused, and the
-  function answers with the same `429 rate_limited` as the hourly limit.
-- The per-user daily count reuses `api_usage` through `consume_rate_limit`
-  (function `chat_day`). The family count and the global spend live in
-  `usage_counters` (`20261102120000_chat_daily_caps.sql`), the twelfth table:
-  - RLS from its first migration. A family member can read their family's turn
-    count; nobody but the service role can read the global row.
-  - No client writes: INSERT, UPDATE and DELETE are revoked from `authenticated`,
-    and `anon` has nothing.
-  - `consume_chat_budget` and `settle_chat_spend` are service-role only.
-  - Family rows cascade with the family. Deleting an account never lowers the global
-    counter, so "spend, delete, sign up again" doesn't reset the breaker.
-- A level is counted only after the level before it passed: refused calls can't
-  drain the family's or the global budget.
-- Each admitted turn reserves its worst case and settles to the metered cost, so
-  the spend can't pass the budget with turns in flight. Prices are assumed; the
-  numbers and the arithmetic are in `docs/chat.md`, "Limits and spend".
-- Accepted: the breaker is global, so anyone who reaches it stops chat for every
-  family until the next UTC day. That's the point of a circuit breaker; the per-user
-  and per-family caps make one account's share small.
 Auth's own sign-in limit applies to the password check too; `delete-account` reports it
 as 429, not as a wrong password.
 
@@ -244,17 +217,10 @@ the release commit for that function's import graph (`deno info`).
 
 | Function | Version | Deployed (UTC) | From |
 |---|---|---|---|
-| `chat` | v8, **pending redeploy (owner approval)** | 30 Oct, 11:43 | `2fb02cc`; v1.1.0 changes it (caps, breaker, `max_tokens`, prompt rule) and needs migration `20261102120000` on hosted first |
+| `chat` | v8 | 30 Oct, 11:43 | `2fb02cc`; nothing under `supabase/functions` changed after it |
 | `pair` | v4 | 30 Oct, 13:22 | `3191717` |
 | `predict` | v3 | 30 Oct, 13:22 | `3191717` |
 | `delete-account` | v2 | 30 Oct, 13:22 | `3191717` |
-
-**v1.1.0 server track (2 Nov).** Only `chat` changes behaviour. Order on hosted, after
-the owner approves: the migration first (the new `chat` calls `consume_chat_budget`
-and would answer 500 without it), then `chat`. `pair` and `delete-account` import
-nothing that changed. `predict`'s import graph includes `_shared/agent.ts` through a
-type-only import in `chat-data.ts`; its runtime code is unchanged, so a redeploy is
-needed only to keep "hosted equals the release commit" exact.
 
 **Why the Day 9 redeploy.** `pair`, `predict` and `delete-account` predated later
 commits to files they import. None of those commits changes behaviour:

@@ -23,8 +23,8 @@ select is(
 
 select is(
   (select count(*)::int from pg_tables where schemaname = 'public'),
-  12,
-  'the schema has the twelve spec tables'
+  11,
+  'the schema has the eleven spec tables'
 );
 
 select is(
@@ -53,10 +53,8 @@ select is(
 select ok(
   not has_function_privilege('authenticated', 'public.create_invite(uuid, text)', 'execute')
   and not has_function_privilege('authenticated', 'public.redeem_invite(uuid, text)', 'execute')
-  and not has_function_privilege('authenticated', 'public.consume_rate_limit(uuid, text, integer, integer)', 'execute')
-  and not has_function_privilege('authenticated', 'public.consume_chat_budget(uuid, integer, integer, bigint, bigint)', 'execute')
-  and not has_function_privilege('authenticated', 'public.settle_chat_spend(timestamptz, bigint, bigint)', 'execute'),
-  'pairing, rate-limit and chat-budget functions are service-role only'
+  and not has_function_privilege('authenticated', 'public.consume_rate_limit(uuid, text, integer, integer)', 'execute'),
+  'pairing and rate-limit functions are service-role only'
 );
 
 select ok(

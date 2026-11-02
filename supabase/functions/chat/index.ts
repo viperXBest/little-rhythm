@@ -6,12 +6,6 @@
 // inserts it with the parent's own session (RLS). The baby comes from the
 // session, never from the body or the model.
 //
-// Limits (_shared/chat-limits.ts), all before any model call and all answered with
-// the same 429 rate_limited: 60 an hour per user, then (after the thread check, so
-// voice turns count too) a daily cap per user and per family and the global spend
-// breaker. Each admitted turn reserves its worst-case cost and settles to what its
-// Muse calls (and any memory fold) actually reported.
-//
 // Every turn passes the health gate (_shared/health-gate.ts): a keyword check
 // and a Muse classifier running beside the agent. A positive turn returns an
 // escalation with no model text; the app shows a static card.
@@ -50,7 +44,6 @@ import {
 } from "../_shared/health-gate.ts";
 import { keywordHit } from "../_shared/health-keywords.ts";
 import { languageBias } from "../_shared/asr-language.ts";
-import { CHAT_LIMITS, GLOBAL_DAILY_MICROS, SpendMeter, WORST_TURN_MICROS } from "../_shared/chat-limits.ts";
 import { MuseError, sparkComplete, sparkJson, sparkText, transcribe } from "../_shared/muse.ts";
 import { predict } from "../_shared/predict.ts";
 import { EMPTY_SUMMARY, maybeFoldMemory, runInBackground } from "../_shared/thread-memory.ts";
@@ -58,7 +51,7 @@ import { parseZone } from "../_shared/zone.ts";
 import { adminClient, getCaller, json, userClient } from "../_shared/supabase.ts";
 import { checkHeaders, parseChatRequest } from "./request.ts";
 
-const LIMIT = { fn: "chat", windowSeconds: 3600, max: CHAT_LIMITS.hourlyPerUser } as const;
+const LIMIT = { fn: "chat", windowSeconds: 3600, max: 60 } as const;
 // Chosen from the Day 4 latency test (see docs/chat.md).
 const REASONING_EFFORT = "low" as const;
 const KNOWN_FAILURES = new Set([
@@ -125,35 +118,15 @@ Deno.serve(async (req) => {
     return json({ error: "thread_not_found" }, 404);
   }
 
-  // Daily caps and the global breaker: the last check before any model call.
-  const budget = await consumeBudget(admin, user.id);
-  if (budget === null) return json({ error: "internal_error" }, 500);
-  if (budget.outcome !== "ok") {
-    console.warn(`chat: daily_cap_${budget.outcome}`);
-    return json({ error: "rate_limited" }, 429);
-  }
-  const meter = new SpendMeter();
-  let settled = false;
-  // Replaces the reservation with the metered cost, once, after the last model call.
-  const settle = async () => {
-    if (settled) return;
-    settled = true;
-    await settleSpend(admin, budget.dayStart, meter);
-  };
-
   let text: string;
   let transcript: string | undefined;
   if (request.kind === "voice") {
     try {
-      transcript = await transcribe(request.wav, apiKey, languageBias(request.lang), meter);
+      transcript = await transcribe(request.wav, apiKey, languageBias(request.lang));
     } catch (error) {
-      await settle();
       return museFailure(error);
     }
-    if (!transcript) {
-      await settle();
-      return json({ error: "no_speech" }, 422);
-    }
+    if (!transcript) return json({ error: "no_speech" }, 422);
     text = transcript.slice(0, 1000);
   } else {
     text = request.text;
@@ -179,22 +152,17 @@ Deno.serve(async (req) => {
       readThreadMemory(db, threadId).catch(() => null),
     ]);
     const memory = memoryRow && memoryRow.summary !== EMPTY_SUMMARY ? memoryRow.summary : null;
-    // After the response: fold older messages into the summary (no added latency),
-    // then settle the turn's spend, fold included.
+    // After the response: fold older messages into the summary (no added latency).
     const foldMemory = () =>
-      runInBackground(async () => {
-        try {
-          return await maybeFoldMemory({
-            readMemory: () => readThreadMemory(db, threadId),
-            readSince: (since, cap) => readFoldMessages(db, threadId, since, cap),
-            readNames: () => readFamilyNames(db),
-            summarize: sparkText(apiKey, REASONING_EFFORT, meter),
-            write: (next, previous) => writeThreadMemory(admin, threadId, next, previous),
-          });
-        } finally {
-          await settle();
-        }
-      });
+      runInBackground(() =>
+        maybeFoldMemory({
+          readMemory: () => readThreadMemory(db, threadId),
+          readSince: (since, cap) => readFoldMessages(db, threadId, since, cap),
+          readNames: () => readFamilyNames(db),
+          summarize: sparkText(apiKey, REASONING_EFFORT),
+          write: (next, previous) => writeThreadMemory(admin, threadId, next, previous),
+        })
+      );
     const prediction = predict({ now, zone, birthDate, events: predictionEvents });
 
     const keyword = keywordHit(text);
@@ -205,7 +173,7 @@ Deno.serve(async (req) => {
         offsetMinutes: request.offsetMinutes,
         ageWeeks,
         openSleep,
-        complete: sparkComplete(apiKey, REASONING_EFFORT, meter),
+        complete: sparkComplete(apiKey, REASONING_EFFORT),
         recentEvents: (query) => readRecentEvents(db, babyId, query, now),
         nextWindows: () => Promise.resolve(prediction),
         zone,
@@ -217,7 +185,7 @@ Deno.serve(async (req) => {
       classifyHealth(
         text,
         ageWeeks,
-        sparkJson(apiKey, { name: "health_check", schema: CLASSIFIER_SCHEMA }, REASONING_EFFORT, meter),
+        sparkJson(apiKey, { name: "health_check", schema: CLASSIFIER_SCHEMA }, REASONING_EFFORT),
       ),
     ]);
     // classifyHealth never rejects; treat a rejection as a classifier error anyway.
@@ -232,10 +200,7 @@ Deno.serve(async (req) => {
       const escalation = verdict === null && !keyword.health
         ? null
         : applyHealthGate({ keyword, classifier: verdict, caption: null });
-      if (!escalation) {
-        await settle();
-        return museFailure(agent.reason);
-      }
+      if (!escalation) return museFailure(agent.reason);
       const replyTo = await storeUserMessage(admin, { threadId, userId: user.id, text, gated: true });
       await storeReply(admin, { threadId, replyTo, caption: null, escalation, summary: null });
       foldMemory();
@@ -263,57 +228,9 @@ Deno.serve(async (req) => {
     foldMemory();
     return json(reply({ transcript, caption, escalation, proposals: result.proposals, source, threadId }));
   } catch (error) {
-    await settle();
     return museFailure(error);
   }
 });
-
-type Budget = { outcome: "ok" | "user" | "family" | "global"; dayStart: string };
-
-/**
- * consume_chat_budget (service role): the daily cap per user, then per family, then a
- * worst-case reservation against the global daily budget. Null on a database error
- * (the turn is refused: fails closed).
- */
-async function consumeBudget(admin: ReturnType<typeof adminClient>, userId: string): Promise<Budget | null> {
-  const { data, error } = await admin
-    .rpc("consume_chat_budget", {
-      p_user_id: userId,
-      p_user_max: CHAT_LIMITS.dailyPerUser,
-      p_family_max: CHAT_LIMITS.dailyPerFamily,
-      p_global_max: GLOBAL_DAILY_MICROS,
-      p_reserve: WORST_TURN_MICROS,
-    })
-    .single<{ outcome: string; day_start: string }>();
-  if (error || !data) {
-    console.error("chat: budget failed", error?.code ?? "no_row");
-    return null;
-  }
-  const outcome = data.outcome;
-  if (outcome !== "ok" && outcome !== "user" && outcome !== "family" && outcome !== "global") {
-    console.error("chat: budget failed", "bad_outcome");
-    return null;
-  }
-  return { outcome, dayStart: data.day_start };
-}
-
-/** settle_chat_spend (service role). A failure keeps the full reservation (fails safe). */
-async function settleSpend(
-  admin: ReturnType<typeof adminClient>,
-  dayStart: string,
-  meter: SpendMeter,
-): Promise<void> {
-  try {
-    const { error } = await admin.rpc("settle_chat_spend", {
-      p_window_start: dayStart,
-      p_reserved: WORST_TURN_MICROS,
-      p_actual: meter.micros,
-    });
-    if (error) console.error("chat: settle failed", error.code);
-  } catch {
-    console.error("chat: settle failed", "unexpected");
-  }
-}
 
 function reply(input: {
   transcript: string | undefined;
