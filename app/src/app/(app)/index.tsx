@@ -26,26 +26,12 @@ import { useSession } from '@/lib/session';
 
 type Invite = { code: string; expiresAt: Date };
 
-/**
- * The floating Chat button. The home scroll ends `inset + gap` below its measured height, so
- * the last timeline row always scrolls clear of it (the button grows with the font scale).
- */
-const CHAT_FAB = {
-  /** Distance from the bottom and right edges of the safe area. */
-  inset: Spacing.three,
-  /** Room between the last row and the button's top. */
-  gap: Spacing.three,
-  /** Height before the first layout: the 48 dp mic square + padding + outline + shelf. */
-  initialHeight: MinTouch + 2 * Spacing.two + 2 * Sticker.outline + Sticker.shelf,
-} as const;
-
 /** Font scale from which the header stacks (name above Fluff and the settings button). */
 const HEADER_STACK_FONT_SCALE = 1.5;
 
 export default function Home() {
   const { family } = useSession();
   const [nightFeeds, setNightFeeds] = useState<NightFeeds | null>(null);
-  const [fabHeight, setFabHeight] = useState<number>(CHAT_FAB.initialHeight);
   if (!family) {
     return (
       <Screen>
@@ -58,7 +44,8 @@ export default function Home() {
     <ThemedView style={styles.fill}>
       <SafeAreaView style={styles.fill}>
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: fabHeight + CHAT_FAB.inset + CHAT_FAB.gap }]}
+          style={styles.fill}
+          contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled">
           <Header name={family.baby.name} weeks={ageInWeeks(family.baby.birthDate)} />
           {family.memberCount < 2 ? (
@@ -72,7 +59,7 @@ export default function Home() {
           {nightFeeds ? <NightFeedsCard value={nightFeeds} /> : null}
           <Timeline />
         </ScrollView>
-        <ChatButton onHeight={setFabHeight} />
+        <ChatButton />
       </SafeAreaView>
     </ThemedView>
   );
@@ -113,16 +100,13 @@ function SettingsButton() {
   );
 }
 
-/** Sticker-style floating button: a primary mic square and the label, bottom right. */
-function ChatButton({ onHeight }: { onHeight: (height: number) => void }) {
+/** Sticker-style Chat button: a primary mic square and the label, docked in a bar below the scroll. */
+function ChatButton() {
   const theme = useTheme();
   // Light: the mockup's `text` outline and shelf. Dark: the tint border and the dark shelf (no glare).
   const dark = useColorScheme() === 'dark';
   return (
-    <View
-      pointerEvents="box-none"
-      style={styles.fabWrap}
-      onLayout={(e) => onHeight(Math.ceil(e.nativeEvent.layout.height))}>
+    <View style={[styles.dock, { backgroundColor: theme.background, borderTopColor: theme.border }]}>
       <Pressable accessibilityRole="button" accessibilityLabel="Chat" onPress={() => router.push('/chat')}>
         {({ pressed }) => (
           <Shelf
@@ -231,6 +215,7 @@ const styles = StyleSheet.create({
   content: {
     gap: Spacing.four,
     paddingTop: Spacing.four,
+    paddingBottom: Spacing.four,
     paddingHorizontal: Spacing.four,
     width: '100%',
     maxWidth: MaxContentWidth,
@@ -248,7 +233,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  fabWrap: { position: 'absolute', right: CHAT_FAB.inset + Spacing.two, bottom: CHAT_FAB.inset },
+  dock: {
+    alignItems: 'flex-end',
+    borderTopWidth: Sticker.outline,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
+  },
   fab: {
     flexDirection: 'row',
     alignItems: 'center',
