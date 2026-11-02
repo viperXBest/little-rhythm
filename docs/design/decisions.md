@@ -197,3 +197,21 @@ font scale ≥ 1.6 the diaper tiles overlapped the check-in card. Fixed in the f
   10 s to the agent's 30 s (they run in parallel, so a typical turn gets no slower). The non-health half
   returned 401s because the runner's test tokens expire after an hour; it needs a token refresh before a
   rerun.
+
+### Nov 2: two-emulator checkpoint
+
+All ten items passed with no code changes (screenshots: `docs/design/screens/checkpoint/`): realtime
+quick-log sync both ways within 4 s, the check-in reveal on both sides, the mirrored night-feed balance,
+Settings in one tap, launcher icon and splash, the nap reminder firing 10 min ahead, the full Gboard on
+sign-in and the chat composer at 1.0 and 2.0 (event edit has no text field), TalkBack labels and roles
+from the accessibility tree (adb can't drive TalkBack gestures), "Recording – speak now" ("Starting…"
+lasts under 0.4 s, too short to capture), and en-US / en-GB at 1.0 and 2.0 wrapping only at the dash.
+
+Open for the owner:
+- **Notification icon** reads as an eye in the status bar (Fluff's silhouette with the face cut out).
+  Proposed: a solid cloud silhouette with no cut-outs. Native asset, so it rides along in the v1.1.0 EAS
+  build at no extra build.
+- **The floating Chat button covers the Dirty and Both diaper tiles** at the top of home until you scroll.
+  The bottom padding only clears the last row.
+- At font scale 1.0 the keyboard covers part of Sign in (still tappable); at 2.0 the button needs one
+  scroll. "Breast · right · 14 / min" orphans "min" at 2.0.
