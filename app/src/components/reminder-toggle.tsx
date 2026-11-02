@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { MinTouch, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Prediction } from '@/lib/predict';
 import { disableReminders, enableReminders, remindersEnabled, syncCheckin, syncReminders } from '@/lib/reminders';
@@ -52,22 +52,34 @@ export function ReminderToggle({ prediction }: { prediction: Prediction | null }
     }
   }
 
+  const disabled = enabled === null || busy;
+  const text = 'Remind me before feeds, naps and the bedtime routine, and about the check-in at 21:00';
+
+  // The whole row is the switch (≥ 48 dp), so the label is a target too. TalkBack focuses the row only.
   return (
     <View style={styles.wrap}>
-      <View style={styles.row}>
-        <ThemedText type="small" style={styles.label}>
-          Remind me before feeds, naps and the bedtime routine, and about the check-in at 21:00
+      <Pressable
+        accessibilityRole="switch"
+        accessibilityLabel="Reminders"
+        accessibilityHint={text}
+        accessibilityState={{ checked: enabled === true, disabled, busy }}
+        disabled={disabled}
+        onPress={() => void onChange(enabled !== true)}
+        style={styles.row}>
+        <ThemedText type="small" style={styles.label} importantForAccessibility="no">
+          {text}
         </ThemedText>
         <Switch
           value={enabled === true}
-          disabled={enabled === null || busy}
+          disabled={disabled}
           onValueChange={(next) => void onChange(next)}
           // Off: a textSecondary thumb (≥ 6.7:1 on the card) so the off state reads in dark mode too.
           trackColor={{ false: theme.border, true: theme.primary }}
           thumbColor={enabled === true ? theme.onPrimary : theme.textSecondary}
-          accessibilityLabel="Reminders"
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
         />
-      </View>
+      </Pressable>
       {note ? (
         <ThemedText type="small" themeColor="textSecondary">
           {note}
@@ -79,6 +91,6 @@ export function ReminderToggle({ prediction }: { prediction: Prediction | null }
 
 const styles = StyleSheet.create({
   wrap: { gap: Spacing.one },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: MinTouch },
   label: { flex: 1 },
 });
