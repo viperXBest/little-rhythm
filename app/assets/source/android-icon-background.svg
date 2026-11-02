@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<!-- Little Rhythm master artwork (direction C, Cloud Lullaby). Original; Fluff the cloud-sheep.
+  Hex values are the light palette (app/src/constants/palette.ts):
+  #5146B8 primary · #42399A primaryPressed · #7066D8 accent · #24213F text · #FFFFFF card / onPrimary
+  #6355CC sleep · #FCEFD9 feedSoft · #B8650F feed
+  Regenerate the PNGs: see docs/design/illustrations.md. -->
+  <!-- Adaptive icon background: primary with a few soft accent stars. -->
+  <rect width="1024" height="1024" fill="#5146B8"/>
+  <g fill="#7066D8">
+    <circle cx="170" cy="210" r="14"/><circle cx="860" cy="170" r="10"/><circle cx="880" cy="820" r="14"/>
+    <circle cx="140" cy="790" r="10"/><circle cx="512" cy="110" r="8"/><circle cx="512" cy="930" r="8"/>
+  </g>
+</svg>

@@ -38,10 +38,49 @@ function half(label: string, c: Colours): string {
     `<div class="row">${poses}</div><div class="row">${scenes}</div><div class="icons">${icons}${onFill}</div></section>`;
 }
 
+/** The native masters (app/assets/source), shown the way Android composes them. */
+function masters(): string {
+  const src = (n: string) => new URL(`../../app/assets/source/${n}.svg`, import.meta.url).href;
+  const img = (n: string, size: number, style = "") =>
+    `<img src="${src(n)}" width="${size}" height="${size}" style="display:block;${style}">`;
+  const cell = (inner: string, label: string) => `<div>${inner}<span>${label}</span></div>`;
+  const adaptive =
+    `<div style="position:relative;width:180px;height:180px;border-radius:50%;overflow:hidden">` +
+    `<div style="position:absolute;inset:0">${img("android-icon-background", 180)}</div>` +
+    `<div style="position:absolute;inset:0">${img("android-icon-foreground", 180)}</div></div>`;
+  return `<section class="masters">` +
+    cell(img("icon", 180, "border-radius:40px"), "icon.png (1024)") +
+    cell(adaptive, "adaptive foreground + background, circle mask") +
+    cell(
+      `<div style="background:#24213F;border-radius:50%">${img("android-icon-monochrome", 180)}</div>`,
+      "monochrome",
+    ) +
+    cell(
+      `<div style="background:#5146B8;padding:16px"><img src="${
+        src("splash-icon")
+      }" width="150" height="140"></div>`,
+      "splash on #5146B8",
+    ) +
+    cell(
+      `<div style="background:#5146B8;padding:10px;display:flex;gap:12px;align-items:center">` +
+        `${img("notification-icon", 96)}${img("notification-icon", 24)}</div>`,
+      "notification 96 / 24",
+    ) +
+    cell(
+      `<div style="display:flex;gap:10px;align-items:flex-end">${img("favicon", 96)}${
+        img("favicon", 48)
+      }</div>`,
+      "favicon",
+    ) +
+    `</section>`;
+}
+
 export async function contactSheetHtml(): Promise<string> {
   const t = await themes();
   return `<!doctype html><meta charset="utf-8"><style>
-body{margin:0;font:600 13px system-ui,sans-serif;display:flex}
+body{margin:0;font:600 13px system-ui,sans-serif}
+.masters{width:2000px;height:300px;padding:24px;box-sizing:border-box;background:#FFFFFF;color:#24213F;display:flex;gap:36px;align-items:flex-end}
+.masters > div{display:flex;flex-direction:column;align-items:center;gap:6px}
 section{width:1000px;padding:24px;box-sizing:border-box}
 h2{margin:0 0 12px;font-size:22px}
 .row{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:16px}
@@ -49,7 +88,9 @@ h2{margin:0 0 12px;font-size:22px}
 .icons{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
 .ic{display:flex;flex-direction:column;align-items:center;gap:4px}
 .sizes{display:flex;align-items:center;gap:8px}
-</style><body>${half("Light", t.light)}${half("Dark", t.dark)}</body>`;
+</style><body><div style="display:flex">${half("Light", t.light)}${
+    half("Dark", t.dark)
+  }</div>${masters()}</body>`;
 }
 
 if (import.meta.main) {

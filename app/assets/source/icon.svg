@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<!-- Little Rhythm master artwork (direction C, Cloud Lullaby). Original; Fluff the cloud-sheep.
+  Hex values are the light palette (app/src/constants/palette.ts):
+  #5146B8 primary · #42399A primaryPressed · #7066D8 accent · #24213F text · #FFFFFF card / onPrimary
+  #6355CC sleep · #FCEFD9 feedSoft · #B8650F feed
+  Regenerate the PNGs: see docs/design/illustrations.md. -->
+  <!-- App icon, 1024². Background primary, Fluff with a primaryPressed shelf, star and zz in feedSoft. -->
+  <rect width="1024" height="1024" fill="#5146B8"/>
+  <g transform="translate(44 146) scale(6)">
+      <path d="M120 14l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z" fill="#FCEFD9"/>
+      <path d="M18 22h8l-8 8h8M30 10h6l-6 6h6" stroke="#FCEFD9" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M46 94v14M64 96v12M92 96v12M110 94v14" transform="translate(0 4)" stroke="#42399A" stroke-width="7" stroke-linecap="round"/>
+      <path d="M40 96c-16 0-24-14-16-26c-8-14 6-28 20-22c4-14 24-18 34-8c10-10 30-6 34 8c16-4 26 12 18 24c8 14-4 28-18 24c-6 8-20 10-28 2c-10 8-30 8-44-2z" transform="translate(0 4)" fill="#42399A" stroke="#42399A" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M46 94v14M64 96v12M92 96v12M110 94v14" stroke="#24213F" stroke-width="7" stroke-linecap="round"/>
+      <path d="M40 96c-16 0-24-14-16-26c-8-14 6-28 20-22c4-14 24-18 34-8c10-10 30-6 34 8c16-4 26 12 18 24c8 14-4 28-18 24c-6 8-20 10-28 2c-10 8-30 8-44-2z" fill="#FFFFFF" stroke="#24213F" stroke-width="3.5" stroke-linejoin="round"/>
+      <ellipse cx="78" cy="68" rx="24" ry="20" fill="#6355CC"/><ellipse cx="54" cy="58" rx="8" ry="5" fill="#6355CC" transform="rotate(-24 54 58)"/><ellipse cx="102" cy="58" rx="8" ry="5" fill="#6355CC" transform="rotate(24 102 58)"/>
+      <path d="M66 66q4 4 8 0M82 66q4 4 8 0" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M74 76q4 3 8 0" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>
