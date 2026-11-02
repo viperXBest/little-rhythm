@@ -61,7 +61,7 @@ Memory (Day 6b): the last 30 usable messages verbatim; a rolling summary in `thr
 
 ## Data model
 
-Eleven tables, all with RLS. Every row hangs off a family; one helper, `is_family_member(family_id)`, protects all of it.
+Twelve tables, all with RLS. Every row hangs off a family; one helper, `is_family_member(family_id)`, protects all of it.
 
 | Table | Key columns |
 |---|---|
@@ -76,6 +76,7 @@ Eleven tables, all with RLS. Every row hangs off a family; one helper, `is_famil
 | checkins | family_id, user_id, day, answers (jsonb) |
 | api_usage | user_id, function, window_start, count |
 | thread_memory | thread_id (PK), summary (<= 4000), covered_until, updated_at |
+| usage_counters | scope (family/global), family_id, function, window_start, count (family chat turns; global chat spend in micro-USD; service-role writes only) |
 
 ## Security rules (non-negotiable)
 
@@ -89,14 +90,14 @@ Eleven tables, all with RLS. Every row hangs off a family; one helper, `is_famil
 - Session tokens in expo-secure-store, never AsyncStorage.
 - The APK contains only the public Supabase URL and anon key. EAS builds get them from the EAS `production` environment (`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`; `app/.env` is not uploaded). `app/app.config.ts` fails any build or expo command when either is missing or the key isn't anon/publishable, and requires `https://<ref>.supabase.co` for the production profile. The production profile builds an APK, and `requireCommit` is on. Never commit: `.env` files, the service_role key, `MODEL_API_KEY`, keystores, real personal data.
 - Account deletion re-checks the password server-side. A stolen session can't change the password first: hosted Auth has "Require current password when updating" on (hosted-only; CLI v2.122.0 has no config.toml key, so local and CI don't cover it) and secure password change (also in config.toml). Verified on hosted; see docs/security.md.
-- Per-user rate limits on `chat`, `pair` and `predict` via `api_usage`.
+- Per-user rate limits on `chat`, `pair` and `predict` via `api_usage`. Chat caps (v1.1.0): 60/h and 60/day per user, 100/day per family, and a global $10/day spend breaker (reserve the worst case, settle to metered usage; assumed prices in `_shared/chat-limits.ts`). All return `429 rate_limited` before any model call. Every Muse Spark call sends `max_completion_tokens` 4096 (reasoning counts); a `length` finish runs no tool calls and a cut-off classifier fails closed. The classifier times out at 30 s, like the agent.
 - Prediction reminders use the fixed ids `predict-feed`, `predict-nap` and `predict-routine`; the check-in reminder uses `checkin-daily`. Each sync cancels only its own ids. Never call `cancelAllScheduledNotificationsAsync`.
 - Couple data (check-ins, night-feed balance) never goes to the AI.
 - Every security control gets a test (pgTAP for RLS, function tests for pair/chat).
 
 ## Design (v1.1.0: Cloud Lullaby)
 
-The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security, behaviour or copy. Direction C, **Cloud Lullaby** (picked Nov 2): periwinkle and indigo on lilac-white, night-sky navy dark mode, "sticker" cards (2 px outline, hard 4 px shelf, no blur), duotone icons, mascot **Fluff** (a cloud-sheep). Spec and mockups: `docs/design/directions/c-cloud-lullaby/`; every decision: `docs/design/decisions.md`; audit: `docs/design/audit.md`.
+The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security, behaviour or copy (v1.1.0 also ships the separate server track: `chat` v9, see the Day 10 plan entry). Direction C, **Cloud Lullaby** (picked Nov 2): periwinkle and indigo on lilac-white, night-sky navy dark mode, "sticker" cards (2 px outline, hard 4 px shelf, no blur), duotone icons, mascot **Fluff** (a cloud-sheep). Spec and mockups: `docs/design/directions/c-cloud-lullaby/`; every decision: `docs/design/decisions.md`; audit: `docs/design/audit.md`.
 
 - **Changes to C:** in dark mode the quick-log buttons and the parent's chat bubbles are a tinted dark surface with a lavender border and icon (full lavender fill only for Confirm and the active segment). Body font Nunito (Atkinson's slashed zero misreads "21:00"); Baloo 2 for headings and big times; both OFL 1.1, licences in `app/assets/fonts/`. Next up is 2×2 and highlights the tile with the earliest start. Home scroll bottom padding = Chat button height + spacing.
 - **Tokens:** all colours live in `app/src/constants/palette.ts` (the existing 16 names plus `card`, `feed`, `feedSoft`, `sleep`, `sleepSoft`, `diaper`, `diaperSoft`); components read them through `useTheme()`, never as literals. `palette.test.ts` (Deno, CI) checks WCAG AA for every pair the app uses: text ≥ 4.5:1; large text, focus rings, accents, icons, UI boundaries and the escalation border ≥ 3:1. No Meta logo, wordmark or infinity gradient.
@@ -109,7 +110,7 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
 
 - TypeScript strict everywhere; no `any`.
 - Database changes only through migrations in `/supabase/migrations`.
-  - A new migration's timestamp must be later than the latest one (currently `20261030100000`).
+  - A new migration's timestamp must be later than the latest one (currently `20261102120000`).
   - Until 2026-10-29 10:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
   - Never use `supabase db push --include-all`.
 - Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Day 4 build swapped expo-audio for @siteed/audio-studio (plugin: device detection, background audio, notifications and phone-state handling all off; only RECORD_AUDIO). Rebuild only when a native module changes. Day 8 changed native config without a new module: the expo-notifications plugin (`app/assets/images/notification-icon.png`), the splash background and the adaptive-icon background. Since v1.1.0 all three colours are `#5146B8` and every icon PNG is rendered by `scripts/assets/render.ts` from `app/assets/source/` (it replaced `notification-icon.ts`). It needs a new build, and the icon must be checked on a release APK. Day 10 (v1.1.0) added react-native-svg 15.16.0 (`0124ed8`), before the first local dev-client build.
@@ -148,8 +149,7 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
    - **versionCode** is EAS-remote (`appVersionSource: remote`, `autoIncrement`). It was 3, so the v1.0.0 production build gets 4. `app.json` stays 1.0.0.
 
 10. Nov 2–3 · **v1.1.0: design overhaul** (UI only) plus a server track (daily chat caps per user and per family, a global circuit breaker under about $10/day, `max_tokens`, a "never reveal tools" prompt rule, 20 jailbreak prompts in the safety set; see `docs/security-review-2026-11-02.md`). Design freeze **Nov 3, 18:00**; v1.1.0 EAS build Nov 3 evening. The server track ships only if the full safety rerun meets the baseline, and `chat` is redeployed only after the owner approves. Not in v1.1.0: database checks on feed values, a server output filter, captcha, email confirmation.
-   - **Server track is off v1.1.0.** Both full reruns missed the baseline (urgent 88/92). It lives on the `server-track` branch (pushed); `main` has the revert `acde973`, so `git diff 2fb02cc HEAD -- supabase/functions` is empty and hosted `chat` stays v8. Check that diff is empty again before tagging v1.1.0.
-   - **Paired control (Nov 2, local stack, same time):** v8 urgent 71/73, server track 70/72, all escalated; same misses, so the cause is the slower API (classifier timeout), not the server track, and live v8 can miss urgent prompts at today's API speed. The non-health half didn't run (the runner's test tokens expire after 1 h and the run took 1 h 50 min). Proposed fix, owner to decide: `CLASSIFY_TIMEOUT_MS` from 10 s to the agent's 30 s.
+   - **Server track ships in v1.1.0.** Runs A and B (2 Nov) missed the baseline on a slow API; a paired control showed v8 missing urgent prompts the same way (71/73 vs 70/72), so the cause was the classifier’s 10 s timeout. With the timeout at 30 s, run C (`20242e8`) got 335/335 health, 92/92 urgent, 1/147 non-health false positives (accepted as noise by the owner: one Romanian log line, classifier-only, failed safe), 17/17 jailbreak, 0 errors (`docs/safety.md`). Hosted: migration `20261102120000` pushed, `chat` v9 from `20242e8`, smoke-tested (normal turn, confirm cards, fever → escalation). `predict` v3 is runtime-identical but its import graph includes `_shared/agent.ts` (type-only), which changed. The `server-track` branch is merged into `main`.
    - **Every seed ends the demo sessions** (it resets the passwords): sign in again on both phones after seeding (`docs/demo.md`). After 18:35 Bucharest seed with `--tz Europe/London` and set the devices to London.
    - **Checkpoint on two emulators** (owner, Nov 2) instead of a phone: Ana on `pixel8`, Radu on `pixel8b`, both with the full Gboard (`hw.keyboard=no`). No Gradle build while both run. Real voice and the hardware feel are checked on the phones with the v1.1.0 EAS build.
    - `npx supabase stop` failed with a spawn EPERM on this PC on Nov 2; stopping the `*_little-rhythm` containers with `docker stop` works and keeps the volume.

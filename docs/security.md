@@ -244,7 +244,7 @@ the release commit for that function's import graph (`deno info`).
 
 | Function | Version | Deployed (UTC) | From |
 |---|---|---|---|
-| `chat` | v8, **pending redeploy (owner approval)** | 30 Oct, 11:43 | `2fb02cc`; v1.1.0 changes it (caps, breaker, `max_tokens`, prompt rule) and needs migration `20261102120000` on hosted first |
+| `chat` | v9 | 2 Nov, 18:23 | `20242e8`: caps, spend breaker, `max_completion_tokens`, prompt rule, classifier timeout 30 s. Migration `20261102120000` pushed first |
 | `pair` | v4 | 30 Oct, 13:22 | `3191717` |
 | `predict` | v3 | 30 Oct, 13:22 | `3191717` |
 | `delete-account` | v2 | 30 Oct, 13:22 | `3191717` |
