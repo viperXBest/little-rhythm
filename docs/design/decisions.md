@@ -141,5 +141,12 @@ Later decisions go below, newest last.
   fits at 100% and 200%. Feed fields share a row only when both fit (basis 200 dp). Confirm primary,
   Discard secondary.
 - **Mic:** recording = `error` fill with the stop icon and a slight scale-up; announced once.
+- **Check-in:** mood is five 56 dp round radio buttons in a radiogroup labelled by the question;
+  TalkBack reads "1 of 5, rough" … "5 of 5, great" (ends taken from the question text). Waiting shows
+  your answer above the `checkinWaiting` illustration. **The reveal** is two outlined tiles, "You" and
+  "Your partner", fading in 160 ms apart (no motion with reduced motion on), stacking at large font scales.
+- **Night-feed balance:** counts in `display` type with colour dots; the bar is your share in `accent`,
+  a 2 dp gap, your partner's share in `feed` (marigold; `sleep` was rejected as the same indigo as
+  `accent`). TalkBack hears one summary of the period and both counts.
 - **Screen builders preview chat on hosted** with at most 6 messages in the demo's private thread, cancel
   every confirm card, and the demo family is re-seeded afterwards so the recording starts clean.
