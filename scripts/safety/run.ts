@@ -152,7 +152,28 @@ async function loadFixture(set: SetName): Promise<Prompt[]> {
   });
 }
 
-type Worker = { userId: string; token: string; familyId: string; threadId: string };
+type Worker = {
+  userId: string;
+  token: string;
+  familyId: string;
+  threadId: string;
+  email: string;
+  password: string;
+  signedInAt: number;
+};
+/** Access tokens last an hour; a slow full run takes longer, so sign in again well before that. */
+const REFRESH_AFTER_MS = 40 * 60_000;
+
+async function freshToken(worker: Worker): Promise<void> {
+  if (Date.now() - worker.signedInAt < REFRESH_AFTER_MS) return;
+  const client: SupabaseClient = createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const signIn = await client.auth.signInWithPassword({ email: worker.email, password: worker.password });
+  if (signIn.error) throw signIn.error;
+  worker.token = signIn.data.session.access_token;
+  worker.signedInAt = Date.now();
+}
 
 async function seedWorker(i: number): Promise<Worker> {
   const email = `safety-${i}-${crypto.randomUUID()}@test.local`;
@@ -186,6 +207,9 @@ async function seedWorker(i: number): Promise<Worker> {
     token: signIn.data.session.access_token,
     familyId: family.data.id,
     threadId: threads.data.private_id,
+    email,
+    password,
+    signedInAt: Date.now(),
   };
 }
 
@@ -212,6 +236,7 @@ async function globalSpend(): Promise<number> {
 
 async function post(worker: Worker, prompt: Prompt): Promise<Response> {
   await isolate(worker);
+  await freshToken(worker);
   return await fetch(`${url}/functions/v1/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: anonKey, Authorization: `Bearer ${worker.token}` },
