@@ -27,7 +27,8 @@ export function NightFeedsCard({ value }: { value: NightFeeds }) {
     <Card>
       <View style={styles.header}>
         <Icon name="nightFeeds" size={28} />
-        <ThemedText type="cardTitle" accessibilityRole="header" style={styles.flex}>
+        {/* Balanced breaks: two even lines instead of "you" alone on the second. */}
+        <ThemedText type="cardTitle" accessibilityRole="header" textBreakStrategy="balanced" style={styles.flex}>
           {TITLE}
         </ThemedText>
       </View>

@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 
 import { Card, Shelf } from '@/components/card';
 import { Icon, Illustration, Mascot, type IconName } from '@/components/illustrations';
@@ -176,6 +176,15 @@ function TileView({ tile, now, highlighted }: { tile: Tile; now: Date; highlight
   const overdue = w !== null && Date.parse(w.end) < now.getTime();
   const start = w ? formatTime(w.start) : '';
   const end = w ? formatTime(w.end) : '';
+  // "· overdue" stays inline while it fits; once it wraps it goes on its own line without the dot,
+  // so no line starts with the separator. A new tile width (rotation, font scale) tries inline again.
+  const [overdueOwnLine, setOverdueOwnLine] = useState(false);
+  const rangeWidth = useRef(0);
+  const onRangeLayout = (e: LayoutChangeEvent) => {
+    const width = e.nativeEvent.layout.width;
+    if (rangeWidth.current !== 0 && Math.abs(width - rangeWidth.current) >= 1) setOverdueOwnLine(false);
+    rangeWidth.current = width;
+  };
   // One element for TalkBack; "earliest" names the highlight without visible copy.
   const spoken = w
     ? `${tile.label}, ${start}–${end}${overdue ? ', overdue' : ''}, ${BASIS_TEXT[w.basis]}${highlighted ? ', earliest' : ''}`
@@ -202,12 +211,23 @@ function TileView({ tile, now, highlighted }: { tile: Tile; now: Date; highlight
         {w ? (
           <>
             {/* Separate pieces, so a range wraps only after the en dash. */}
-            <View style={styles.range}>
+            <View style={styles.range} onLayout={onRangeLayout}>
               <ThemedText type="time">{start}–</ThemedText>
               <ThemedText type="time">{end}</ThemedText>
-              {overdue ? <ThemedText type="smallBold"> · overdue</ThemedText> : null}
+              {overdue && !overdueOwnLine ? (
+                <ThemedText
+                  type="smallBold"
+                  onLayout={(e) => {
+                    // A wrapped piece starts at the row's left edge.
+                    if (e.nativeEvent.layout.x < 1) setOverdueOwnLine(true);
+                  }}>
+                  {' '}
+                  · overdue
+                </ThemedText>
+              ) : null}
             </View>
-            <ThemedText type="caption" themeColor="textSecondary">
+            {overdue && overdueOwnLine ? <ThemedText type="smallBold">overdue</ThemedText> : null}
+            <ThemedText type="caption" themeColor="textSecondary" textBreakStrategy="balanced">
               {BASIS_TEXT[w.basis]}
             </ThemedText>
           </>
