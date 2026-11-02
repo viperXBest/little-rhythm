@@ -1,52 +1,145 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Share, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Card, Shelf } from '@/components/card';
 import { CheckinCard } from '@/components/checkin-card';
+import { Chip } from '@/components/controls';
 import { Button, ErrorText, Screen } from '@/components/form';
+import { Icon, Illustration, Mascot } from '@/components/illustrations';
 import { NextUp } from '@/components/next-up';
 import { NightFeedsCard } from '@/components/night-feeds-card';
 import { QuickLog } from '@/components/quick-log';
+import { Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Timeline } from '@/components/timeline';
-import { Fonts, Spacing } from '@/constants/theme';
+import { Fonts, MaxContentWidth, MinTouch, Radius, Spacing, Sticker } from '@/constants/theme';
 import { useNow } from '@/hooks/use-now';
+import { useTheme } from '@/hooks/use-theme';
 import { ageInWeeks } from '@/lib/dates';
 import { createPairCode, pairErrorMessage } from '@/lib/pair';
 import type { NightFeeds } from '@/lib/predict';
 import { useSession } from '@/lib/session';
-import { supabase } from '@/lib/supabase';
 
 type Invite = { code: string; expiresAt: Date };
+
+/**
+ * The floating Chat button. The home scroll ends `inset + gap` below its measured height, so
+ * the last timeline row always scrolls clear of it (the button grows with the font scale).
+ */
+const CHAT_FAB = {
+  /** Distance from the bottom and right edges of the safe area. */
+  inset: Spacing.three,
+  /** Room between the last row and the button's top. */
+  gap: Spacing.three,
+  /** Height before the first layout: the 48 dp mic square + padding + outline + shelf. */
+  initialHeight: MinTouch + 2 * Spacing.two + 2 * Sticker.outline + Sticker.shelf,
+} as const;
+
+/** Font scale from which the header stacks (name above Fluff and the settings button). */
+const HEADER_STACK_FONT_SCALE = 1.5;
 
 export default function Home() {
   const { family } = useSession();
   const [nightFeeds, setNightFeeds] = useState<NightFeeds | null>(null);
-  if (!family) return null;
-
-  const weeks = ageInWeeks(family.baby.birthDate);
+  const [fabHeight, setFabHeight] = useState<number>(CHAT_FAB.initialHeight);
+  if (!family) {
+    return (
+      <Screen>
+        <Loading />
+      </Screen>
+    );
+  }
 
   return (
-    <Screen>
-      <ThemedText type="subtitle">{family.baby.name}</ThemedText>
-      <ThemedText themeColor="textSecondary">
-        {weeks === 1 ? '1 week old' : `${weeks} weeks old`}
-      </ThemedText>
-      {family.memberCount < 2 ? (
-        <InviteCard />
-      ) : (
-        <ThemedText themeColor="textSecondary">You and your partner are both here.</ThemedText>
-      )}
-      <NextUp onNightFeeds={setNightFeeds} />
-      <QuickLog />
-      <CheckinCard />
-      {nightFeeds ? <NightFeedsCard value={nightFeeds} /> : null}
-      <Button title="Chat" variant="secondary" onPress={() => router.push('/chat')} />
-      <Timeline />
-      <Button title="Sign out" variant="secondary" onPress={() => void supabase.auth.signOut()} />
-      <Button title="Delete account" variant="secondary" onPress={() => router.push('/delete-account')} />
-    </Screen>
+    <ThemedView style={styles.fill}>
+      <SafeAreaView style={styles.fill}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: fabHeight + CHAT_FAB.inset + CHAT_FAB.gap }]}
+          keyboardShouldPersistTaps="handled">
+          <Header name={family.baby.name} weeks={ageInWeeks(family.baby.birthDate)} />
+          {family.memberCount < 2 ? (
+            <InviteCard />
+          ) : (
+            <ThemedText themeColor="textSecondary">You and your partner are both here.</ThemedText>
+          )}
+          <NextUp onNightFeeds={setNightFeeds} />
+          <QuickLog />
+          <CheckinCard />
+          {nightFeeds ? <NightFeedsCard value={nightFeeds} /> : null}
+          <Timeline />
+        </ScrollView>
+        <ChatButton onHeight={setFabHeight} />
+      </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+function Header({ name, weeks }: { name: string; weeks: number }) {
+  const { fontScale } = useWindowDimensions();
+  const stacked = fontScale >= HEADER_STACK_FONT_SCALE;
+  return (
+    <View style={stacked ? styles.headerStacked : styles.header}>
+      <View style={styles.headerText}>
+        <ThemedText type="display" accessibilityRole="header">
+          {name}
+        </ThemedText>
+        <Chip label={weeks === 1 ? '1 week old' : `${weeks} weeks old`} tone="info" />
+      </View>
+      <View style={styles.headerSide}>
+        <Mascot pose="sleeping" size={stacked ? 96 : 112} />
+        <SettingsButton />
+      </View>
+    </View>
+  );
+}
+
+function SettingsButton() {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Settings"
+      onPress={() => router.push('/settings')}
+      style={({ pressed }) => [
+        styles.settings,
+        { backgroundColor: pressed ? theme.border : theme.surface, borderColor: theme.border },
+      ]}>
+      <Icon name="settings" size={24} />
+    </Pressable>
+  );
+}
+
+/** Sticker-style floating button: a primary mic square and the label, bottom right. */
+function ChatButton({ onHeight }: { onHeight: (height: number) => void }) {
+  const theme = useTheme();
+  return (
+    <View
+      pointerEvents="box-none"
+      style={styles.fabWrap}
+      onLayout={(e) => onHeight(Math.ceil(e.nativeEvent.layout.height))}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Chat" onPress={() => router.push('/chat')}>
+        {({ pressed }) => (
+          <Shelf
+            radius={Radius.fab}
+            shelf="text"
+            sunk={pressed}
+            faceStyle={[
+              styles.fab,
+              { backgroundColor: pressed ? theme.surface : theme.card, borderColor: theme.text },
+            ]}>
+            <View style={[styles.fabMic, { backgroundColor: theme.primary }]}>
+              <Icon name="mic" size={28} color="onPrimary" fill="primaryPressed" />
+            </View>
+            <ThemedText type="buttonLarge" style={styles.fabLabel}>
+              Chat
+            </ThemedText>
+          </Shelf>
+        )}
+      </Pressable>
+    </View>
   );
 }
 
@@ -72,8 +165,13 @@ function InviteCard() {
   }
 
   return (
-    <ThemedView type="surface" style={styles.card}>
-      <ThemedText type="smallBold">Invite your partner</ThemedText>
+    <Card>
+      <View style={styles.art} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Illustration name="invitePartner" size={180} />
+      </View>
+      <ThemedText type="cardTitle" accessibilityRole="header">
+        Invite your partner
+      </ThemedText>
       {invite ? (
         <View style={styles.inviteBody}>
           <ThemedText
@@ -111,12 +209,50 @@ function InviteCard() {
         <Button title="Show pairing code" onPress={onCreate} busy={busy} />
       )}
       <ErrorText>{error}</ErrorText>
-    </ThemedView>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
+  fill: { flex: 1 },
+  content: {
+    gap: Spacing.four,
+    paddingTop: Spacing.four,
+    paddingHorizontal: Spacing.four,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+  },
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  headerStacked: { gap: Spacing.two },
+  headerText: { flex: 1, gap: Spacing.two, alignItems: 'flex-start' },
+  headerSide: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'flex-end', gap: Spacing.one },
+  settings: {
+    width: MinTouch,
+    height: MinTouch,
+    borderRadius: Radius.field,
+    borderWidth: Sticker.outline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fabWrap: { position: 'absolute', right: CHAT_FAB.inset + Spacing.two, bottom: CHAT_FAB.inset },
+  fab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderWidth: Sticker.outline,
+    padding: Spacing.two,
+    paddingRight: Spacing.four,
+  },
+  fabMic: {
+    width: MinTouch,
+    height: MinTouch,
+    borderRadius: Radius.field,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fabLabel: { flexShrink: 1 },
+  art: { alignItems: 'center' },
   inviteBody: { gap: Spacing.two },
   code: {
     fontFamily: Fonts.mono,
