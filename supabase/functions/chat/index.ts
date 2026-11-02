@@ -1,7 +1,9 @@
 // Agentic logging and the buddy: text or a voice clip in, a reply and proposals out.
 // POST application/json        { text, thread_id, tz_offset_minutes, tz? }
 // POST multipart/form-data      audio (16 kHz mono PCM16 WAV), thread_id, tz_offset_minutes, tz?
-//   -> { transcript?, caption, escalation, proposals, source: "chat" | "voice", thread_id }
+//   -> { transcript?, caption, escalation, proposals, steps, source: "chat" | "voice", thread_id }
+// steps: what the agent did, as fixed labels built from the tools that ran (agent.ts,
+// STEP_LABELS), never model text; [] on an escalated turn. Apps before v1.1.1 ignore it.
 // No event is saved here: the app shows each proposal as a confirm card and
 // inserts it with the parent's own session (RLS). The baby comes from the
 // session, never from the body or the model.
@@ -25,7 +27,7 @@
 // (_shared/thread-memory.ts). Text, transcripts,
 // audio and tool arguments are never logged.
 
-import { runAgent } from "../_shared/agent.ts";
+import { MAX_STEPS, runAgent } from "../_shared/agent.ts";
 import { buildContext, buildHistory, proposalSummary } from "../_shared/buddy-context.ts";
 import {
   ageInWeeks,
@@ -239,7 +241,9 @@ Deno.serve(async (req) => {
       const replyTo = await storeUserMessage(admin, { threadId, userId: user.id, text, gated: true });
       await storeReply(admin, { threadId, replyTo, caption: null, escalation, summary: null });
       foldMemory();
-      return json(reply({ transcript, caption: null, escalation, proposals: [], source, threadId }));
+      return json(
+        reply({ transcript, caption: null, escalation, proposals: [], steps: [], source, threadId }),
+      );
     }
 
     const result = agent.value;
@@ -261,7 +265,16 @@ Deno.serve(async (req) => {
       summary: proposalSummary(result.proposals, zone),
     });
     foldMemory();
-    return json(reply({ transcript, caption, escalation, proposals: result.proposals, source, threadId }));
+    return json(reply({
+      transcript,
+      caption,
+      escalation,
+      proposals: result.proposals,
+      // An escalated turn shows no model work, only the static card (and any log cards).
+      steps: escalation ? [] : result.steps,
+      source,
+      threadId,
+    }));
   } catch (error) {
     await settle();
     return museFailure(error);
@@ -320,6 +333,7 @@ function reply(input: {
   caption: string | null;
   escalation: Escalation | null;
   proposals: unknown[];
+  steps: string[];
   source: "chat" | "voice";
   threadId: string;
 }) {
@@ -328,6 +342,7 @@ function reply(input: {
     caption: input.caption,
     escalation: input.escalation,
     proposals: input.proposals,
+    steps: input.steps.slice(0, MAX_STEPS),
     source: input.source,
     thread_id: input.threadId,
   };

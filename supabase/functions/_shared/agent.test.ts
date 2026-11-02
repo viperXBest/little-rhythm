@@ -1,14 +1,16 @@
 import { assertEquals } from "jsr:@std/assert@1.0.13";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 
-import type { RecentEventsQuery, SearchHistoryQuery } from "./agent-schemas.ts";
+import { type RecentEventsQuery, type SearchHistoryQuery, TOOL_DEFINITIONS } from "./agent-schemas.ts";
 import {
   type AgentInput,
   type Completion,
   GARBLED_NOTE,
   MAX_ITERATIONS,
+  MAX_STEPS,
   type Message,
   runAgent,
+  STEP_LABELS,
   TRUNCATED_REPLY,
 } from "./agent.ts";
 import {
@@ -769,4 +771,91 @@ Deno.test("max tokens: a truncated reply with no text gets a fixed caption; part
     ),
   );
   assertEquals(partial.caption.length, 1500);
+});
+
+// ---- Visible agent steps (v1.1.1) ----------------------------------------------------------
+
+Deno.test("steps: fixed labels for the tools that ran, in first-run order, deduped", async () => {
+  const model = scripted([
+    { content: null, tool_calls: [call("get_recent_events", { hours: 6 }), call("get_next_windows", {})] },
+    {
+      content: null,
+      tool_calls: [
+        call("log_feed", { kind: "breast", side: "left", minutes: 10, started_at: "2026-10-28T01:00" }),
+        call("log_feed", { kind: "breast", side: "right", minutes: 10, started_at: "2026-10-28T01:15" }),
+        call("log_sleep", { started_at: "2026-10-28T02:00", time_stated: true }),
+        call("get_recent_events", { hours: 2 }),
+      ],
+    },
+    { content: "Proposed both sides and a sleep.", tool_calls: [] },
+  ]);
+  const result = await runAgent(input("both sides at 1, asleep now", model.complete));
+  assertEquals(result.steps, ["Read the log", "Checked Next up", "Proposed a feed", "Proposed a sleep"]);
+});
+
+Deno.test("steps: human labels, never tool names; search, end_sleep and diaper", async () => {
+  const openSleep = { id: "22222222-2222-2222-2222-222222222222", started_at: "2026-10-27T21:00:00Z" };
+  const model = scripted([
+    {
+      content: null,
+      tool_calls: [
+        call("search_chat_history", { query: "bath" }),
+        call("end_sleep", { ended_at: "2026-10-28T01:45", time_stated: true }),
+        call("log_diaper", { wet: true, dirty: false, started_at: "2026-10-28T01:50", time_stated: true }),
+      ],
+    },
+    { content: "Done.", tool_calls: [] },
+  ]);
+  const result = await runAgent(
+    input("she woke up, wet nappy; when was the bath?", model.complete, { openSleep }),
+  );
+  assertEquals(result.steps, ["Searched this chat", "Proposed ending the sleep", "Proposed a diaper change"]);
+  for (const step of result.steps) assertEquals(step.includes("_"), false, step);
+});
+
+Deno.test("steps: tools refused before running and unknown tools add none; a plain reply has none", async () => {
+  const model = scripted([
+    {
+      content: null,
+      tool_calls: [
+        call("get_recent_events", { hours: 99999 }),
+        { id: "bad", type: "function" as const, function: { name: "search_chat_history", arguments: "{" } },
+        call("delete_everything", {}),
+      ],
+    },
+    { content: "I couldn't find that.", tool_calls: [] },
+  ]);
+  assertEquals((await runAgent(input("what happened?", model.complete))).steps, []);
+
+  const failedSearch = scripted([
+    { content: null, tool_calls: [call("search_chat_history", { query: "bath" })] },
+    { content: "Search is unavailable.", tool_calls: [] },
+  ]);
+  const searched = await runAgent(input("when was the bath?", failedSearch.complete, {
+    searchHistory: () => Promise.reject(new Error("down")),
+  }));
+  assertEquals(searched.steps, []);
+
+  const chat = await runAgent(input("hello", scripted([{ content: "Hi!", tool_calls: [] }]).complete));
+  assertEquals(chat.steps, []);
+});
+
+Deno.test("steps: a cut-off reply's calls never run, so they add none; earlier steps stay", async () => {
+  const model = scripted([
+    { content: null, tool_calls: [call("get_next_windows", {})] },
+    {
+      content: null,
+      tool_calls: [call("log_diaper", { wet: true, started_at: "2026-10-28T01:50" })],
+      truncated: true,
+    },
+  ]);
+  const result = await runAgent(input("wet nappy, when's the nap?", model.complete));
+  assertEquals(result.proposals, []);
+  assertEquals(result.steps, ["Checked Next up"]);
+});
+
+Deno.test("steps: one distinct label per offered tool, and the bound covers them all", () => {
+  assertEquals(MAX_STEPS, Object.keys(STEP_LABELS).length);
+  assertEquals(new Set(Object.values(STEP_LABELS)).size, MAX_STEPS);
+  assertEquals(Object.keys(STEP_LABELS).sort(), TOOL_DEFINITIONS.map((t) => t.function.name).sort());
 });

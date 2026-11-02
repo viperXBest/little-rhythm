@@ -34,6 +34,56 @@ export function messageText(
   return { content: content || null, summary: null };
 }
 
+/**
+ * The stored assistant message this phone's latest reply is: the newest assistant
+ * message, when its text is the reply's caption (escalations have none). Its row
+ * shows the agent's steps.
+ */
+export function replyMessageId(messages: readonly Message[], reply: { caption: string | null } | undefined): string | null {
+  if (!reply || reply.caption === null) return null;
+  const last = [...messages].reverse().find((m) => m.role === 'assistant');
+  return last && last.content === reply.caption ? last.id : null;
+}
+
+/** The server stores at most this much of a transcript (chat/index.ts). */
+const MAX_STORED_TEXT = 1000;
+
+/**
+ * The stored message that is this phone's latest voice transcript: the newest
+ * message by this parent, when its text is the transcript. It gets the Muse Voice
+ * Transcribe chip.
+ */
+export function transcriptMessageId(
+  messages: readonly (Message & { author_id: string | null })[],
+  reply: { transcript?: string; source: string } | undefined,
+  userId: string | null,
+): string | null {
+  if (!reply || reply.source !== 'voice' || reply.transcript === undefined || userId === null) return null;
+  const mine = [...messages].reverse().find((m) => m.role === 'user' && m.author_id === userId);
+  return mine && mine.content === reply.transcript.slice(0, MAX_STORED_TEXT) ? mine.id : null;
+}
+
+/** Bounds on the steps the app shows: the server sends at most 7 short labels. */
+export const MAX_STEPS = 8;
+const MAX_STEP_LENGTH = 60;
+
+/** The reply's steps: strings only, trimmed, bounded. Missing (an older server) or malformed → []. */
+export function parseSteps(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((s): s is string => typeof s === 'string')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && s.length <= MAX_STEP_LENGTH)
+    .slice(0, MAX_STEPS);
+}
+
+/** The row under a reply: what it shows and what TalkBack reads. */
+export function stepsLabel(steps: readonly string[]): { text: string; spoken: string } {
+  if (steps.length === 0) return { text: 'Answered by Muse Spark', spoken: 'Answered by Muse Spark' };
+  const count = steps.length === 1 ? '1 step' : `${steps.length} steps`;
+  return { text: `Muse Spark · ${count}`, spoken: `Muse Spark, ${count}: ${steps.join(', ')}` };
+}
+
 /** Whether a card still shows the assumed-time note after the parent edits `fields`. */
 export function stillTimeAssumed(
   assumed: boolean,

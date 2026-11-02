@@ -9,6 +9,7 @@ import {
   type EventSource,
   type FeedDetails,
 } from '@/lib/events';
+import { parseSteps } from '@/lib/chat-display';
 import { supabase } from '@/lib/supabase';
 import { languageTag, timeZoneName, tzOffsetMinutes } from '@/lib/time-zone';
 
@@ -64,6 +65,8 @@ export type ChatReply = {
   caption: string | null;
   escalation: Escalation | null;
   proposals: Proposal[];
+  /** What the agent did, as fixed labels from the server (never model text). [] from older servers. */
+  steps: string[];
   source: ChatSource;
   threadId: string;
 };
@@ -138,6 +141,8 @@ function parseReply(data: unknown): ChatReply | null {
     caption: escalation ? null : body.caption,
     escalation,
     proposals,
+    // An escalated turn shows no model work.
+    steps: escalation ? [] : parseSteps(body.steps),
     source: body.source,
     threadId: body.thread_id,
   };

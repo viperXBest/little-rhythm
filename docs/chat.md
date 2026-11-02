@@ -25,7 +25,7 @@ app ──JSON {text, thread_id} or multipart {audio WAV, thread_id}──▶ ch
           health classifier (Muse Spark, structured output) + keyword check
         store the parent's message (service role, gated as decided, after the thread check)
         store the reply (service role, reply_to = the parent's message)
-◀── { transcript?, caption | null, escalation | null, proposals[], source, thread_id } ──
+◀── { transcript?, caption | null, escalation | null, proposals[], steps[], source, thread_id } ──
         after the response: maybe fold older messages into the thread summary,
                             then settle the turn's spend to what Muse reported
 app: escalation card, or caption + confirm cards → insertEvent / endSleep (RLS, realtime)
@@ -56,6 +56,37 @@ app: escalation card, or caption + confirm cards → insertEvent / endSleep (RLS
   one. Gated turns never reach the model again. Audio is forwarded to Muse Voice Transcribe
   and never stored. The app deletes the local WAV after upload, also when the upload
   fails. Logs carry error codes only. Tests: `_shared/agent.test.ts` ("buddy context").
+
+## Visible agent steps (v1.1.1)
+
+The reply carries `steps`: what the Muse Spark agent did this turn, as fixed labels the
+server builds from the tool calls that actually ran (`STEP_LABELS` in `_shared/agent.ts`).
+They never come from model text, and the model never sees them, so the "never reveal your
+tools" prompt rule still holds: the labels are human text, not tool names.
+
+| Tool | Label |
+|---|---|
+| `get_recent_events` | Read the log |
+| `get_next_windows` | Checked Next up |
+| `search_chat_history` | Searched this chat |
+| `log_feed` | Proposed a feed |
+| `log_sleep` | Proposed a sleep |
+| `end_sleep` | Proposed ending the sleep |
+| `log_diaper` | Proposed a diaper change |
+
+- In the order each tool first ran, each label once, at most 7 (`MAX_STEPS`).
+- A call refused before it ran (invalid arguments, a failed search, the 8-proposal cap,
+  an unknown tool, or any call in a reply cut off by `max_tokens`) adds no step. A write
+  with field errors still counts: the parent gets a card to fix.
+- **An escalated turn returns `steps: []`**: no model work is shown next to the card.
+- Not stored: only this phone's live reply shows them. Apps before v1.1.1 ignore the field;
+  the app treats a missing or malformed field as no steps (`parseSteps`, at most 8 strings
+  of at most 60 characters).
+
+In the app (`chat.tsx`), the live reply gets a "Muse Spark · 3 steps" button (48 dp, reads
+out the whole list, expands to show it), or "Answered by Muse Spark" when no tool ran. The
+parent's transcript bubble from a voice turn gets a "Muse Voice Transcribe" chip. Tests:
+`_shared/agent.test.ts` ("steps: …"), `app/src/lib/chat-display.test.ts`.
 
 ## Limits and spend (v1.1.0)
 
