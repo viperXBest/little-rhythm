@@ -2,7 +2,7 @@ import { Linking, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 // Shown instead of any model text when a turn is about health. The wording is
@@ -35,21 +35,21 @@ export function EscalationCard({ urgent }: { urgent: boolean }) {
         },
       ]}>
       <View style={styles.title}>
-        <ThemedText type="smallBold" accessibilityElementsHidden importantForAccessibility="no" style={{ color: theme.errorText }}>
+        <ThemedText type="defaultBold" accessibilityElementsHidden importantForAccessibility="no" style={{ color: theme.errorText }}>
           ⚠
         </ThemedText>
-        <ThemedText type="smallBold" style={[styles.titleText, { color: urgent ? theme.errorText : theme.text }]}>
+        <ThemedText type="defaultBold" style={[styles.titleText, { color: urgent ? theme.errorText : theme.text }]}>
           {text.title}
         </ThemedText>
       </View>
-      <ThemedText type="small">{text.body}</ThemedText>
+      <ThemedText type="default">{text.body}</ThemedText>
       {urgent ? <Button title="Call 112" variant="danger" onPress={() => void Linking.openURL('tel:112')} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 16, padding: Spacing.three, gap: Spacing.two },
+  card: { borderRadius: Radius.field, padding: Spacing.three, gap: Spacing.two },
   title: { flexDirection: 'row', gap: Spacing.two },
   titleText: { flex: 1 },
 });
