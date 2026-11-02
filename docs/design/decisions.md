@@ -76,3 +76,45 @@ short, the last group gets the new tokens and fonts only.
 ## Log
 
 Later decisions go below, newest last.
+
+### Nov 2: foundation (design system, `docs/design/system.md`)
+
+- **Dark-glare tokens:** `primaryTint`, `primaryTintPressed`, `primaryTintBorder`, `onPrimaryTint`,
+  `primaryTintIcon`. In light they equal `primary` / `primaryPressed` / `onPrimary`; in dark `#2E2C5C`,
+  `#3A3872`, `#A9A2F5`, `#E7E5F7`, `#A9A2F5`. Used by quick-log buttons and the parent's chat bubbles
+  (`Button variant="tint"`). Full lavender fill stays for Confirm and the active segment only.
+- **`shelf` token** (`#D5D1EC` / `#11122A`). The sticker shelf is an offset backing view, not Android
+  `elevation` (which can only blur). Pressed buttons sink 4 px onto their shelf.
+- **Danger buttons are flat** (no shelf), so "Call 112" never looks playful.
+- **Bundled weights:** Baloo 2 600/700/800, Nunito 400/600/700/800 (`@expo-google-fonts/*` subpath
+  imports, loaded with `useFonts` behind the splash; on a load error the app falls back to the system
+  font). Licences: `app/assets/fonts/LICENSES.md`.
+- **Type:** body 17/25; small 15 (labels only). No text relies on the large-text contrast threshold.
+- **Escalation card:** type moved from small to default/defaultBold (17 px) and radius from 16 to 14;
+  fill, border, ⚠, flat red "Call 112" and text unchanged.
+- **ESLint** bans `SvgUri`, `SvgCssUri`, `SvgFromUri`, `LocalSvg`, `SvgCss`, `WithLocalSvg`,
+  `react-native-svg/css` and `href`/`xlinkHref` values starting with `http(s):` or `//`.
+
+### Nov 2: illustrations and native assets (`docs/design/illustrations.md`)
+
+- Components: `Mascot` (poses `sleeping`, `awake`, `waiting`, `cosy`), `Illustration` (`emptyTimeline`,
+  `emptyChat`, `checkinWaiting`, `invitePartner`, `error` — calm, no mascot) and `Icon` (25 duotone icons).
+  All geometry is in `art-data.ts`, shared by the app and the Deno contact-sheet script, so the sheet shows
+  exactly what ships.
+- The escalation `warning` icon is a plain `error` outline with no duotone fill.
+- The settings icon is two sliders, not a gear (a gear doesn't read at 20 dp). The wake icon uses `sleep`.
+- **Native:** splash background, adaptive-icon background and notification colour are `primary`
+  `#5146B8`. The app icon is Fluff with a `primaryPressed` drop shadow. `scripts/assets/render.ts`
+  (headless Chrome) renders every PNG from the masters in `app/assets/source/` and replaces
+  `notification-icon.ts`; it fails if the notification or monochrome icon has any non-white pixel.
+- The notification icon (Fluff's silhouette) reads mostly as a cloud at 24 dp: check it in a real status
+  bar on the release APK.
+
+### Nov 2: home and settings (orchestrator)
+
+- **Sign out and Delete account leave home** for a new Settings screen, opened from a gear button in the
+  home header. Same buttons, same behaviour, one tap further away from daily actions.
+- **Chat entry:** a floating "Chat" button with the mic icon, bottom right of home, per the mockup; the
+  home scroll's bottom padding equals its height plus spacing.
+- **Screen builders preview chat on hosted** with at most 6 messages in the demo's private thread, cancel
+  every confirm card, and the demo family is re-seeded afterwards so the recording starts clean.
