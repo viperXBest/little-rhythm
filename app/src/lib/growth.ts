@@ -1,5 +1,5 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
 import type { Tables } from '@/lib/database.types';
@@ -13,15 +13,32 @@ export type GrowthPatch = Partial<Pick<GrowthRow, 'value' | 'measured_on'>>;
 
 type Rows = ReadonlyMap<string, GrowthRow>;
 
+/**
+ * 'rejected': the database refused the value or the date (a typo guard or the date limits), so a retry
+ * won't help. 'failed': anything else (offline, the row is gone).
+ */
+export type GrowthWriteError = 'rejected' | 'failed';
+
+/** How long a row this phone added survives a refresh that doesn't list it yet. */
+const RECENT_ADD_MS = 10_000;
+
+// Realtime keeps a channel that is still leaving under its topic: every subscription gets its own topic.
+let channelSeq = 0;
+
+/** Check violation (23514) and RLS refusal (42501) mean the database said no to this value or date. */
+function writeError(error: { code?: string }): GrowthWriteError {
+  return error.code === '23514' || error.code === '42501' ? 'rejected' : 'failed';
+}
+
 export type Growth = {
   rows: GrowthRow[];
   status: 'loading' | 'ready' | 'error';
   find: (id: string) => GrowthRow | undefined;
   refresh: () => Promise<void>;
   /** The server assigns the id and the author, so the row appears once it is saved. */
-  add: (input: { kind: GrowthKind; value: number; measuredOn: string }) => Promise<'failed' | null>;
-  update: (id: string, patch: GrowthPatch) => Promise<'failed' | null>;
-  remove: (id: string) => Promise<'failed' | null>;
+  add: (input: { kind: GrowthKind; value: number; measuredOn: string }) => Promise<GrowthWriteError | null>;
+  update: (id: string, patch: GrowthPatch) => Promise<GrowthWriteError | null>;
+  remove: (id: string) => Promise<GrowthWriteError | null>;
 };
 
 function withRow(rows: Rows, row: GrowthRow): Rows {
@@ -56,13 +73,24 @@ async function fetchGrowth(babyId: string): Promise<GrowthRow[] | null> {
 export function useGrowth(babyId: string): Growth {
   const [rows, setRows] = useState<Rows>(new Map());
   const [status, setStatus] = useState<Growth['status']>('loading');
+  // Rows this phone added a moment ago: a refresh that started before the insert must not drop them.
+  const recentAdds = useRef(new Map<string, { row: GrowthRow; at: number }>());
 
   const apply = useCallback((fromServer: GrowthRow[] | null) => {
     if (!fromServer) {
       setStatus((prev) => (prev === 'ready' ? prev : 'error'));
       return;
     }
-    setRows(new Map(fromServer.map((row) => [row.id, row])));
+    const now = Date.now();
+    setRows((prev) => {
+      const next = new Map(fromServer.map((row) => [row.id, row]));
+      for (const [id, { row, at }] of recentAdds.current) {
+        if (now - at > RECENT_ADD_MS) recentAdds.current.delete(id);
+        // Still held here (not deleted since) and not listed yet: keep it.
+        else if (!next.has(id) && prev.has(id)) next.set(id, row);
+      }
+      return next;
+    });
     setStatus('ready');
   }, []);
 
@@ -79,7 +107,7 @@ export function useGrowth(babyId: string): Growth {
       if (cancelled) return;
       const filter = `baby_id=eq.${babyId}`;
       channel = supabase
-        .channel(`growth:${babyId}`)
+        .channel(`growth:${babyId}:${++channelSeq}`)
         .on<GrowthRow>(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'growth_measurements', filter },
@@ -132,7 +160,9 @@ export function useGrowth(babyId: string): Growth {
         .insert({ baby_id: babyId, kind: input.kind, value: input.value, measured_on: input.measuredOn })
         .select('*')
         .single();
-      if (error || !data) return 'failed' as const;
+      if (error) return writeError(error);
+      if (!data) return 'failed' as const;
+      recentAdds.current.set(data.id, { row: data, at: Date.now() });
       setRows((prev) => withRow(prev, data));
       return null;
     },
@@ -148,10 +178,11 @@ export function useGrowth(babyId: string): Growth {
       if (patch.value !== undefined) body.value = patch.value;
       if (patch.measured_on !== undefined) body.measured_on = patch.measured_on;
       setRows((prev) => withRow(prev, { ...before, ...body }));
-      const { error } = await supabase.from('growth_measurements').update(body).eq('id', id);
-      if (error) {
+      // select('id') shows whether a row changed: none means it was deleted meanwhile (or not ours).
+      const { data, error } = await supabase.from('growth_measurements').update(body).eq('id', id).select('id');
+      if (error || !data || data.length === 0) {
         setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
-        return 'failed' as const;
+        return error ? writeError(error) : ('failed' as const);
       }
       return null;
     },
@@ -166,7 +197,7 @@ export function useGrowth(babyId: string): Growth {
       const { error } = await supabase.from('growth_measurements').delete().eq('id', id);
       if (error) {
         setRows((prev) => withRow(prev, before));
-        return 'failed' as const;
+        return writeError(error);
       }
       return null;
     },

@@ -210,11 +210,11 @@ select throws_ok(
 -- ---- Dates: from the birth date to tomorrow ----------------------------------------
 select throws_ok(
   $$insert into public.growth_measurements (baby_id, kind, value, measured_on) values
-    ('aaaaaaaa-b000-0000-0000-000000000000', 'weight', 4400, current_date + 2)$$,
+    ('aaaaaaaa-b000-0000-0000-000000000000', 'weight', 4400, (now() at time zone 'utc')::date + 2)$$,
   '42501', null, 'a date two days ahead is rejected');
 select lives_ok(
   $$insert into public.growth_measurements (baby_id, kind, value, measured_on) values
-    ('aaaaaaaa-b000-0000-0000-000000000000', 'weight', 4400, current_date + 1)$$,
+    ('aaaaaaaa-b000-0000-0000-000000000000', 'weight', 4400, (now() at time zone 'utc')::date + 1)$$,
   'tomorrow is accepted (time-zone slack)');
 select throws_ok(
   $$insert into public.growth_measurements (baby_id, kind, value, measured_on) values
@@ -225,7 +225,7 @@ select lives_ok(
     ('aaaaaaaa-b000-0000-0000-000000000000', 'weight', 3300, current_date - 60)$$,
   'the birth date itself is accepted');
 select throws_ok(
-  $$update public.growth_measurements set measured_on = current_date + 2
+  $$update public.growth_measurements set measured_on = (now() at time zone 'utc')::date + 2
     where id = 'aaaaaaaa-9000-0000-0000-000000000001'$$,
   '42501', null, 'an update cannot move the date into the future');
 select throws_ok(

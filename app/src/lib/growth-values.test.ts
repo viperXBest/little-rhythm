@@ -18,15 +18,16 @@ import {
   type ChartBox,
 } from './growth-values.ts';
 
-const NBSP = ' ';
+const NBSP = '\u00A0';
 
-Deno.test('weight shows kg with up to two decimals, trailing zeros dropped', () => {
+Deno.test('weight shows kg with up to three decimals (grams), trailing zeros dropped', () => {
   assertEquals(formatValue('weight', 4250), '4.25');
   assertEquals(formatValue('weight', 4200), '4.2');
   assertEquals(formatValue('weight', 4000), '4');
   assertEquals(formatValue('weight', 300), '0.3');
   assertEquals(formatValue('weight', 30000), '30');
-  assertEquals(formatValue('weight', 4005), '4.01'); // 4005 g rounds to the 10 g step shown
+  assertEquals(formatValue('weight', 4005), '4.005');
+  assertEquals(formatValue('weight', 3455), '3.455');
   assertEquals(formatWithUnit('weight', 4250), `4.25${NBSP}kg`);
 });
 
@@ -43,11 +44,25 @@ Deno.test('input in kg or cm becomes grams or millimetres, with a dot or a comma
   assertEquals(parseValue('weight', '4,25'), { ok: true, value: 4250 });
   assertEquals(parseValue('weight', ' 4 '), { ok: true, value: 4000 });
   assertEquals(parseValue('weight', '4.2'), { ok: true, value: 4200 });
+  assertEquals(parseValue('weight', '3.455'), { ok: true, value: 3455 });
+  assertEquals(parseValue('weight', '3,455'), { ok: true, value: 3455 });
   assertEquals(parseValue('weight', '.5'), { ok: true, value: 500 });
   assertEquals(parseValue('weight', '4.'), { ok: true, value: 4000 });
   assertEquals(parseValue('length', '54.5'), { ok: true, value: 545 });
   assertEquals(parseValue('length', '54'), { ok: true, value: 540 });
   assertEquals(parseValue('head', '36,5'), { ok: true, value: 365 });
+});
+
+Deno.test('what is shown can be typed back: format then parse gives the stored value', () => {
+  for (const stored of [300, 305, 3455, 4000, 4255, 4350, 29999, 30000]) {
+    assertEquals(parseValue('weight', formatValue('weight', stored)), { ok: true, value: stored });
+  }
+  for (const stored of [200, 201, 540, 543, 1200]) {
+    assertEquals(parseValue('length', formatValue('length', stored)), { ok: true, value: stored });
+  }
+  for (const stored of [150, 365, 600]) {
+    assertEquals(parseValue('head', formatValue('head', stored)), { ok: true, value: stored });
+  }
 });
 
 Deno.test('parsing is integer arithmetic: 4.35 kg is exactly 4350 g', () => {
@@ -62,8 +77,8 @@ Deno.test('input that is not a number, or has too many decimals, gets a message'
     const result = parseValue('weight', text);
     assert(!result.ok, `"${text}" is refused`);
   }
-  const tooMany = parseValue('weight', '4.255');
-  assertEquals(tooMany, { ok: false, message: 'Use at most 2 decimals.' });
+  const tooMany = parseValue('weight', '4.2555');
+  assertEquals(tooMany, { ok: false, message: 'Use at most 3 decimals.' });
   assertEquals(parseValue('length', '54.55'), { ok: false, message: 'Use at most 1 decimal.' });
   assertEquals(parseValue('head', 'x'), { ok: false, message: 'Enter a number, like 36.5.' });
 });
@@ -100,7 +115,7 @@ Deno.test('the typo guards match the database bounds, in the unit shown', () => 
 Deno.test('no message talks about the numbers being good or bad', () => {
   const banned = /healthy|normal|on track|low|high|average|percentile/i;
   const messages = [
-    ...['', 'abc', '4.255', '0.1', '99'].map((text) => parseValue('weight', text)),
+    ...['', 'abc', '4.2555', '0.1', '99'].map((text) => parseValue('weight', text)),
     ...['', 'abc', '54.55', '1', '999'].map((text) => parseValue('length', text)),
     ...['', 'abc', '36.55', '1', '999'].map((text) => parseValue('head', text)),
   ].flatMap((result) => (result.ok ? [] : [result.message]));
@@ -164,22 +179,39 @@ Deno.test('the list is one kind, newest first; the same day goes by when it was 
 });
 
 Deno.test('the vertical range is a round step around the data; one value sits in the middle', () => {
-  assertEquals(yDomain([3400, 5100]), { min: 3000, max: 5500 });
-  assertEquals(yDomain([540, 573]), { min: 540, max: 580 });
-  assertEquals(yDomain([4000]), { min: 3800, max: 4200 });
-  assertEquals(yDomain([540]), { min: 490, max: 590 });
-  const single = yDomain([4000]);
-  assert(single.min < 4000 && single.max > 4000);
-  assertEquals((single.min + single.max) / 2, 4000);
-  const same = yDomain([365, 365]);
-  assertEquals((same.min + same.max) / 2, 365);
+  assertEquals(yDomain('weight', [3400, 5100]), { min: 3000, max: 5500 });
+  assertEquals(yDomain('length', [540, 573]), { min: 540, max: 580 });
+  assertEquals(yDomain('weight', [4000]), { min: 3600, max: 4400 });
+  assertEquals(yDomain('length', [540]), { min: 530, max: 550 });
+  assertEquals(yDomain('head', [365, 365]), { min: 360, max: 370 });
+});
+
+Deno.test('a tiny change is not stretched over the whole height: a minimum span per kind', () => {
+  // 10 g apart must not look like a big change: the range is at least 500 g.
+  const weight = yDomain('weight', [4190, 4200]);
+  assert(weight.max - weight.min >= 500, JSON.stringify(weight));
+  assert(weight.min <= 4190 && weight.max >= 4200);
+  const length = yDomain('length', [540, 541]);
+  assert(length.max - length.min >= 20, JSON.stringify(length));
+  assert(length.min <= 540 && length.max >= 541);
+  const head = yDomain('head', [365, 366]);
+  assert(head.max - head.min >= 10, JSON.stringify(head));
+  assert(head.min <= 365 && head.max >= 366);
+  // Data that already spans more keeps its own range.
+  assertEquals(yDomain('weight', [3000, 6000]), { min: 3000, max: 6000 });
+});
+
+Deno.test('the vertical range never goes below zero, and keeps its span', () => {
+  const domain = yDomain('weight', [100]);
+  assertEquals(domain.min, 0);
+  assert(domain.max - domain.min >= 500, JSON.stringify(domain));
 });
 
 const box: ChartBox = { width: 300, height: 180, left: 12, right: 12, top: 12, bottom: 12 };
 
 Deno.test('chart layout: time along x, value along y, inside the box', () => {
   const points = chartPoints(rows, 'weight');
-  const layout = layoutChart(points, box);
+  const layout = layoutChart('weight', points, box);
   assertEquals(layout.dots.length, 3);
   // First and last points sit at the left and right edges of the plot.
   assertEquals(layout.dots[0].x, 12);
@@ -198,7 +230,7 @@ Deno.test('chart layout: time along x, value along y, inside the box', () => {
 });
 
 Deno.test('chart layout: a single point is centred and has no line', () => {
-  const layout = layoutChart(chartPoints(rows, 'length'), box);
+  const layout = layoutChart('length', chartPoints(rows, 'length'), box);
   assertEquals(layout.dots.length, 1);
   assertEquals(layout.dots[0].x, 150);
   assertEquals(layout.dots[0].y, (12 + 168) / 2);
@@ -210,7 +242,7 @@ Deno.test('chart layout: two measurements on one day stack at the same x', () =>
     { id: '1', kind: 'head', value: 360, measured_on: '2026-10-01', created_at: '2026-10-01T08:00:00Z' },
     { id: '2', kind: 'head', value: 362, measured_on: '2026-10-01', created_at: '2026-10-01T09:00:00Z' },
   ];
-  const layout = layoutChart(chartPoints(sameDay, 'head'), box);
+  const layout = layoutChart('head', chartPoints(sameDay, 'head'), box);
   assertEquals(layout.dots.map((d) => d.x), [150, 150]);
 });
 
