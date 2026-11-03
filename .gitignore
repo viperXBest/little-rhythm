@@ -24,3 +24,6 @@ scripts/safety/out/
 
 # Independent review and hosted-log audit: output and the local token file (never committed)
 scripts/review/out/
+
+# Local judge reviews (not published)
+docs/judge-2026-11-02/
