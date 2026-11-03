@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, ToastAndroid, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { Segmented, Stepper } from '@/components/controls';
@@ -11,13 +11,15 @@ import { ErrorState, Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { birthDayStart, type EntryDraft } from '@/lib/entry-time';
+import { birthDayStart, savedForText, type EntryDraft } from '@/lib/entry-time';
 import {
   checkEntry,
   MINUTES_RANGE,
   ML_RANGE,
+  overlapsDay,
   parseDiaper,
   parseFeed,
+  startOfToday,
   type BreastSide,
   type EventPatch,
   type EventRow,
@@ -134,6 +136,10 @@ function EditForm({ row }: { row: EventRow }) {
           : 'Could not save. Check your connection and try again.',
       );
       return;
+    }
+    // Home lists today only: say so when the event moved to another day (TalkBack announces a toast).
+    if (!overlapsDay({ ...row, ...patch }, startOfToday())) {
+      ToastAndroid.show(savedForText(startedAt), ToastAndroid.SHORT);
     }
     router.back();
   }
