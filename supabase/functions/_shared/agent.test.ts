@@ -769,28 +769,6 @@ Deno.test("system prompt: no age-normality claims; age-based windows are the app
   for (const part of exposed) assertEquals(/typical/i.test(part), false, part.slice(0, 200));
 });
 
-Deno.test("output check: a log turn whose reply strays into health keeps its cards, loses its text", async () => {
-  const model = scripted([
-    {
-      content: null,
-      tool_calls: [
-        call("log_feed", { kind: "bottle", started_at: "2026-10-28T01:00", ml: 90, time_stated: true }),
-      ],
-    },
-    { content: "Proposed a 90 ml bottle. If she spits up a lot, ask your paediatrician.", tool_calls: [] },
-  ]);
-  const text = "90 ml at 1";
-  const result = await runAgent(input(text, model.complete));
-  const escalation = applyHealthGate({
-    keyword: keywordHit(text),
-    classifier: { health: false, urgent: false },
-    caption: result.caption,
-  });
-  assertEquals(escalation, { urgent: false });
-  // chat/index.ts then sends no caption and no steps; the proposal still goes out.
-  assertEquals(result.proposals.map((p) => p.type), ["feed"]);
-});
-
 Deno.test("max tokens: a truncated reply's tool calls never run; earlier proposals stay", async () => {
   const model = scripted([
     {

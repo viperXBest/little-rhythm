@@ -222,8 +222,8 @@ The result is saved next to the report as `<run>.replies.json`.
 - **The gate's keyword list can't be reused on replies as-is.** It flagged 5 replies,
   and 4 were false: "breathing room", "deep breaths", a dragon story that "breathed
   light", a bedtime routine tip. The fifth, a packing list with "your usual medicines"
-  and a thermometer, is fair. The planned v1.1.1 output check uses a narrower list for that
-  reason.
+  and a thermometer, is fair. An output keyword check with a narrower list was tried
+  in v1.1.1 and moved to the roadmap (see run D below).
 - **First grading pass:** it marked 6 log confirmations ("I proposed the 90 ml bottle")
   as feeding advice. The rubric now says restating the parent's own numbers is fine.
   Only the second pass is reported.

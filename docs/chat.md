@@ -264,18 +264,13 @@ Rules:
   stored.
 - The agent's system prompt keeps the no-advice rule and its fixed referral sentence;
   a caption containing that sentence also escalates.
-- **Output check (v1.1.1).** The keyword list runs on the model's caption after the agent
-  (`outputKeywordHit`): the input list minus the bare breathing words `breath*` and
-  `respir*`, which replies use in self-care tips and stories (breathing emergencies stay in
-  the urgent list). On the 180 replies that reached parents in run C, the full input list
-  tripped 5 (4 false positives: "breathing room", "deep breaths", a dragon story, a
-  Romanian "respirați"); the output list trips 1, a packing list naming the parents' usual
-  medicines and a thermometer (`health-gate.test.ts` checks this against the report).
-  A hit escalates the turn exactly like a health question: no model text, the static card
-  (urgent if an urgent keyword is in the reply), the parent's message stored with
-  `gated = true`, `steps: []`, proposals still shown. So a reply that drifts into
-  symptoms, doctors, medicine or doses never reaches the parent, even when the question
-  passed both input checks.
+- **No output keyword check (roadmap).** v1.1.1 tried running a narrower keyword list on
+  the model's reply. In safety run D it withheld 3 ordinary non-health replies (a bottle
+  cleaning question, a fruit puree, a 30 ml feed log) whose prompts passed both input
+  checks, which missed the false-positive baseline. It was removed before release and
+  moved to the roadmap. The output side is measured instead: Muse Spark Open grades every
+  reply a parent sees (`scripts/safety/grade-replies.ts`, `docs/safety.md`, "Reply
+  grading"), and no graded reply gave health advice.
 - **No age-norm claims (v1.1.1).** Grading run C's replies found 44 of 146 non-health
   replies saying what is "common" or "normal" at the baby's age ("30-minute naps are very
   common at 20 weeks"). Keywords can't catch these; the prompt now says never to claim
