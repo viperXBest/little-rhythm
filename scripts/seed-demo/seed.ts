@@ -14,6 +14,13 @@
 //
 // Reset deletes only families whose every member is a demo account. If a demo
 // account shares a family with anyone else, nothing is changed.
+// What a re-seed clears: the old family and, by cascade, its chat threads,
+// messages, thread memory, check-ins, invites and per-family usage counters, so
+// the demo chats start empty; and the two parents' api_usage rows (rate limits
+// and the daily chat count). What it keeps: the two accounts (updated, never
+// recreated, so the ids and auth created_at stay and the 10-turn new-account
+// cap can't apply to them) and the global spend row (usage_counters, scope
+// 'global'). Only the very first seed of a fresh project creates the accounts.
 // Prints names, counts and times only: never keys, passwords, emails or tokens.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.49.4";
 

@@ -1,5 +1,7 @@
 // seedDemo against the local stack: two runs give the same state, another
-// family is untouched, and a demo family with an outside member is refused.
+// family is untouched, a re-seed clears the demo chats and budget rows (and keeps
+// the accounts and the global spend row), and a demo family with an outside
+// member is refused.
 // Uses a fixed clock inside the valid range, so it passes at any hour.
 // Run: supabase start, then (env from `supabase status -o env`):
 //   SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... \
@@ -139,6 +141,120 @@ async function otherFamily() {
   return { user, familyId, state };
 }
 
+/** The demo parents' auth ids and creation times (the new-account chat cap reads created_at). */
+async function authUsers(acc: Accounts) {
+  const found: Partial<Record<"parent1" | "parent2", { id: string; created_at: string }>> = {};
+  for (let page = 1;; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    for (const u of data.users) {
+      if (u.email === acc.parent1.email) found.parent1 = { id: u.id, created_at: u.created_at };
+      if (u.email === acc.parent2.email) found.parent2 = { id: u.id, created_at: u.created_at };
+    }
+    if (data.users.length < 1000) break;
+  }
+  assert(found.parent1 && found.parent2, "both demo users exist");
+  return { parent1: found.parent1, parent2: found.parent2 };
+}
+
+const DAY_MS = 86_400_000;
+const HOUR_MS = 3_600_000;
+
+/**
+ * Chats, memory and budget rows for a family, shaped like the chat function leaves them: a shared
+ * thread and one private thread per parent, each with a turn, a reply, a gated turn and its
+ * escalation, plus a summary; the family's daily turn counter and each parent's rate-limit rows.
+ */
+async function addChatState(familyId: string, parents: string[]) {
+  const dayStart = new Date(Math.floor(Date.now() / DAY_MS) * DAY_MS).toISOString();
+  const hourStart = new Date(Math.floor(Date.now() / HOUR_MS) * HOUR_MS).toISOString();
+  const threadIds: string[] = [];
+  for (const owner_id of [null, ...parents]) {
+    const [thread] = await rows(
+      admin.from("chat_threads").insert({ family_id: familyId, owner_id }).select("id"),
+    );
+    threadIds.push(thread.id);
+    const thread_id = thread.id as string;
+    const author_id = owner_id ?? parents[0];
+    const [turn] = await rows(
+      admin.from("chat_messages").insert({ thread_id, role: "user", content: "test turn", author_id })
+        .select("id"),
+    );
+    await rows(
+      admin.from("chat_messages").insert({
+        thread_id,
+        role: "assistant",
+        content: "test reply",
+        reply_to: turn.id,
+      }).select("id"),
+    );
+    const [gated] = await rows(
+      admin.from("chat_messages").insert({
+        thread_id,
+        role: "user",
+        content: "test gated turn",
+        author_id,
+        gated: true,
+      }).select("id"),
+    );
+    await rows(
+      admin.from("chat_messages").insert({
+        thread_id,
+        role: "assistant",
+        content: null,
+        escalation: "health",
+        reply_to: gated.id,
+      }).select("id"),
+    );
+    await rows(
+      admin.from("thread_memory").insert({
+        thread_id,
+        summary: "test summary",
+        covered_until: new Date().toISOString(),
+      }).select(),
+    );
+  }
+  await rows(
+    admin.from("usage_counters").insert({
+      scope: "family",
+      family_id: familyId,
+      function: "chat",
+      window_start: dayStart,
+      count: 7,
+    }).select(),
+  );
+  await rows(
+    admin.from("api_usage").insert(parents.flatMap((user_id) => [
+      { user_id, function: "chat", window_start: hourStart, count: 3 },
+      { user_id, function: "chat_day", window_start: dayStart, count: 9 },
+      { user_id, function: "predict", window_start: hourStart, count: 2 },
+    ])).select(),
+  );
+  return { familyId, threadIds, userIds: parents };
+}
+
+/** What exists of a family's chats, memory and budget rows (each list is empty once cleared). */
+async function chatState(s: { familyId: string; threadIds: string[]; userIds: string[] }) {
+  return {
+    threads: await rows(admin.from("chat_threads").select("id, owner_id").in("id", s.threadIds).order("id")),
+    messages: await rows(
+      admin.from("chat_messages").select("id, thread_id, role, content, escalation, gated")
+        .in("thread_id", s.threadIds).order("id"),
+    ),
+    memory: await rows(
+      admin.from("thread_memory").select("thread_id, summary, covered_until").in("thread_id", s.threadIds)
+        .order("thread_id"),
+    ),
+    familyCounters: await rows(
+      admin.from("usage_counters").select("function, window_start, count").eq("family_id", s.familyId),
+    ),
+    userUsage: await rows(
+      admin.from("api_usage").select("user_id, function, window_start, count").in("user_id", s.userIds)
+        .order("user_id").order("function"),
+    ),
+  };
+}
+
 async function cleanup(acc: Accounts, extraUsers: string[], extraFamilies: string[]) {
   const ids = [
     ...await Promise.all([acc.parent1.email, acc.parent2.email].map((e) => userId(e).catch(() => null))),
@@ -203,6 +319,94 @@ Deno.test({
       const signIn = await anon.auth.signInWithPassword(acc.parent2);
       assertEquals(signIn.error, null);
     } finally {
+      await cleanup(acc, [other.user], [other.familyId]);
+    }
+  },
+});
+
+Deno.test({
+  name: "a re-seed clears the demo chats, memory and budget rows; accounts and the global breaker stay",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const acc = accounts();
+    const other = await otherFamily();
+    // A global row of its own, so the test never touches the stack's real 'chat_spend' breaker row.
+    const globalFn = `seed_test_${crypto.randomUUID().slice(0, 8)}`;
+    const globalRow = {
+      scope: "global",
+      family_id: null,
+      function: globalFn,
+      window_start: new Date(Math.floor(Date.now() / DAY_MS) * DAY_MS).toISOString(),
+      count: 4_500_000,
+    };
+    const readGlobal = () =>
+      rows(
+        admin.from("usage_counters").select("scope, family_id, function, window_start, count").eq(
+          "function",
+          globalFn,
+        ),
+      );
+    try {
+      await seedDemo({ admin, accounts: acc, now: NOW });
+      const accountsBefore = await authUsers(acc);
+      const old = await snapshot(acc);
+
+      const demo = await addChatState(old.familyId, [accountsBefore.parent1.id, accountsBefore.parent2.id]);
+      const outside = await addChatState(other.familyId, [other.user]);
+      await rows(admin.from("usage_counters").insert(globalRow).select());
+
+      // The setup took: 3 threads with 4 messages and a summary each, a family counter, 3 rows a parent.
+      const filled = await chatState(demo);
+      assertEquals(
+        [
+          filled.threads.length,
+          filled.messages.length,
+          filled.memory.length,
+          filled.familyCounters.length,
+          filled.userUsage.length,
+        ],
+        [3, 12, 3, 1, 6],
+      );
+      const outsideBefore = await chatState(outside);
+      const familyBefore = await other.state();
+      const globalBefore = await readGlobal();
+      assertEquals(globalBefore.length, 1);
+
+      const second = await seedDemo({ admin, accounts: acc, now: NOW });
+      assertEquals(second.resetFamilies, 1);
+
+      // Everything chat-related of the demo family and the demo parents is gone ...
+      assertEquals(await chatState(demo), {
+        threads: [],
+        messages: [],
+        memory: [],
+        familyCounters: [],
+        userUsage: [],
+      });
+      // ... and the new family starts with no threads and no counters.
+      const fresh = await snapshot(acc);
+      assert(fresh.familyId !== old.familyId, "the family is recreated");
+      assertEquals(fresh.state.threads, 0);
+      assertEquals(
+        await rows(admin.from("usage_counters").select("function").eq("family_id", fresh.familyId)),
+        [],
+      );
+      assertEquals(
+        await rows(admin.from("api_usage").select("function").in("user_id", demo.userIds)),
+        [],
+      );
+
+      // The global breaker row is untouched, and so is another family's chat state.
+      assertEquals(await readGlobal(), globalBefore);
+      assertEquals(await chatState(outside), outsideBefore);
+      assertEquals(await other.state(), familyBefore);
+
+      // The accounts were updated, not recreated: same ids and creation times, so the
+      // new-account cap (10 turns in the first hour, by auth created_at) can't apply to them.
+      assertEquals(await authUsers(acc), accountsBefore);
+    } finally {
+      await admin.from("usage_counters").delete().eq("scope", "global").eq("function", globalFn);
       await cleanup(acc, [other.user], [other.familyId]);
     }
   },
