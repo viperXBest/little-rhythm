@@ -42,8 +42,10 @@ const BASE = 2;
 const MIN_BAR = 4;
 const BAR_GAP = 2;
 const MAX_BAR_WIDTH = 22;
-/** The axis labels stay readable but can't outgrow their column; the day-by-day list scales fully. */
+/** The axis labels stay readable but can't outgrow their room; the day-by-day list scales fully. */
 const AXIS_MAX_FONT_SCALE = 1.2;
+/** Below this much room (dp) for a label the weekday is one letter. */
+const NARROW_BELOW = 36;
 
 /**
  * Bars per day, hand-drawn with react-native-svg in event colours from the theme. One image for screen
@@ -63,8 +65,10 @@ export function TrendBars({ title, days, series, minTop, topLabel, summary, note
   const barWidth = (groupWidth - (series.length - 1) * BAR_GAP) / series.length;
   const floor = PLOT_HEIGHT - BASE;
   const room = floor - 2;
-  // 14 days: every other label, ending with today, so they fit a column pair.
+  // 14 days: every other label, ending with today. A shown label is centred over its column and
+  // spreads over the empty one beside it, so it has `labelEvery` columns of room.
   const labelEvery = days.length > 7 ? 2 : 1;
+  const labelWidth = columnWidth * labelEvery;
 
   return (
     <Card>
@@ -138,36 +142,13 @@ export function TrendBars({ title, days, series, minTop, topLabel, summary, note
           )}
         </View>
         <View style={styles.axis}>
-          {days.map((day, i) => {
-            const shown = (days.length - 1 - i) % labelEvery === 0;
-            const date = new Date(day.startMs);
-            return (
-              <View key={day.date} style={styles.cell}>
-                {shown ? (
-                  <>
-                    {days.length <= 7 ? (
-                      <ThemedText
-                        type="caption"
-                        themeColor={day.isToday ? 'text' : 'textSecondary'}
-                        numberOfLines={1}
-                        maxFontSizeMultiplier={AXIS_MAX_FONT_SCALE}
-                        style={styles.label}>
-                        {date.toLocaleDateString([], { weekday: 'short' })}
-                      </ThemedText>
-                    ) : null}
-                    <ThemedText
-                      type="caption"
-                      themeColor={day.isToday ? 'text' : 'textSecondary'}
-                      numberOfLines={1}
-                      maxFontSizeMultiplier={AXIS_MAX_FONT_SCALE}
-                      style={styles.label}>
-                      {date.getDate()}
-                    </ThemedText>
-                  </>
-                ) : null}
-              </View>
-            );
-          })}
+          {days.map((day, i) => (
+            <View key={day.date} style={styles.cell}>
+              {width > 0 && (days.length - 1 - i) % labelEvery === 0 ? (
+                <AxisLabel day={day} width={labelWidth} />
+              ) : null}
+            </View>
+          ))}
         </View>
       </View>
       {series.length > 1 ? (
@@ -193,6 +174,30 @@ export function TrendBars({ title, days, series, minTop, topLabel, summary, note
         </ThemedText>
       ) : null}
     </Card>
+  );
+}
+
+/** The weekday and the date under a bar, centred in `width` (which may reach past its own column). */
+function AxisLabel({ day, width }: { day: TrendDay; width: number }) {
+  const date = new Date(day.startMs);
+  const weekday = date.toLocaleDateString([], { weekday: width < NARROW_BELOW ? 'narrow' : 'short' });
+  const text = (value: string | number) => (
+    <ThemedText
+      type="caption"
+      themeColor={day.isToday ? 'text' : 'textSecondary'}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.75}
+      maxFontSizeMultiplier={AXIS_MAX_FONT_SCALE}
+      style={[styles.label, { width }]}>
+      {value}
+    </ThemedText>
+  );
+  return (
+    <>
+      {text(weekday)}
+      {text(date.getDate())}
+    </>
   );
 }
 

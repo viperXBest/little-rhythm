@@ -63,10 +63,8 @@ export const localCalendar: Calendar = {
 };
 
 const HOUR_MS = 60 * 60 * 1000;
-/** Fetch margin before the first day, so a sleep that began the evening before is found. */
-export const SLEEP_MARGIN_MS = 24 * HOUR_MS;
 
-const NBSP = ' ';
+const NBSP = '\u00A0';
 
 /** YYYY-MM-DD of a calendar date; out-of-range days roll over. */
 function isoDate(year: number, month: number, day: number): string {
@@ -96,17 +94,18 @@ function emptyDays(range: number, now: Date, calendar: Calendar): TrendDay[] {
 }
 
 /**
- * The earliest `started_at` to fetch for a view of `range` days: the start of its first day, minus a
- * day so a sleep that began before it (and runs into it) is included.
+ * The start of the first of the last `range` days: events that start, or sleeps that end, at or after
+ * it are the ones to fetch (plus any open sleep).
  */
 export function trendsFromMs(range: number, now: Date, calendar: Calendar = localCalendar): number {
-  return emptyDays(range, now, calendar)[0].startMs - SLEEP_MARGIN_MS;
+  return emptyDays(range, now, calendar)[0].startMs;
 }
 
 /**
  * Per-day totals for the last `range` local days including today, oldest first.
  * - Feeds, bottle ml and diapers count on the day the event starts.
- * - A sleep is split at each midnight and counts the time inside each day; an open sleep runs up to `now`.
+ * - A sleep is split at each midnight and counts the time inside each day; an open sleep runs up to `now`,
+ *   and no sleep runs past it. Overlapping sleeps (the same nap logged twice) count once, as their union.
  * - A feed whose details are not valid still counts as a feed (with no ml); a diaper whose details are
  *   not valid counts as a diaper that is neither wet nor dirty.
  * - Events outside the days, and other event types, are ignored.
@@ -119,16 +118,13 @@ export function buildTrends(
 ): TrendDay[] {
   const days = emptyDays(range, now, calendar);
   const nowMs = now.getTime();
+  const sleeps: [start: number, end: number][] = [];
   for (const event of events) {
     const start = Date.parse(event.startedAt);
     if (!Number.isFinite(start)) continue;
     if (event.type === 'sleep') {
-      const end = event.endedAt === null ? nowMs : Date.parse(event.endedAt);
-      if (!Number.isFinite(end) || end <= start) continue;
-      for (const day of days) {
-        const overlap = Math.min(end, day.endMs) - Math.max(start, day.startMs);
-        if (overlap > 0) day.sleepMs += overlap;
-      }
+      const end = Math.min(event.endedAt === null ? nowMs : Date.parse(event.endedAt), nowMs);
+      if (end > start) sleeps.push([start, end]);
       continue;
     }
     const day = days.find((d) => start >= d.startMs && start < d.endMs);
@@ -142,12 +138,34 @@ export function buildTrends(
       if (event.diaper?.dirty) day.dirty += 1;
     }
   }
+  for (const [start, end] of mergeIntervals(sleeps)) {
+    for (const day of days) {
+      const overlap = Math.min(end, day.endMs) - Math.max(start, day.startMs);
+      if (overlap > 0) day.sleepMs += overlap;
+    }
+  }
   return days;
 }
 
-/** True when any of the days has a feed, a diaper or some sleep. */
+/** The union of the intervals: sorted by start, with overlapping or touching ones joined. */
+function mergeIntervals(intervals: readonly [start: number, end: number][]): [number, number][] {
+  const merged: [number, number][] = [];
+  for (const [start, end] of [...intervals].sort((a, b) => a[0] - b[0])) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  return merged;
+}
+
+/** True when the day has a feed, a diaper or some sleep. */
+export function dayHasData(day: TrendDay): boolean {
+  return day.feeds > 0 || day.diapers > 0 || day.sleepMs > 0;
+}
+
+/** True when any of the days has something logged. */
 export function hasTrendData(days: readonly TrendDay[]): boolean {
-  return days.some((d) => d.feeds > 0 || d.diapers > 0 || d.sleepMs > 0);
+  return days.some(dayHasData);
 }
 
 /** Time asleep as "13 h 20 min" (rounded to the minute), or "45 min" under an hour. */
@@ -157,13 +175,18 @@ export function formatSleep(ms: number): string {
   return hours > 0 ? `${hours}${NBSP}h ${minutes % 60}${NBSP}min` : `${minutes}${NBSP}min`;
 }
 
+/** A number and its unit joined by a non-breaking space, e.g. "640 ml". */
+export function unitLabel(value: number, unit: string): string {
+  return `${value}${NBSP}${unit}`;
+}
+
 /** "1 feed", "12 feeds". */
 export function countLabel(count: number, noun: string): string {
   return `${count}${NBSP}${noun}${count === 1 ? '' : 's'}`;
 }
 
 export const feedsText = (day: TrendDay): string => countLabel(day.feeds, 'feed');
-export const bottleText = (day: TrendDay): string => `${day.bottleMl}${NBSP}ml`;
+export const bottleText = (day: TrendDay): string => unitLabel(day.bottleMl, 'ml');
 export const sleepText = (day: TrendDay): string => formatSleep(day.sleepMs);
 export const diapersText = (day: TrendDay): string =>
   `${countLabel(day.diapers, 'diaper')}, ${day.wet}${NBSP}wet, ${day.dirty}${NBSP}dirty`;
