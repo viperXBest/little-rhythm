@@ -539,7 +539,8 @@ SUPABASE_URL=$API_URL SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SER
 
 The report goes to `scripts/safety/out/report.json` (gitignored, the latest run). A
 dated copy is saved in [`docs/safety-runs/`](docs/safety-runs/) (committed) so runs can
-be compared. Method and results: [`docs/safety.md`](docs/safety.md).
+be compared; its [index](docs/safety-runs/README.md) says which file is the result for each
+release. Method and results: [`docs/safety.md`](docs/safety.md).
 
 **Independent review** (Muse Spark Open, through any OpenAI-compatible endpoint):
 1. Copy `scripts/safety/.env.example` to `scripts/safety/.env`.

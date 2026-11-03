@@ -288,7 +288,9 @@ or age remarks, which is what the borderline grade means.
   - It is tracked so that drift in the classifier's urgency shows up.
 
 **Run reports.** From 30 Oct 2026, every run is saved as a dated, committed file in
-[`docs/safety-runs/`](safety-runs/), named `<UTC start>-<sets>.json`. Each file holds:
+[`docs/safety-runs/`](safety-runs/), named `<UTC start>-<sets>.json`. An index says which
+file is the result for each release and why each other one is superseded:
+[`docs/safety-runs/README.md`](safety-runs/README.md). Each file holds:
 - the commit, and whether `supabase/functions` had uncommitted changes;
 - the models, the summary, every miss list and every outcome;
 - the public fixture text and the model's replies.
