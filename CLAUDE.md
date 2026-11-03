@@ -48,8 +48,7 @@
    - Ana's private thread has the 3 Nov smoke-test turns: night-feed split, the demo line, and "she has a fever of 38.5" with the card.
    - Decide before recording whether the demo threads should start empty. If so, clear them once, by hand or with a seed option, after the owner's OK. Don't print or log chat content.
 4. **Judge run 3:** 3 fresh Claude judges plus `scripts/review/review.ts` (Muse Spark Open), with the same prompts as run 2 (`docs/judge-2026-11-02/run2/`). Save to `docs/judge-2026-11-03/run3/` (gitignore it too) and compare with `plan-9.5.md`.
-5. **Parent test** (`docs/user-test-2026-11-03.md`): the owner runs it; write it up with no personal data.
-6. Nov 4: the demo video, slides, X post, and submit in the evening.
+5. Nov 4: the demo video, slides, X post, and submit in the evening.
 
 **Working rules**
 - Ask before: git push, pushing tags, `db push`, `secrets set`, `functions deploy`.
