@@ -52,7 +52,8 @@ app: escalation card, or caption + confirm cards → insertEvent / endSleep (RLS
   below. In short: the baby's age in weeks, the parent's message or transcript, the last
   48 h of events with six detail fields, the computed windows, the thread's last 30 usable
   messages and its summary, and search results from the same thread. The server adds no
-  names, ids, authors or emails, and no couple data (night-feed balance, check-ins). A
+  names, ids, authors or emails, and no couple data (night-feed balance, check-ins) or growth
+  records. A
   summary is rejected if it holds a family name. Gated turns never reach the model again.
   Audio is forwarded to Muse Voice Transcribe and never stored. The app deletes the local
   WAV after upload, also when the upload fails. Logs carry error codes only. Tests:
@@ -106,7 +107,7 @@ dropped. The model sees no event id, author, `source` or `created_at`.
 - The fixed classifier prompt, with its 12 fixed example lines.
 - One user message: "Baby age: N weeks." and the parent's message as a JSON string, cut to
   the first 1,000 characters.
-- No history, events, summary or windows.
+- <!-- CLASSIFIER -->The health classifier gets only the baby's age in weeks and the parent's message.<!-- /CLASSIFIER --> No history, events, summary or windows.
 
 **Muse Spark memory fold** (after the response, only when more than 20 usable messages sit
 outside the 30-message window; `thread-memory.ts` `summarizerMessages`):
@@ -117,8 +118,11 @@ outside the 30-message window; `thread-memory.ts` `summarizerMessages`):
 
 **What the server never sends:** the baby's name, the parents' display names or emails,
 any user, family, baby, thread, event or message id, the birth date (only the age in
-whole weeks), the time zone's name, the check-in answers, the night-feed balance, and
-audio other than the one clip above.
+whole weeks), the time zone's name, the check-in answers, the night-feed balance, growth
+records (weight, length, head circumference), and audio other than the one clip above. No Edge
+Function reads the growth table, and a CI step fails the build if any function mentions
+`growth_measurements`. Function logs carry error codes only, never message text, transcripts,
+audio or tool arguments. The Meta Model API is outside the EU.
 
 **Two things to read carefully:**
 - **What a parent types goes as typed.** The server strips nothing from the message, the

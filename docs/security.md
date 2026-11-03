@@ -64,7 +64,8 @@ UPDATE), which goes through RLS like any other update.
   go in. The messages are what the parents typed or said, so a name or an email a
   parent wrote would be in them: only the summary is checked, and is rejected before
   storage if it holds a health keyword, an email, a UUID or a family name. Names are read
-  through RLS only for that check. The full list of what goes to the AI is in
+  through RLS only for that check. <!-- CLASSIFIER -->The health classifier gets only the baby's age in weeks and the parent's message.<!-- /CLASSIFIER --> The Meta Model API is outside the
+  EU. Growth records and couple data are never sent. The full list of what goes to the AI is in
   [`docs/chat.md`](chat.md#what-goes-to-the-ai).
 - **`chat_messages` writes:** only the chat function writes messages, with the service
   role after the thread check and the health gate. Clients have no insert policy and no

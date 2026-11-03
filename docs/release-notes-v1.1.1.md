@@ -73,10 +73,10 @@ tightens safety for a parent in crisis.
 - **Voice is English-first:** Romanian isn't one of Muse Voice Transcribe's languages,
   but Romanian works when typed.
 - **One baby, two parents, Android only.**
-- **AI processing:** chat content goes to Meta's US-hosted Model API: the message or
-  transcript, the thread's recent messages and summary, the baby's age in weeks, recent
-  events and the computed windows. The app adds no names or emails; what you type is sent
-  as typed. Voice clips are transcribed and not stored.
+- **AI processing:** chat content goes to Meta's Model API, which is outside the EU: the
+  message or transcript, the thread's recent messages and summary, the baby's age in weeks,
+  recent events and the computed windows. <!-- CLASSIFIER -->The health classifier gets only the baby's age in weeks and the parent's message.<!-- /CLASSIFIER --> The app adds no names or
+  emails; what you type is sent as typed. Voice clips are transcribed and not stored.
 
 **Not medical advice.** Health questions get only a static card pointing to the
 paediatrician or the emergency number.

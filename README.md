@@ -307,12 +307,15 @@ More detail:
   policies (`supabase/tests/`).
 - **AI tool calls** take the baby and family from the session, never from the model.
   Every argument is validated with zod, and nothing is saved until a parent confirms.
-- **What goes to the AI:** the parent's message or transcript, the thread's last 30
-  usable messages and its summary, the baby's age in weeks, the last 48 h of events (type,
-  times and six detail fields) and the computed windows. A voice clip goes to Muse Voice
-  Transcribe and is not stored. The server adds no names, ids or emails and never sends
-  couple data. What a parent types is sent as typed. A health message is read by the model
-  on the turn it is sent and never again. Full list, with where each item comes from:
+- **What goes to the AI:** the parent's message or transcript (up to 1,000 characters), the
+  thread's last 30 usable messages and its summary, the baby's age in weeks, the parent's
+  local time and weekday, the last 48 h of events (type, times and six detail fields) and
+  the computed windows. A voice clip goes to Muse Voice
+  Transcribe and is not stored. <!-- CLASSIFIER -->The health classifier gets only the baby's age in weeks and the parent's message.<!-- /CLASSIFIER --> The server adds no names, ids or
+  emails and never sends couple data or growth records (a CI step fails the build if any
+  function mentions the growth table). What a parent types is sent as typed. A health
+  message is read by the model on the turn it is sent and never again. The Meta Model API
+  is outside the EU. Full list, with where each item comes from:
   [`docs/chat.md`](docs/chat.md#what-goes-to-the-ai). No chat content, audio or tokens
   appear in logs.
 - **Pairing codes:** random, HMAC-hashed, single use, valid for 24 h, and
