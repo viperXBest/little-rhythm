@@ -208,7 +208,7 @@ sequenceDiagram
   Chat->>ASR: WAV, languageBias from the phone's language
   ASR-->>Chat: transcript
   par agent loop (≤ 4 model calls)
-    Chat->>Agent: transcript + age in weeks + last 48 h + computed windows
+    Chat->>Agent: transcript + age in weeks + last 48 h + computed windows + the thread's last 30 messages and summary
     Agent->>Chat: log_feed(kind bottle, ml 90, started_at 20 min ago, time_stated true)
     Agent->>Chat: log_sleep(started_at now, time_stated true)
     Chat-->>Agent: two validated proposals (zod: 5–400 ml, last 48 h, not in the future)
@@ -307,12 +307,14 @@ More detail:
   policies (`supabase/tests/`).
 - **AI tool calls** take the baby and family from the session, never from the model.
   Every argument is validated with zod, and nothing is saved until a parent confirms.
-- **What goes to the AI:** the parent's message or transcript, the thread's recent
-  usable messages and summary, the baby's age in weeks, recent events and computed
-  windows, and any results from searching that thread. The server adds no profile
-  names, emails or couple-feature data. Anything a parent types is sent as typed,
-  including personal details they include. Voice clips are not stored. No chat
-  content, audio or tokens appear in logs.
+- **What goes to the AI:** the parent's message or transcript, the thread's last 30
+  usable messages and its summary, the baby's age in weeks, the last 48 h of events (type,
+  times and six detail fields) and the computed windows. A voice clip goes to Muse Voice
+  Transcribe and is not stored. The server adds no names, ids or emails and never sends
+  couple data. What a parent types is sent as typed. A health message is read by the model
+  on the turn it is sent and never again. Full list, with where each item comes from:
+  [`docs/chat.md`](docs/chat.md#what-goes-to-the-ai). No chat content, audio or tokens
+  appear in logs.
 - **Pairing codes:** random, HMAC-hashed, single use, valid for 24 h, and
   rate-limited.
 - **Every function is rate-limited per user.** Chat also has daily caps (60 turns per

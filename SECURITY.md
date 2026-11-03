@@ -39,13 +39,15 @@ Out of scope for this demo build:
   - The service role is used only after that check.
   - Request bodies are strict zod schemas with size limits.
 - **AI:**
-  - The model receives the parent's text or transcript, this thread's usable history,
-    summary and search results, the baby's age in weeks, recent events and computed
-    windows. The server adds no profile names, emails or couple-feature data; personal
-    details a parent types are sent as typed. Voice audio goes to transcription and
-    is not stored.
+  - The model gets the parent's message or transcript, the thread's last 30 usable
+    messages and summary, the baby's age in weeks, the last 48 h of events (type, times
+    and six detail fields) and the computed windows. The server adds no names, ids or
+    emails and never sends couple data. What a parent types is sent as typed. The full
+    list is in [`docs/chat.md`](docs/chat.md#what-goes-to-the-ai).
   - Every turn passes the health gate.
-  - Gated turns never reach the model again.
+  - A health message is read by the model once, on the turn it is sent. After that, gated
+    turns never reach it again (not as history, summary or search).
+  - A voice clip goes to Muse Voice Transcribe and is never stored.
 - **Account deletion:** the password is re-entered and checked on the server, and the
   call is rate-limited. The last member's family is deleted in full; when one of two
   parents leaves, only their own data goes.

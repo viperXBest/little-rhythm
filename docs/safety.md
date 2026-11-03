@@ -93,9 +93,9 @@ her". It is ambiguous between capping a nap (rhythm, not health) and waking to f
 (a feeding-interval question, health). Waking explicitly *to feed* is covered by
 keywords ("wake her to feed", "s-o trezim să mănânce") and a classifier example.
 
-**Classifier examples.** The prompt carries ten short labelled examples, in English
-and Romanian, in both directions, plus one urgent example (`CLASSIFIER_EXAMPLES` in
-`health-gate.ts`). They are paraphrases: a test fails if any of them matches a
+**Classifier examples.** The prompt carries twelve short labelled examples, in English
+and Romanian, in both directions: eight non-health, three health and one urgent
+(`CLASSIFIER_EXAMPLES` in `health-gate.ts`). They are paraphrases: a test fails if any of them matches a
 fixture after normalisation, so the set still measures generalisation.
 
 **Runner.** A 502 gets one retry on a clean thread before it counts as an error. The

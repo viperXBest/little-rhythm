@@ -59,12 +59,13 @@ UPDATE), which goes through RLS like any other update.
 
 ## Chat memory
 
-- **What the model sees:** chat history (the last 30 messages) and the thread
-  summary. The server adds no profile names, ids or emails; personal details a
-  parent types are sent as typed. Gated turns are excluded from later history,
-  summary and search. The
-  summary is rejected before storage if it holds a health keyword, an email, a UUID
-  or a family name. Names are read through RLS only for that check.
+- **What the model sees:** chat history (the last 30 usable messages) and the thread
+  summary. The server adds no names, ids or emails to them, and gated turns never
+  go in. The messages are what the parents typed or said, so a name or an email a
+  parent wrote would be in them: only the summary is checked, and is rejected before
+  storage if it holds a health keyword, an email, a UUID or a family name. Names are read
+  through RLS only for that check. The full list of what goes to the AI is in
+  [`docs/chat.md`](chat.md#what-goes-to-the-ai).
 - **`chat_messages` writes:** only the chat function writes messages, with the service
   role after the thread check and the health gate. Clients have no insert policy and no
   INSERT or UPDATE privilege (`20261030100000_chat_messages_server_insert.sql`), so a
