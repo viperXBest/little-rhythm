@@ -57,7 +57,7 @@ type State =
 
 /** The predict call also returns the night-feed balance; it is handed up for its own card. */
 export function NextUp({ onNightFeeds }: { onNightFeeds?: (value: NightFeeds | null) => void }) {
-  const { events, status: eventsStatus } = useTodayEvents();
+  const { events, status: eventsStatus, revision } = useTodayEvents();
   const [state, setState] = useState<State>({ status: 'loading' });
   const requestId = useRef(0);
 
@@ -87,9 +87,10 @@ export function NextUp({ onNightFeeds }: { onNightFeeds?: (value: NightFeeds | n
     }, [load]),
   );
 
-  // After any change to the events (taps, chat confirms, the partner's realtime changes).
+  // After any change to the events (taps, chat confirms, the partner's realtime changes). The revision
+  // also counts changes outside today (an entry for yesterday), which `events` doesn't list.
   // The first load of today's events is the baseline, not a change.
-  const signature = events.map((e) => `${e.id}:${e.started_at}:${e.ended_at ?? ''}`).join('|');
+  const signature = `${revision}|${events.map((e) => `${e.id}:${e.started_at}:${e.ended_at ?? ''}`).join('|')}`;
   const lastSignature = useRef<string | null>(null);
   useEffect(() => {
     if (eventsStatus !== 'ready') return;
