@@ -9,6 +9,7 @@ import {
   chartAltText,
   formatDay,
   formatValue,
+  GROWTH_SPECS,
   layoutChart,
   type ChartPoint,
   type GrowthKind,
@@ -36,7 +37,8 @@ export function GrowthChart({ kind, points }: { kind: GrowthKind; points: readon
   // Half a caption line, so a label centred on an axis end stays inside the chart.
   const half = Math.ceil((CAPTION_LINE * fontScale) / 2);
   const pad = Math.max(SIDE, half);
-  const layout = layoutChart(points, { width, height: PLOT_HEIGHT, left: SIDE, right: SIDE, top: pad, bottom: pad });
+  const layout = layoutChart(kind, points, { width, height: PLOT_HEIGHT, left: SIDE, right: SIDE, top: pad, bottom: pad });
+  const spec = GROWTH_SPECS[kind];
   const top = formatValue(kind, layout.yMax);
   const bottom = formatValue(kind, layout.yMin);
   const labelWidth = Math.ceil(Math.max(top.length, bottom.length) * CAPTION_SIZE * 0.62 * fontScale) + Spacing.two;
@@ -53,6 +55,10 @@ export function GrowthChart({ kind, points }: { kind: GrowthKind; points: readon
       accessibilityRole="image"
       accessibilityLabel={chartAltText(kind, points)}
       style={styles.chart}>
+      {/* The y axis: its unit, once, above the numbers. */}
+      <ThemedText type="caption" themeColor="textSecondary" importantForAccessibility="no">
+        {`${spec.label} (${spec.unit})`}
+      </ThemedText>
       <View style={styles.row}>
         <View style={{ width: labelWidth, height: PLOT_HEIGHT }} importantForAccessibility="no-hide-descendants">
           <ThemedText

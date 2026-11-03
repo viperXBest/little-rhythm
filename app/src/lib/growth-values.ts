@@ -37,7 +37,8 @@ export const GROWTH_SPECS: Record<GrowthKind, GrowthSpec> = {
     noun: 'weight',
     unit: 'kg',
     perUnit: 1000,
-    decimals: 2,
+    // Grams: 3.455 kg is a real scale reading.
+    decimals: 3,
     trimZeros: true,
     min: 300,
     max: 30000,
@@ -66,13 +67,13 @@ export const GROWTH_SPECS: Record<GrowthKind, GrowthSpec> = {
   },
 };
 
-const NBSP = ' ';
+const NBSP = '\u00A0';
 
-/** A stored value as shown, without the unit: 4250 g is "4.25", 4000 g "4"; 543 mm is "54.3". */
+/** A stored value as shown, without the unit: 4255 g is "4.255", 4000 g "4"; 543 mm is "54.3". */
 export function formatValue(kind: GrowthKind, stored: number): string {
   const { perUnit, decimals, trimZeros } = GROWTH_SPECS[kind];
   const scale = 10 ** decimals;
-  // Whole steps of the last shown decimal (10 g, 1 mm), so no floating-point division by 1000.
+  // Whole steps of the last shown decimal (1 g, 1 mm), so no floating-point division by 1000.
   const steps = Math.round(stored / (perUnit / scale));
   const whole = Math.floor(steps / scale);
   const fraction = String(steps % scale).padStart(decimals, '0');
@@ -201,18 +202,33 @@ function niceStep(range: number, intervals: number): number {
 }
 
 /**
- * The vertical range of a chart in stored units: the data rounded out to a round step. A single
- * value (or all equal) sits in the middle.
+ * The least vertical span a chart shows, in stored units. Without it two nearly equal readings would
+ * fill the whole height and look like a big change.
  */
-export function yDomain(values: readonly number[]): { min: number; max: number } {
-  const lowest = Math.min(...values);
-  const highest = Math.max(...values);
-  if (highest === lowest) {
-    const step = niceStep(Math.max(1, highest * 0.1), 2);
-    return { min: lowest - step, max: lowest + step };
+const MIN_SPAN: Record<GrowthKind, number> = { weight: 500, length: 20, head: 10 };
+
+/**
+ * The vertical range of a chart in stored units: the data, widened to at least the kind's minimum span
+ * around its midpoint, then rounded out to a round step and kept at 0 or above. A single value sits in
+ * the middle.
+ */
+export function yDomain(kind: GrowthKind, values: readonly number[]): { min: number; max: number } {
+  let low = Math.min(...values);
+  let high = Math.max(...values);
+  if (high - low < MIN_SPAN[kind]) {
+    const middle = (low + high) / 2;
+    low = middle - MIN_SPAN[kind] / 2;
+    high = middle + MIN_SPAN[kind] / 2;
   }
-  const step = niceStep(highest - lowest, 4);
-  return { min: Math.floor(lowest / step) * step, max: Math.ceil(highest / step) * step };
+  const step = niceStep(high - low, 4);
+  let min = Math.floor(low / step) * step;
+  let max = Math.ceil(high / step) * step;
+  if (min < 0) {
+    // Shift, so the span stays.
+    max -= min;
+    min = 0;
+  }
+  return { min, max };
 }
 
 export type ChartBox = {
@@ -241,8 +257,8 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
  * Pixel positions for the points, in time order along x (a gap of weeks looks like a gap) and in
  * value along y. Pure geometry: no reference lines, bands or norms are ever added.
  */
-export function layoutChart(points: readonly ChartPoint[], box: ChartBox): ChartLayout {
-  const { min, max } = yDomain(points.map((p) => p.value));
+export function layoutChart(kind: GrowthKind, points: readonly ChartPoint[], box: ChartBox): ChartLayout {
+  const { min, max } = yDomain(kind, points.map((p) => p.value));
   const innerWidth = Math.max(0, box.width - box.left - box.right);
   const yTop = box.top;
   const yBottom = Math.max(box.top, box.height - box.bottom);
