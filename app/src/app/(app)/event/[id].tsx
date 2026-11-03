@@ -11,7 +11,9 @@ import { ErrorState, Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { birthDayStart, type EntryDraft } from '@/lib/entry-time';
 import {
+  checkEntry,
   MINUTES_RANGE,
   ML_RANGE,
   parseDiaper,
@@ -21,11 +23,9 @@ import {
   type EventRow,
   type FeedDetails,
 } from '@/lib/events';
+import { useSession } from '@/lib/session';
 import { eventVisual } from '@/lib/timeline-display';
 import { useTodayEvents } from '@/lib/today-events';
-
-// Allow a little clock drift between the two phones.
-const FUTURE_SLACK_MS = 60_000;
 
 export default function EditEvent() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -71,7 +71,10 @@ export default function EditEvent() {
 
 function EditForm({ row }: { row: EventRow }) {
   const theme = useTheme();
+  const { family } = useSession();
   const { update, remove } = useTodayEvents();
+  const birthDate = family?.baby.birthDate ?? null;
+  const birthStart = birthDayStart(birthDate) ?? undefined;
   const feed = row.type === 'feed' ? parseFeed(row.details) : null;
   const diaper = row.type === 'diaper' ? parseDiaper(row.details) : null;
 
@@ -89,19 +92,28 @@ function EditForm({ row }: { row: EventRow }) {
 
   const title = row.type === 'feed' ? 'Feed' : row.type === 'sleep' ? 'Sleep' : 'Diaper';
 
-  function validate(): string | null {
-    const latest = Date.now() + FUTURE_SLACK_MS;
-    if (startedAt.getTime() > latest) return 'The start can’t be in the future.';
-    if (endedAt) {
-      if (endedAt.getTime() > latest) return 'The end can’t be in the future.';
-      if (endedAt < startedAt) return 'The end must be after the start.';
-    }
-    return null;
+  /** The same rules as a new entry (entry-time.ts); a sleep also must not overlap another one. */
+  async function validate(): Promise<string | null> {
+    const base = { start: startedAt, birthDate };
+    const draft: EntryDraft =
+      row.type === 'feed'
+        ? {
+            type: 'feed',
+            ...base,
+            feed: feedKind === 'bottle' ? { kind: 'bottle', ml } : { kind: 'breast', minutes },
+          }
+        : row.type === 'sleep'
+          ? { type: 'sleep', ...base, end: endedAt, allowOpen: row.ended_at === null, ignoreId: row.id }
+          : { type: 'diaper', ...base };
+    return (await checkEntry(row.baby_id, draft))?.message ?? null;
   }
 
   async function onSave() {
-    const invalid = validate();
+    setError(null);
+    setBusy(true);
+    const invalid = await validate();
     if (invalid) {
+      setBusy(false);
       setError(invalid);
       return;
     }
@@ -113,8 +125,6 @@ function EditForm({ row }: { row: EventRow }) {
     if (row.type === 'diaper') {
       patch.details = { wet: diaperKind !== 'dirty', dirty: diaperKind !== 'wet' };
     }
-    setError(null);
-    setBusy(true);
     const result = await update(row.id, patch);
     setBusy(false);
     if (result) {
@@ -164,6 +174,7 @@ function EditForm({ row }: { row: EventRow }) {
           mode="datetime"
           value={startedAt}
           onChange={setStartedAt}
+          minimumDate={birthStart}
           maximumDate={now}
         />
         {row.type === 'sleep' ? (
