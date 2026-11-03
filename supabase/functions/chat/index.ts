@@ -15,9 +15,12 @@
 // breaker. Each admitted turn reserves its worst-case cost and settles to what its
 // Muse calls (and any memory fold) actually reported.
 //
-// Every turn passes the health gate (_shared/health-gate.ts): a keyword check
-// and a Muse classifier running beside the agent. A positive turn returns an
-// escalation with no model text; the app shows a static card.
+// Every turn passes the health gate (_shared/health-gate.ts): a keyword check on
+// the message and a Muse classifier running beside the agent. The classifier also
+// reads, as context, at most the 2 previous parent messages of the thread from the
+// last 30 minutes, each marked escalated or not (gated ones included; never an
+// assistant reply). A positive turn returns an escalation with no model text; the
+// app shows a static card.
 //
 // The turn is stored in the thread after the gate has decided, with the service
 // role and only after the thread was checked to be the caller's: the parent's
@@ -36,6 +39,7 @@ import {
   readContextEvents,
   readFamilyNames,
   readFoldMessages,
+  readGateContext,
   readOpenSleep,
   readPredictionEvents,
   readRecentEvents,
@@ -70,6 +74,7 @@ const KNOWN_FAILURES = new Set([
   "week_events_failed",
   "context_events_failed",
   "history_failed",
+  "gate_context_failed",
   "search_failed",
 ]);
 
@@ -173,14 +178,19 @@ Deno.serve(async (req) => {
   const ageWeeks = ageInWeeks(birthDate, now, request.offsetMinutes);
 
   try {
-    const [openSleep, contextEvents, predictionEvents, historyRows, memoryRow] = await Promise.all([
-      readOpenSleep(db, babyId),
-      readContextEvents(db, babyId, now),
-      readPredictionEvents(db, babyId, now),
-      readThreadHistory(db, threadId),
-      // Memory is a nice-to-have: a failed read means no summary this turn.
-      readThreadMemory(db, threadId).catch(() => null),
-    ]);
+    const [openSleep, contextEvents, predictionEvents, historyRows, memoryRow, gateTurns] = await Promise.all(
+      [
+        readOpenSleep(db, babyId),
+        readContextEvents(db, babyId, now),
+        readPredictionEvents(db, babyId, now),
+        readThreadHistory(db, threadId),
+        // Memory is a nice-to-have: a failed read means no summary this turn.
+        readThreadMemory(db, threadId).catch(() => null),
+        // The classifier's context (gated turns included, marked). Not optional: a failed
+        // read fails the turn like the history read, so the gate never runs without it.
+        readGateContext(db, threadId, now),
+      ],
+    );
     const memory = memoryRow && memoryRow.summary !== EMPTY_SUMMARY ? memoryRow.summary : null;
     // After the response: fold older messages into the summary (no added latency),
     // then settle the turn's spend, fold included.
@@ -221,6 +231,7 @@ Deno.serve(async (req) => {
       classifyHealth(
         text,
         ageWeeks,
+        gateTurns,
         sparkJson(apiKey, { name: "health_check", schema: CLASSIFIER_SCHEMA }, REASONING_EFFORT, meter),
       ),
     ]);

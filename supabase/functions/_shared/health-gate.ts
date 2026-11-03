@@ -1,8 +1,14 @@
 // The health gate (anti-project rule: no medical advice). Every chat turn,
 // typed or a voice transcript, is checked twice:
-//   1. keywordHit (health-keywords.ts): deterministic, English and Romanian;
+//   1. keywordHit (health-keywords.ts): deterministic, English and Romanian, on the
+//      current message only;
 //   2. a Muse Spark classifier with structured output, run in parallel with the
-//      agent so it adds no latency.
+//      agent so it adds no latency. It reads the baby's age in weeks, the current
+//      message and, as context, at most the GATE_CONTEXT_TURNS previous parent
+//      messages of the same thread from the last GATE_CONTEXT_MINUTES, each marked
+//      escalated or not (gated rows included). Parent text only: never an assistant
+//      reply, a name or an id. So a follow-up is judged with the health question it
+//      follows. The agent's history, memory and search still skip gated turns.
 // Either one positive: the reply carries an escalation and no model text. The
 // app shows a static card (never model-generated). Proposals from the same turn
 // still show: logging is not advice. The gate fails closed: a classifier failure
@@ -144,18 +150,45 @@ export type ClassifierMessage = { role: "system" | "user"; content: string };
 /** One structured-output model call; returns the raw JSON text. Bound in muse.ts. */
 export type ClassifyCall = (messages: ClassifierMessage[]) => Promise<string | null>;
 
-/** The baby's age in whole weeks (for the under-13-weeks fever rule), then the message. No name, no ids. */
-export function classifierMessages(text: string, ageWeeks: number): ClassifierMessage[] {
+// Invisible format characters (zero-width spaces and joiners, soft hyphens, BOM): the
+// class normalise() strips before the keyword check, so they can't split a word here either.
+const INVISIBLE = /\p{Cf}/gu;
+
+/**
+ * One parent message as the classifier reads it: invisible characters stripped, capped at
+ * MAX_CLASSIFIER_INPUT, then a JSON string rather than a fenced block, so the text can't
+ * close a delimiter or start a new line and append instructions of its own.
+ */
+export function classifierString(text: string): string {
+  return JSON.stringify(text.replace(INVISIBLE, "").slice(0, MAX_CLASSIFIER_INPUT));
+}
+
+/**
+ * The baby's age in whole weeks (for the under-13-weeks fever rule), then the earlier
+ * parent messages (at most GATE_CONTEXT_TURNS, oldest first, each marked escalated or
+ * not), then the message to classify, always the last line. One line each, every text
+ * encoded by classifierString. With no earlier messages: the age line and the message
+ * only. Parent text only: no assistant reply, no name, no ids.
+ */
+export function classifierMessages(
+  text: string,
+  ageWeeks: number,
+  context: readonly GateContextTurn[],
+): ClassifierMessage[] {
   const age = Number.isInteger(ageWeeks) && ageWeeks >= 0 ? ageWeeks : 0;
+  const earlier = context
+    .slice(-GATE_CONTEXT_TURNS)
+    .map((turn) =>
+      `Earlier parent message (escalated: ${turn.escalated === true}, JSON string): ${
+        classifierString(turn.text)
+      }\n`
+    )
+    .join("");
   return [
     { role: "system", content: CLASSIFIER_PROMPT },
     {
       role: "user",
-      // A JSON string rather than a fenced block, so the text can't close a delimiter
-      // and append instructions of its own.
-      content: `Baby age: ${age} weeks.\nParent's message (JSON string): ${
-        JSON.stringify(text.slice(0, MAX_CLASSIFIER_INPUT))
-      }`,
+      content: `Baby age: ${age} weeks.\n${earlier}Parent's message (JSON string): ${classifierString(text)}`,
     },
   ];
 }
@@ -164,10 +197,12 @@ export function classifierMessages(text: string, ageWeeks: number): ClassifierMe
 export async function classifyHealth(
   text: string,
   ageWeeks: number,
+  /** gateContextTurns: the thread's earlier parent messages, oldest first. */
+  context: readonly GateContextTurn[],
   call: ClassifyCall,
 ): Promise<HealthVerdict | null> {
   try {
-    const raw = await call(classifierMessages(text, ageWeeks));
+    const raw = await call(classifierMessages(text, ageWeeks, context));
     if (!raw) return null;
     const parsed = ClassifierOutput.safeParse(JSON.parse(raw));
     if (!parsed.success) return null;
