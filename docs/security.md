@@ -307,15 +307,25 @@ full safety run meters about $4–5.
 
 ## Deployed versions
 
-Hosted Edge Functions for release v1.0.0. Each was deployed from source identical to
-the release commit for that function's import graph (`deno info`).
+Hosted Edge Functions for release v1.1.1 (checked with `supabase functions list` on
+3 Nov). Each was deployed from source identical to the release commit for that
+function's import graph, or differing only in comments and strings it never uses
+(`deno info`).
 
 | Function | Version | Deployed (UTC) | From |
 |---|---|---|---|
-| `chat` | v9 | 2 Nov, 18:23 | `20242e8`: caps, spend breaker, `max_completion_tokens`, prompt rule, classifier timeout 30 s. Migration `20261102120000` pushed first |
-| `pair` | v4 | 30 Oct, 13:22 | `3191717` |
-| `predict` | v3 | 30 Oct, 13:22 | `3191717` |
-| `delete-account` | v2 | 30 Oct, 13:22 | `3191717` |
+| `chat` | v10 | 3 Nov, 08:49 | `38a81e7` (= `supabase/functions` at the v1.1.1 tag): agent steps, crisis override, safe-sleep prompt line, no age-norm claims, `CHAT_GLOBAL_DAILY_USD`, new-account cap. Migration `20261103090000` pushed first. Smoke-tested on hosted: a normal turn, the demo line (two cards, steps), a fever message (card only) |
+| `predict` | v4 | 2 Nov, 18:52 | `491b761`. Since then its import graph changed only a tool-description string in `agent-schemas.ts` (it imports `TZ_OFFSET` from that file) and a comment in `predict-constants.ts`: runtime-identical, no redeploy |
+| `pair` | v4 | 30 Oct, 13:22 | `3191717`, import graph identical to v1.1.1 |
+| `delete-account` | v2 | 30 Oct, 13:22 | `3191717`, import graph identical to v1.1.1 |
+
+Latest migration on hosted: `20261103090000_chat_new_account_cap.sql` (3 Nov). It keeps
+the 5-argument `consume_chat_budget` as a wrapper so `chat` v9 kept working until v10
+was deployed; dropping it is on the roadmap.
+
+**Earlier:** `chat` v9 (2 Nov, 18:23, from `20242e8`: caps, spend breaker,
+`max_completion_tokens`, prompt rule, classifier timeout 30 s; migration
+`20261102120000` pushed first) was v1.1.0's.
 
 **v1.1.0 server track (2 Nov).** Only `chat` changes behaviour. Order on hosted, after
 the owner approves: the migration first (the new `chat` calls `consume_chat_budget`
@@ -335,7 +345,7 @@ prove that version included it. Redeploying all three from HEAD made hosted equa
 the release commit. The function tests passed on the local stack first. Each function
 answers 401 without a session.
 
-**Rule until the tag:** if any later commit touches `supabase/functions`, redeploy what
+**Rule after the v1.1.1 tag:** if any later commit touches `supabase/functions`, redeploy what
 it affects (and rerun the safety set if `chat` changes).
 
 ## Independent review (Muse Spark Open)

@@ -10,7 +10,7 @@ sleep, after one tap on Confirm. Then see when the next feed, nap and bedtime ar
 likely.
 
 **Download:** [the latest APK on GitHub Releases](https://github.com/viperXBest/little-rhythm/releases/latest)
-(sideload on Android; the v1.1.0 release goes up with the submission).
+(sideload on Android). Current release: **v1.1.1** (app 1.1.1, `chat` v10).
 
 ## Why
 
@@ -51,13 +51,20 @@ relationship counsellor.
 - **Health questions get only an escalation card.** Any question about symptoms,
   medicine, doses, feeding amounts, development or a parent's health returns no model
   text. The app shows a static card, written in the app and not by the model:
-  contact your paediatrician, or call 112 in an emergency (with a Call 112 button).
+  contact your paediatrician, or call the emergency number (with a Call button). The
+  number comes from the phone's time zone: 911 in the US and Canada, 999 in the UK,
+  112 everywhere else.
 - **Every turn is checked twice:**
   - an English and Romanian keyword list;
   - a `muse-spark-1.3` classifier with structured output, run alongside the agent.
 
   Either one escalates. Health turns are never fed back to the model as history,
   summary or search.
+- **A parent in crisis always gets the urgent card.** A fixed EN/RO word list (self-harm,
+  scary thoughts, fear of hurting the baby, not coping, "need help right now") makes an
+  escalated turn urgent, with the Call button. It never escalates a turn on its own.
+- **Safe sleep:** the agent never suggests a parent rest or nap while the baby is
+  sleeping on them or in their bed.
 - **Measured:** the safety set runs through the real function. It has 335 health and
   147 non-health prompts in English and Romanian, including prompt injection and
   health mixed into logs, plus 5 off-topic, 12 unclear-input and 17 jailbreak prompts
@@ -67,11 +74,19 @@ relationship counsellor.
   |---|---|---|---|---|---|
   | 29 Oct, 2 runs pooled | 664/664 | 184/184 | 3/294 (1.02%) | not counted | not in the set |
   | 30 Oct (`chat` v8) | 332/332 | 92/92 | 0/147 (0%) | 10/240 (4.2%) | not in the set |
-  | **2 Nov, run C (current, `chat` v9)** | **335/335** | **92/92** | **1/147 (0.7%)** | 7/243 (2.9%) | **17/17** |
+  | 2 Nov, run C (`chat` v9, v1.1.0) | 335/335 | 92/92 | 1/147 (0.7%) | 7/243 (2.9%) | 17/17 |
+  | **3 Nov, final run D (current, `chat` v10, v1.1.1)** | **335/335** | **92/92** | **2/157 (1.3%)** | 11/243 (4.5%) | **17/17** |
 
-  - Every health prompt escalated in every run. No urgent prompt ever got the plain card.
-  - Run C's one false positive is a Romanian log line the classifier flagged. It failed
-    safe: a card, no advice.
+  - Every health prompt escalated in every shipped run, and no urgent prompt got the
+    plain card. Run D had 0 errors and 0 rate-limited turns.
+  - Run D's two false positives are ordinary log lines ("she enjoyed her fruit puree…",
+    "…just now fell asleep on me"). They failed safe: a card, no advice.
+  - The non-health set grew to 157 in v1.1.1, with 10 prompts that tempt "is this
+    normal for her age" replies.
+  - v1.1.1 needed three attempts before a run met the baseline: an output keyword check
+    caused false positives and was dropped, and one run was void because the local
+    breaker refused 145 prompts. Every attempt is in
+    [`docs/safety.md`](docs/safety.md).
   - **Non-health false positives** are non-health prompts that got the card. They
     fail safe: a card, no advice.
   - **Over-triage** is a health prompt labelled non-urgent that came back urgent, such
@@ -79,9 +94,10 @@ relationship counsellor.
     sees the urgent card with Call 112 instead of the plain one. It is never a missed
     escalation.
   - All 12 unclear-input prompts were handled as expected: ask again, or a flagged time.
-  - **The replies are graded too.** Muse Spark Open graded all 180 replies a parent saw
-    in run C: **0 gave health advice**. 50 were borderline, mostly "typical for her
-    age" phrasing, which the next release targets. Details in
+  - **The replies are graded too.** Muse Spark Open graded every reply a parent saw.
+    Run C: 180 replies, **0 health advice**, 50 borderline (45 of them "typical for her
+    age" phrasing). Final run D, after a prompt line against age-norm claims: 189
+    replies, **0 health advice**, 15 borderline (4 age norms). Details in
     [`docs/safety.md`](docs/safety.md#reply-grading-from-3-nov-2026).
   - Method, every miss, and a dated report per run: [`docs/safety.md`](docs/safety.md).
 - **A log card can sit next to the escalation card.** "She drank 90 ml and she has a
@@ -100,6 +116,7 @@ Everything in this repository was written during the hackathon, which started on
 | 29 Oct (52) | The prediction engine, the `predict` function, the Next up card and reminders. The health gate, the family-life companion with memory, shared and private threads, the check-in and night-feed balance. The safety set, account deletion, rate limits, CI with gitleaks, and the security review |
 | 30 Oct (24) | Demo data, the first palette with contrast tests, loading and error states, the notification icon, this README. Release v1.0.0 |
 | 2 Nov (73) | v1.1.0. The "Cloud Lullaby" redesign (design system, illustrations as theme-aware SVG, accessibility audit at 200% text). A second security review (Muse Spark Open plus by hand), then the server track: daily chat caps per user and family, a global spend breaker, token caps on every model call, a "never reveal tools" rule, 17 jailbreak prompts, and safety run C |
+| 2–3 Nov, after v1.1.0 (24) | v1.1.1. The agent's steps shown under each reply, Muse named in the app, calmer Next up copy, a local emergency number, a parent-crisis override and a safe-sleep prompt line, a new-account chat cap, a reply grader, the breaker runbook, and safety run D (`chat` v10) |
 
 ## Meta AI in the app
 
@@ -134,6 +151,12 @@ code: it is whatever `SAFETY_GEN_MODEL` names for that endpoint.
   - `get_next_windows`, the same prediction engine as the "Next up" card, so chat and
     card always agree;
   - `search_chat_history`, limited to the current thread.
+
+**The agent's steps are visible.** Under each live reply the app shows a row such as
+"Muse Spark · 3 steps"; tap it to see what the agent did, for example "Read the log",
+"Checked Next up", "Proposed a feed". The server builds these labels from the tools that actually
+ran, never from model text. A voice transcript carries a "Muse Voice Transcribe" chip,
+and each confirm card says "Proposed by Muse Spark · confirm to save".
 
 The baby and family always come from the session, never from the model or the request.
 Tool arguments are validated with zod: bottle 5–400 ml, breast 1–90 min, times within
@@ -189,8 +212,8 @@ sequenceDiagram
     Chat->>Gate: transcript (as a JSON string) + age in weeks
     Gate-->>Chat: {health: false, urgent: false}
   end
-  Chat-->>App: transcript + reply + 2 proposals
-  App->>App: two confirm cards (editable), nothing saved yet
+  Chat-->>App: transcript + reply + 2 proposals + steps ["Proposed a feed", "Proposed a sleep"]
+  App->>App: two confirm cards (editable), "Muse Spark · 2 steps", nothing saved yet
   App->>DB: Confirm → insert feed + sleep with Mom's JWT
   DB-->>App: Dad's phone updates live; Next up switches to "Expected to wake"
 ```
@@ -273,12 +296,14 @@ More detail:
 - **Pairing codes:** random, HMAC-hashed, single use, valid for 24 h, and
   rate-limited.
 - **Every function is rate-limited per user.** Chat also has daily caps (60 turns per
-  user, 100 per family) and a global spend breaker: each turn reserves its worst-case cost
-  against $10 a day before any model call and settles to the metered cost after. Every
+  user, 100 per family, 10 for an account in its first hour) and a global spend breaker:
+  each turn reserves its worst-case cost against the daily budget (`CHAT_GLOBAL_DAILY_USD`,
+  $10 by default) before any model call and settles to the metered cost after. Every
   Muse Spark call is capped at 4,096 tokens.
 - **Demo-tier hosting limits, stated honestly:** sign-up is open, so judges can create
   their own family. Hosted Auth rate-limits sign-ups and sign-ins per IP. There is no
-  captcha or email confirmation, so many throwaway accounts could still trip the global
+  captcha or email confirmation. The first-hour cap slows throwaway accounts, but many of
+  them could still trip the global
   breaker and pause chat for everyone until the next UTC day; logging, sync and Next up
   keep working. The prepaid Meta credits are the hard money cap (the Meta account has no
   spend-limit setting). The runbook to spot and undo that is in
