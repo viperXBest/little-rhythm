@@ -22,7 +22,7 @@ type Props = {
   kind: GrowthKind;
   /** The baby's birth date, YYYY-MM-DD: no measurement can be older. */
   birthDate: string;
-  /** The measurement being edited; null adds a new one. */
+  /** The measurement as it was when the form opened (a snapshot); null adds a new one. */
   initial: GrowthFormValues | null;
   /** Saves; resolves to an error message, or null when it worked (the screen then closes the form). */
   onSave: (values: GrowthFormValues) => Promise<string | null>;
@@ -40,9 +40,8 @@ function dateOf(day: string): Date {
 /** Add or edit one measurement: the number in kg or cm and the day it was taken. */
 export function GrowthForm({ kind, birthDate, initial, onSave, onDelete, onCancel }: Props) {
   const spec = GROWTH_SPECS[kind];
-  // The field shows the stored value rounded to what the app displays.
-  const initialText = initial ? formatValue(kind, initial.value) : '';
-  const [text, setText] = useState(initialText);
+  // The stored value is shown exactly (grams, millimetres), so typing it back gives the same number.
+  const [text, setText] = useState(initial ? formatValue(kind, initial.value) : '');
   const [date, setDate] = useState(initial ? dateOf(initial.measuredOn) : new Date());
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,18 +50,12 @@ export function GrowthForm({ kind, birthDate, initial, onSave, onDelete, onCance
   async function onSavePress() {
     setError(null);
     setFieldError(null);
-    // Untouched text keeps the exact stored value (4255 g is shown as 4.26 but stays 4255).
-    let value: number;
-    if (initial && text.trim() === initialText) {
-      value = initial.value;
-    } else {
-      const parsed = parseValue(kind, text);
-      if (!parsed.ok) {
-        setFieldError(parsed.message);
-        return;
-      }
-      value = parsed.value;
+    const parsed = parseValue(kind, text);
+    if (!parsed.ok) {
+      setFieldError(parsed.message);
+      return;
     }
+    const value = parsed.value;
     const measuredOn = toLocalDateString(date);
     const invalid = validateMeasuredOn(measuredOn, birthDate, toLocalDateString(new Date()));
     if (invalid) {

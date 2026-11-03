@@ -6,13 +6,13 @@ import { Card, Shelf } from '@/components/card';
 import { Chip } from '@/components/controls';
 import { Button, Screen } from '@/components/form';
 import { GrowthChart } from '@/components/growth-chart';
-import { GrowthForm } from '@/components/growth-form';
+import { GrowthForm, type GrowthFormValues } from '@/components/growth-form';
 import { Illustration } from '@/components/illustrations';
 import { Empty, ErrorState, Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
 import { MinTouch, Radius, Spacing, Sticker } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useGrowth, type GrowthPatch, type GrowthRow } from '@/lib/growth';
+import { useGrowth, type GrowthPatch, type GrowthRow, type GrowthWriteError } from '@/lib/growth';
 import {
   chartPoints,
   formatDay,
@@ -28,12 +28,22 @@ import { useSession } from '@/lib/session';
 const STACK_FONT_SCALE = 1.5;
 
 const SAVE_FAILED = 'Could not save. Check your connection and try again.';
+const SAVE_REJECTED = 'This value or date can’t be saved.';
 const DELETE_FAILED = 'Could not delete. Check your connection and try again.';
+
+function saveMessage(failure: GrowthWriteError): string {
+  return failure === 'rejected' ? SAVE_REJECTED : SAVE_FAILED;
+}
 
 // The only line under the numbers. Nothing on this screen says what they mean.
 const RECORDS_LINE = 'For your records. Your paediatrician interprets growth.';
 
-type Editing = { kind: GrowthKind; id: string | null };
+/**
+ * `start` is the measurement as it was when the form opened. The form edits and saves against that
+ * snapshot, not the live row, so a partner's change that arrives meanwhile is not undone by a Save
+ * that changes nothing of its own.
+ */
+type Editing = { kind: GrowthKind; id: string | null; start: GrowthFormValues | null };
 
 /** Weight, length and head circumference: a plain log with one line chart per measure. */
 export default function Growth() {
@@ -53,6 +63,8 @@ function GrowthScreen({ babyId, birthDate }: { babyId: string; birthDate: string
   const [kind, setKind] = useState<GrowthKind>('weight');
   // The form replaces the list, so the keyboard handling of Screen leaves Save in view.
   const [editing, setEditing] = useState<Editing | null>(null);
+  const { fontScale } = useWindowDimensions();
+  const stacked = fontScale >= STACK_FONT_SCALE;
 
   // The hardware back button closes the form first.
   useEffect(() => {
@@ -84,20 +96,24 @@ function GrowthScreen({ babyId, birthDate }: { babyId: string; birthDate: string
           key={editing.id ?? 'new'}
           kind={editing.kind}
           birthDate={birthDate}
-          initial={row ? { value: row.value, measuredOn: row.measured_on } : null}
+          initial={editing.start}
           onCancel={() => setEditing(null)}
           onSave={async ({ value, measuredOn }) => {
-            if (!row) {
+            if (!row || !editing.start) {
               const failure = await growth.add({ kind: editing.kind, value, measuredOn });
-              if (failure) return SAVE_FAILED;
+              if (failure) return saveMessage(failure);
               setKind(editing.kind);
               setEditing(null);
               return null;
             }
+            // Only what this form changed is sent.
             const patch: GrowthPatch = {};
-            if (value !== row.value) patch.value = value;
-            if (measuredOn !== row.measured_on) patch.measured_on = measuredOn;
-            if (Object.keys(patch).length > 0 && (await growth.update(row.id, patch))) return SAVE_FAILED;
+            if (value !== editing.start.value) patch.value = value;
+            if (measuredOn !== editing.start.measuredOn) patch.measured_on = measuredOn;
+            if (Object.keys(patch).length > 0) {
+              const failure = await growth.update(row.id, patch);
+              if (failure) return saveMessage(failure);
+            }
             setEditing(null);
             return null;
           }}
@@ -145,12 +161,12 @@ function GrowthScreen({ babyId, birthDate }: { babyId: string; birthDate: string
       ) : (
         <>
           <Card>
-            <View style={styles.cardHead}>
+            <View style={stacked ? styles.cardHeadStacked : styles.cardHead}>
               <ThemedText type="cardTitle" accessibilityRole="header" style={styles.flex}>
                 {spec.title}
               </ThemedText>
               {latest ? (
-                <View style={styles.latest}>
+                <View style={stacked ? styles.latestStacked : styles.latest}>
                   <ThemedText type="time">{formatWithUnit(kind, latest.value)}</ThemedText>
                   <ThemedText type="caption" themeColor="textSecondary">
                     {formatDay(latest.measured_on, true)}
@@ -164,9 +180,16 @@ function GrowthScreen({ babyId, birthDate }: { babyId: string; birthDate: string
               <Empty>{`No ${spec.noun} logged yet.`}</Empty>
             )}
           </Card>
-          <Button title={`Add ${spec.noun}`} onPress={() => setEditing({ kind, id: null })} />
+          <Button title={`Add ${spec.noun}`} onPress={() => setEditing({ kind, id: null, start: null })} />
           {list.map((row) => (
-            <GrowthRowItem key={row.id} row={row} kind={kind} onPress={() => setEditing({ kind, id: row.id })} />
+            <GrowthRowItem
+              key={row.id}
+              row={row}
+              kind={kind}
+              onPress={() =>
+                setEditing({ kind, id: row.id, start: { value: row.value, measuredOn: row.measured_on } })
+              }
+            />
           ))}
         </>
       )}
@@ -224,8 +247,11 @@ function GrowthRowItem({ row, kind, onPress }: { row: GrowthRow; kind: GrowthKin
 const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two },
+  // From a large font scale the title and the latest value stack, so neither is squeezed.
+  cardHeadStacked: { gap: Spacing.one },
   flex: { flexShrink: 1 },
   latest: { alignItems: 'flex-end', flexShrink: 0 },
+  latestStacked: { alignItems: 'flex-start' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
