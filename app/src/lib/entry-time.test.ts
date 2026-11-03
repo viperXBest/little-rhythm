@@ -1,10 +1,11 @@
 // Run with Deno (the app has no JS test runner):
 //   deno test app/src/lib/entry-time.test.ts
 // Excluded from the app's tsc and eslint, which don't know Deno.test.
-import { assert, assertEquals } from "jsr:@std/assert@1.0.13";
+import { assertEquals, assertMatch } from "jsr:@std/assert@1.0.13";
 
 import {
   birthDayStart,
+  checkEntryWith,
   type EntryDraft,
   FUTURE_SLACK_MS,
   inRange,
@@ -12,12 +13,14 @@ import {
   ML_RANGE,
   savedForText,
   sleepOverlaps,
+  type SleepQuery,
   type SleepSpan,
   validateEntry,
 } from "./entry-time.ts";
 
 // Local-time dates, so the tests don't depend on the machine's time zone.
-const at = (day: number, hour: number, minute = 0) => new Date(2026, 10, day, hour, minute);
+const at = (day: number, hour: number, minute = 0, second = 0) =>
+  new Date(2026, 10, day, hour, minute, second);
 const NOW = at(3, 12, 0);
 const BIRTH = "2026-08-01";
 
@@ -192,8 +195,95 @@ Deno.test("the first broken rule is the one reported", () => {
   assertEquals(validateEntry(sleep(at(3, 18), at(3, 19)))?.message, "The start can’t be in the future.");
 });
 
-Deno.test("the day label starts with Saved for and names the day", () => {
-  const text = savedForText(at(2, 14));
-  assert(text.startsWith("Saved for "));
-  assert(text.includes("2"));
+Deno.test("the day label names the weekday, the day and the month", () => {
+  // 2 Nov 2026 is a Monday. The order of the parts depends on the locale.
+  assertMatch(savedForText(at(2, 14), "en-GB"), /^Saved for Mon,? 2 Nov$/);
+  assertMatch(savedForText(at(2, 14), "en-US"), /^Saved for Mon, Nov 2$/);
+  assertMatch(savedForText(at(1, 23, 59), "en-GB"), /^Saved for Sun,? 1 Nov$/);
+});
+
+Deno.test("the end gets the same slack as the start: the boundary and one millisecond past it", () => {
+  const limit = new Date(NOW.getTime() + FUTURE_SLACK_MS);
+  assertEquals(code(sleep(at(3, 10), limit)), null);
+  assertEquals(code(sleep(at(3, 10), new Date(limit.getTime() + 1))), "future_end");
+});
+
+Deno.test("an open sleep being edited may have no end, but a future end is still rejected", () => {
+  assertEquals(code(sleep(at(3, 10), null, { allowOpen: true })), null);
+  assertEquals(code(sleep(at(3, 10), at(3, 18), { allowOpen: true })), "future_end");
+});
+
+Deno.test("seconds don't decide an overlap: a one-tap time and a picked time that touch are fine", () => {
+  // Another sleep ended at 10:00:37 (tapped Woke up); the new one starts at the picked 10:00.
+  assertEquals(sleepOverlaps(at(3, 10), at(3, 11), [sleepSpan("a", at(3, 9), at(3, 10, 0, 37))]), false);
+  // Another starts at 10:30:20; the new one ends at 10:30:10 (an edited one-tap sleep).
+  assertEquals(sleepOverlaps(at(3, 9), at(3, 10, 30, 10), [sleepSpan("a", at(3, 10, 30, 20), null)]), false);
+  // A real overlap of a minute or more still counts.
+  assertEquals(sleepOverlaps(at(3, 10), at(3, 11), [sleepSpan("a", at(3, 9), at(3, 10, 1, 5))]), true);
+});
+
+Deno.test("a stored sleep whose time can't be read counts as an overlap", () => {
+  const broken = (patch: Partial<SleepSpan>): SleepSpan => ({
+    id: "x",
+    started_at: at(3, 1).toISOString(),
+    ended_at: at(3, 2).toISOString(),
+    ...patch,
+  });
+  assertEquals(sleepOverlaps(at(3, 5), at(3, 6), [broken({ started_at: "not a time" })]), true);
+  assertEquals(sleepOverlaps(at(3, 5), at(3, 6), [broken({ ended_at: "not a time" })]), true);
+  assertEquals(sleepOverlaps(at(3, 5), at(3, 6), [broken({})]), false);
+});
+
+// checkEntryWith: the rules plus the stored sleeps, with a fake fetcher standing in for the query.
+function fetcher(result: SleepSpan[] | null) {
+  const calls: SleepQuery[] = [];
+  return {
+    calls,
+    fetch: (query: SleepQuery) => {
+      calls.push(query);
+      return Promise.resolve(result);
+    },
+  };
+}
+
+Deno.test("checkEntryWith fails closed when the sleeps can't be fetched", async () => {
+  const fake = fetcher(null);
+  const result = await checkEntryWith(sleep(at(3, 9), at(3, 11)), fake.fetch);
+  assertEquals(result?.code, "check_failed");
+  assertEquals(fake.calls.length, 1);
+});
+
+Deno.test("checkEntryWith fetches only for sleeps that pass their own rules", async () => {
+  const fake = fetcher([]);
+  assertEquals(await checkEntryWith(feed({ kind: "bottle", ml: 90 }), fake.fetch), null);
+  assertEquals(await checkEntryWith(diaper(at(3, 9)), fake.fetch), null);
+  assertEquals((await checkEntryWith(sleep(at(3, 18), at(3, 19)), fake.fetch))?.code, "future_start");
+  assertEquals((await checkEntryWith(sleep(at(3, 9), null), fake.fetch))?.code, "end_missing");
+  assertEquals(fake.calls.length, 0);
+  assertEquals(await checkEntryWith(sleep(at(3, 9), at(3, 11)), fake.fetch), null);
+  assertEquals(fake.calls.length, 1);
+});
+
+Deno.test("checkEntryWith passes the span and the sleep being edited to the fetcher", async () => {
+  const fake = fetcher([]);
+  await checkEntryWith(sleep(at(3, 9), at(3, 11)), fake.fetch);
+  await checkEntryWith(sleep(at(3, 9), at(3, 11), { ignoreId: "me" }), fake.fetch);
+  // An open sleep being edited has no upper bound.
+  await checkEntryWith(sleep(at(3, 9), null, { allowOpen: true, ignoreId: "open" }), fake.fetch);
+  assertEquals(fake.calls, [
+    { start: at(3, 9), end: at(3, 11), excludeId: undefined },
+    { start: at(3, 9), end: at(3, 11), excludeId: "me" },
+    { start: at(3, 9), end: null, excludeId: "open" },
+  ]);
+});
+
+Deno.test("checkEntryWith reports an overlap found in what the fetcher returns", async () => {
+  const stored = [sleepSpan("a", at(3, 10), null)];
+  assertEquals((await checkEntryWith(sleep(at(3, 9), at(3, 11)), fetcher(stored).fetch))?.code, "overlap");
+  assertEquals(await checkEntryWith(sleep(at(3, 8), at(3, 9)), fetcher(stored).fetch), null);
+  // Even if the query returned the sleep being edited, it isn't compared with itself.
+  assertEquals(
+    await checkEntryWith(sleep(at(3, 9), at(3, 11), { ignoreId: "a" }), fetcher(stored).fetch),
+    null,
+  );
 });

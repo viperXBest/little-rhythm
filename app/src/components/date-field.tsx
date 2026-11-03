@@ -50,10 +50,13 @@ export function DateField({
 
   function open() {
     const initial = value ?? initialValue ?? maximumDate ?? new Date();
+    // The dialog throws when the minimum is after the maximum (e.g. a start picked later today, since the
+    // time dialog has no limit). Cap it; the save still reports the time that is in the future.
+    const min = minimumDate && maximumDate && minimumDate > maximumDate ? maximumDate : minimumDate;
     DateTimePickerAndroid.open({
       value: initial,
       mode: 'date',
-      minimumDate,
+      minimumDate: min,
       maximumDate,
       onChange: (event, date) => {
         if (event.type !== 'set' || !date) return;

@@ -2,10 +2,10 @@ import { randomUUID } from 'expo-crypto';
 
 import type { Json, Tables } from '@/lib/database.types';
 import {
+  checkEntryWith,
   inRange,
   MINUTES_RANGE,
   ML_RANGE,
-  validateEntry,
   type EntryDraft,
   type EntryProblem,
   type SleepSpan,
@@ -125,8 +125,6 @@ export async function deleteEvent(id: string): Promise<WriteError | null> {
   return error ? 'failed' : null;
 }
 
-const CHECK_FAILED = 'Could not check your sleeps. Check your connection and try again.';
-
 /**
  * Sleeps that could overlap [start, end): they started before `end` (any start when `end` is null, an
  * open sleep) and are open or ended after `start`. RLS limits this to the caller's baby. Null on failure.
@@ -150,13 +148,9 @@ export async function fetchSleepsNear(
   return error ? null : data;
 }
 
-/** The rules in entry-time.ts, plus the sleep-overlap test against the baby's log (sleeps only). */
-export async function checkEntry(babyId: string, draft: EntryDraft): Promise<EntryProblem | null> {
-  const problem = validateEntry(draft);
-  if (problem || draft.type !== 'sleep') return problem;
-  const others = await fetchSleepsNear(babyId, draft.start, draft.end, draft.ignoreId);
-  if (!others) return { code: 'check_failed', message: CHECK_FAILED };
-  return validateEntry({ ...draft, others });
+/** The rules in entry-time.ts, with the sleep-overlap test run against the baby's log. */
+export function checkEntry(babyId: string, draft: EntryDraft): Promise<EntryProblem | null> {
+  return checkEntryWith(draft, ({ start, end, excludeId }) => fetchSleepsNear(babyId, start, end, excludeId));
 }
 
 /** Start of the phone's local day. */

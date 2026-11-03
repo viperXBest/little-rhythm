@@ -64,9 +64,15 @@ export function birthDayStart(birthDate: string | null): Date | null {
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
+/** Down to the minute: picked times have zero seconds, one-tap times don't, so seconds never decide an overlap. */
+function toMinute(ms: number): number {
+  return Math.floor(ms / 60_000) * 60_000;
+}
+
 /**
- * True when [start, end) shares time with any of `others`. An open sleep (no end) runs on forever, so
- * `end` null does too. Sleeps that only touch (one ends as the next starts) don't overlap.
+ * True when [start, end) shares time with any of `others`, compared to the minute. An open sleep (no end)
+ * runs on forever, so `end` null does too. Sleeps that only touch (one ends as the next starts) don't
+ * overlap. A row whose time can't be read counts as an overlap: better to refuse than to double-book.
  */
 export function sleepOverlaps(
   start: Date,
@@ -74,12 +80,14 @@ export function sleepOverlaps(
   others: readonly SleepSpan[],
   ignoreId?: string,
 ): boolean {
-  const from = start.getTime();
-  const until = end ? end.getTime() : Infinity;
+  const from = toMinute(start.getTime());
+  const until = end ? toMinute(end.getTime()) : Infinity;
   return others.some((other) => {
     if (ignoreId !== undefined && other.id === ignoreId) return false;
+    const otherFrom = Date.parse(other.started_at);
     const otherUntil = other.ended_at === null ? Infinity : Date.parse(other.ended_at);
-    return Date.parse(other.started_at) < until && from < otherUntil;
+    if (Number.isNaN(otherFrom) || Number.isNaN(otherUntil)) return true;
+    return toMinute(otherFrom) < until && from < toMinute(otherUntil);
   });
 }
 
@@ -122,7 +130,28 @@ export function validateEntry(draft: EntryDraft): EntryProblem | null {
   return null;
 }
 
+const CHECK_FAILED = 'Could not check your sleeps. Check your connection and try again.';
+
+/** What the overlap query needs: the span being saved, and the sleep being edited (left out of the result). */
+export type SleepQuery = { start: Date; end: Date | null; excludeId?: string };
+
+/**
+ * validateEntry, plus the sleep-overlap test for sleeps. `fetchOthers` returns the stored sleeps that could
+ * overlap the span (null when it couldn't be fetched, which refuses the entry rather than saving unchecked).
+ * It is only called for sleeps whose own times already pass.
+ */
+export async function checkEntryWith(
+  draft: EntryDraft,
+  fetchOthers: (query: SleepQuery) => Promise<SleepSpan[] | null>,
+): Promise<EntryProblem | null> {
+  const broken = validateEntry(draft);
+  if (broken || draft.type !== 'sleep') return broken;
+  const others = await fetchOthers({ start: draft.start, end: draft.end, excludeId: draft.ignoreId });
+  if (!others) return problem('check_failed', CHECK_FAILED);
+  return validateEntry({ ...draft, others });
+}
+
 /** "Saved for Mon 2 Nov": the confirmation for an entry Home's today-only list won't show. */
-export function savedForText(start: Date): string {
-  return `Saved for ${start.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}`;
+export function savedForText(start: Date, locales: string | string[] = []): string {
+  return `Saved for ${start.toLocaleDateString(locales, { weekday: 'short', day: 'numeric', month: 'short' })}`;
 }
