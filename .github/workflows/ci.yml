@@ -47,6 +47,14 @@ jobs:
         run: deno fmt --check --line-width 110 $(git ls-files 'supabase/*.ts' 'scripts/*.ts')
       - name: Edge Function units (predictions, agent, health gate, voice, memory)
         run: deno test -A supabase/functions/
+      # Growth records are for the parents only: no function may read them, so they can never
+      # reach the AI.
+      - name: Growth never reaches a function
+        run: |
+          if git grep -n growth_measurements -- supabase/functions; then
+            echo "supabase/functions must not read growth_measurements" >&2
+            exit 1
+          fi
       # Every tracked app test (*.test.ts): reminder ids, palette contrast (WCAG AA), chat display,
       # mic label, language tag, emergency number, timeline, units, earliest start, and the build guard (public
       # Supabase env only). A new test file runs without a CI change.
