@@ -46,9 +46,9 @@ grant update (value, measured_on) on public.growth_measurements to authenticated
 -- Policies: full CRUD for members of the baby's family
 -- ---------------------------------------------------------------------------
 
--- A date is accepted from the baby's birth date up to tomorrow: the extra day absorbs the
--- difference between the phone's calendar day and the database's (UTC) day, which is at most
--- one day in either direction.
+-- A date is accepted from the baby's birth date up to tomorrow in UTC (the day is pinned to UTC, not
+-- to the session's time zone): the extra day absorbs the difference between the phone's calendar day
+-- and the UTC day, which is at most one day in either direction.
 create policy growth_select on public.growth_measurements for select to authenticated
   using (exists (
     select 1 from public.babies b
@@ -57,7 +57,7 @@ create policy growth_select on public.growth_measurements for select to authenti
 create policy growth_insert on public.growth_measurements for insert to authenticated
   with check (
     created_by = (select auth.uid())
-    and measured_on <= current_date + 1
+    and measured_on <= (now() at time zone 'utc')::date + 1
     and exists (
       select 1 from public.babies b
       where b.id = growth_measurements.baby_id
@@ -71,7 +71,7 @@ create policy growth_update on public.growth_measurements for update to authenti
     where b.id = growth_measurements.baby_id and public.is_family_member(b.family_id)
   ))
   with check (
-    measured_on <= current_date + 1
+    measured_on <= (now() at time zone 'utc')::date + 1
     and exists (
       select 1 from public.babies b
       where b.id = growth_measurements.baby_id
