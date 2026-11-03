@@ -13,6 +13,8 @@ import {
 } from "../../supabase/functions/_shared/zone.ts";
 import {
   buildPlan,
+  GROWTH_BOUNDS,
+  growthPlan,
   HISTORY,
   leads,
   leadsFit,
@@ -144,6 +146,68 @@ function assertRowsValid(plan: Plan): void {
   assert(days.every((d) => d < today));
   assert(plan.checkins.every((c) => c.mood >= 1 && c.mood <= 5 && c.help.length <= 280));
 }
+
+Deno.test("growth entries: relative to the birth date, never in the future, within the table's bounds", () => {
+  const la: Zone = { kind: "iana", name: "America/Los_Angeles" };
+  const takes: [Date, Zone][] = [
+    [NOW, ZONE],
+    [atLocal(NOW_DAY, 9, 40), ZONE],
+    [new Date("2026-10-20T14:30:00Z"), ZONE], // the clock seed.test.ts uses
+    [new Date("2026-11-05T01:30:00Z"), la], // 17:30 on 4 Nov in Los Angeles
+  ];
+  for (const [anchor, zone] of takes) {
+    const plan = buildPlan(anchor, zone);
+    assert(plan, `no plan at ${anchor.toISOString()}`);
+    const birth = Date.parse(plan.birthDate);
+    const today = localParts(zone, anchor.getTime()).day * MS_PER_DAY;
+    const growth = plan.growth;
+    assertEquals(growth, growthPlan(plan.birthDate));
+
+    // All three kinds at four check-ups: birth and about 2, 6 and 10 weeks old.
+    assertEquals(growth.length, 12);
+    const dates = [...new Set(growth.map((g) => g.measured_on))];
+    assertEquals(dates.map((d) => (Date.parse(d) - birth) / MS_PER_DAY), [0, 14, 42, 70]);
+    for (const date of dates) {
+      assertEquals(growth.filter((g) => g.measured_on === date).map((g) => g.kind), [
+        "weight",
+        "length",
+        "head",
+      ]);
+    }
+
+    for (const g of growth) {
+      assert(/^\d{4}-\d\d-\d\d$/.test(g.measured_on), g.measured_on);
+      const ms = Date.parse(g.measured_on);
+      assert(ms >= birth, `${g.measured_on} is before the birth date ${plan.birthDate}`);
+      assert(ms < today, `${g.measured_on} is not before the anchor's day`);
+      assert(Number.isInteger(g.value), `${g.kind} ${g.value}`);
+      const { min, max } = GROWTH_BOUNDS[g.kind];
+      assert(g.value >= min && g.value <= max, `${g.kind} ${g.value}`);
+    }
+
+    // A growing baby: each kind rises from one check-up to the next.
+    for (const kind of ["weight", "length", "head"] as const) {
+      const values = growth.filter((g) => g.kind === kind).map((g) => g.value);
+      assert(values.every((v, i) => i === 0 || v > values[i - 1]), `${kind}: ${values}`);
+    }
+    // The parents enter the check-ups in turn.
+    assertEquals(dates.map((d) => growth.find((g) => g.measured_on === d)!.by), [
+      "parent1",
+      "parent2",
+      "parent1",
+      "parent2",
+    ]);
+    for (const date of dates) {
+      assertEquals(new Set(growth.filter((g) => g.measured_on === date).map((g) => g.by)).size, 1);
+    }
+  }
+  // The bounds are the table's.
+  assertEquals(GROWTH_BOUNDS, {
+    weight: { min: 300, max: 30000 },
+    length: { min: 200, max: 1200 },
+    head: { min: 150, max: 600 },
+  });
+});
 
 Deno.test("night feeds split about 60/40 between the parents", () => {
   const plan = planAt(NOW);
