@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, ToastAndroid, useWindowDimensions, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { Segmented, Stepper } from '@/components/controls';
@@ -30,9 +30,6 @@ import { useTodayEvents } from '@/lib/today-events';
 
 const SAVE_FAILED = 'Could not save. Check your connection and try again.';
 
-/** How long the "Saved for ..." note stays under the log sheets. */
-const NOTICE_MS = 6000;
-
 /** An entry from a log sheet. A start left null means "now", read at the moment of saving. */
 type Entry =
   | { type: 'feed'; startedAt: Date | null; details: FeedDetails }
@@ -58,16 +55,8 @@ export function QuickLog() {
   const { add, openSleep } = useTodayEvents();
   const { fontScale } = useWindowDimensions();
   const [error, setError] = useState<string | null>(null);
-  // An object, so two saves in a row with the same text restart the timer.
-  const [notice, setNotice] = useState<{ text: string } | null>(null);
   const [feedOpen, setFeedOpen] = useState(false);
   const [pastSleepOpen, setPastSleepOpen] = useState(false);
-
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), NOTICE_MS);
-    return () => clearTimeout(timer);
-  }, [notice]);
 
   if (!session || !family) return null;
   const userId = session.user.id;
@@ -78,7 +67,6 @@ export function QuickLog() {
   // The one-tap path: always now, so there is nothing to check.
   async function log(type: EventType, details?: FeedDetails | DiaperDetails): Promise<WriteError | null> {
     setError(null);
-    setNotice(null);
     const result = await add(newEventRow({ babyId, userId, type, startedAt: new Date(), details }));
     if (result === 'failed') setError(SAVE_FAILED);
     return result;
@@ -86,11 +74,11 @@ export function QuickLog() {
 
   /**
    * Saves an entry from a log sheet after the rules in entry-time.ts. Returns the message to show when it
-   * was not saved, else null. Home lists today only, so an entry for another day gets a confirmation.
+   * was not saved, else null. Home lists today only, so an entry for another day gets a toast (TalkBack
+   * announces it).
    */
   async function save(entry: Entry): Promise<string | null> {
     setError(null);
-    setNotice(null);
     const startedAt = entry.startedAt ?? new Date();
     const draft: EntryDraft =
       entry.type === 'feed'
@@ -109,13 +97,13 @@ export function QuickLog() {
       details: entry.type === 'sleep' ? undefined : entry.details,
     });
     if (await add(row)) return SAVE_FAILED;
-    if (!overlapsDay(row, startOfToday())) setNotice({ text: savedForText(startedAt) });
+    if (!overlapsDay(row, startOfToday())) ToastAndroid.show(savedForText(startedAt), ToastAndroid.SHORT);
     return null;
   }
 
   // The two big buttons share a row; an open sleep, a log sheet or a large font stacks them.
   // The tree is the same in both layouts, so nothing remounts mid-tap.
-  const sideBySide = !openSleep && !feedOpen && !pastSleepOpen && fontScale < STACK_FONT_SCALE;
+  const sideBySide = !openSleep && !feedOpen && fontScale < STACK_FONT_SCALE;
   // The diaper label sits left of its choices below the stack scale; above it, the choices go under the label.
   const diaperInline = fontScale < STACK_FONT_SCALE;
 
@@ -124,8 +112,6 @@ export function QuickLog() {
       <View style={sideBySide ? styles.row : styles.wrap}>
         <View style={sideBySide ? styles.cell : undefined}>
           <SleepCard
-            pastOpen={pastSleepOpen}
-            birthStart={birthStart}
             onStart={async () => {
               // add() refetches on conflict, so the card switches to the partner's sleep.
               if ((await log('sleep')) === 'sleep_already_open') {
@@ -133,13 +119,6 @@ export function QuickLog() {
               }
             }}
             onError={setError}
-            onOpenPast={() => setPastSleepOpen(true)}
-            onClosePast={() => setPastSleepOpen(false)}
-            onSavePast={async (startedAt, endedAt) => {
-              const message = await save({ type: 'sleep', startedAt, endedAt });
-              if (!message) setPastSleepOpen(false);
-              return message;
-            }}
           />
         </View>
         <View style={sideBySide ? styles.cell : undefined}>
@@ -164,6 +143,24 @@ export function QuickLog() {
           )}
         </View>
       </View>
+      {pastSleepOpen ? (
+        <PastSleepPanel
+          birthStart={birthStart}
+          onCancel={() => setPastSleepOpen(false)}
+          onSave={async (startedAt, endedAt) => {
+            const message = await save({ type: 'sleep', startedAt, endedAt });
+            if (!message) setPastSleepOpen(false);
+            return message;
+          }}
+        />
+      ) : (
+        <Button
+          title="Add a past sleep"
+          variant="quiet"
+          accessibilityHint="Opens start and end time fields"
+          onPress={() => setPastSleepOpen(true)}
+        />
+      )}
       <DiaperCard
         inline={diaperInline}
         birthStart={birthStart}
@@ -171,11 +168,6 @@ export function QuickLog() {
         onSaveEarlier={(details, startedAt) => save({ type: 'diaper', startedAt, details })}
       />
       <ErrorText>{error}</ErrorText>
-      {notice ? (
-        <ThemedText accessibilityLiveRegion="polite" type="small" themeColor="textSecondary">
-          {notice.text}
-        </ThemedText>
-      ) : null}
     </View>
   );
 }
@@ -190,7 +182,7 @@ function DiaperCard({
   inline: boolean;
   birthStart: Date | undefined;
   onTap: (details: DiaperDetails) => void;
-  onSaveEarlier: (details: DiaperDetails, startedAt: Date) => Promise<string | null>;
+  onSaveEarlier: (details: DiaperDetails, startedAt: Date | null) => Promise<string | null>;
 }) {
   const [earlierOpen, setEarlierOpen] = useState(false);
   return (
@@ -207,7 +199,7 @@ function DiaperCard({
         />
       ) : (
         <>
-          <View style={inline ? styles.diaper : undefined}>
+          <View style={inline ? styles.diaper : styles.diaperStacked}>
             <DiaperLabel />
             <View style={[styles.diaperChoices, inline ? styles.diaperChoicesInline : styles.diaperChoicesStacked]}>
               {DIAPER_CHOICES.map((choice) => (
@@ -223,7 +215,8 @@ function DiaperCard({
           <Button
             title="Earlier…"
             variant="quiet"
-            accessibilityHint="Logs a diaper for an earlier time"
+            accessibilityLabel="Log an earlier diaper"
+            accessibilityHint="Opens a time field and the diaper choices"
             onPress={() => setEarlierOpen(true)}
           />
         </>
@@ -243,14 +236,15 @@ function DiaperLabel() {
   );
 }
 
-/** A diaper for a past time: choose the time first, then tap what it was. */
+/** A diaper for another time: the time says Now until changed, then tap what it was. */
 function EarlierDiaper({
   birthStart,
   onSave,
   onCancel,
 }: {
   birthStart: Date | undefined;
-  onSave: (details: DiaperDetails, startedAt: Date) => Promise<string | null>;
+  /** `startedAt` null = now, read when saving. */
+  onSave: (details: DiaperDetails, startedAt: Date | null) => Promise<string | null>;
   onCancel: () => void;
 }) {
   const [time, setTime] = useState<Date | null>(null);
@@ -259,10 +253,6 @@ function EarlierDiaper({
 
   async function submit(details: DiaperDetails) {
     if (busy) return;
-    if (!time) {
-      setError('Choose the time first.');
-      return;
-    }
     setBusy(true);
     setError(await onSave(details, time));
     setBusy(false);
@@ -277,6 +267,8 @@ function EarlierDiaper({
         on="card"
         value={time}
         onChange={setTime}
+        placeholder="Now"
+        emptyAction="Change ›"
         minimumDate={birthStart}
         maximumDate={new Date()}
       />
@@ -285,28 +277,48 @@ function EarlierDiaper({
           <DiaperChoice
             key={choice.title}
             title={choice.title}
-            hint="Logs it at the time above"
+            hint={time ? 'Logs it at the time above' : 'Logs it now'}
+            busy={busy}
             onPress={() => void submit(choice.details)}
           />
         ))}
       </View>
       <ErrorText>{error}</ErrorText>
-      <Button title="Cancel" variant="secondary" onPress={onCancel} />
+      <Button
+        title="Cancel"
+        variant="secondary"
+        accessibilityHint="Closes this without saving"
+        onPress={onCancel}
+      />
     </View>
   );
 }
 
 /** One diaper choice: a soft aqua tile, 52 dp tall, label in the button type. */
-function DiaperChoice({ title, hint, onPress }: { title: string; hint: string; onPress: () => void }) {
+function DiaperChoice({
+  title,
+  hint,
+  busy = false,
+  onPress,
+}: {
+  title: string;
+  hint: string;
+  /** True while a save is under way: the tile is disabled and dimmed. */
+  busy?: boolean;
+  onPress: () => void;
+}) {
   const theme = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityHint={hint}
+      accessibilityState={{ disabled: busy, busy }}
+      disabled={busy}
       onPress={onPress}
       style={({ pressed }) => [
         styles.choice,
         { backgroundColor: pressed ? theme.border : theme.diaperSoft, borderColor: theme.border },
+        busy && styles.dimmed,
       ]}>
       <ThemedText type="button" style={styles.center}>
         {title}
@@ -315,26 +327,7 @@ function DiaperChoice({ title, hint, onPress }: { title: string; hint: string; o
   );
 }
 
-type SleepCardProps = {
-  pastOpen: boolean;
-  birthStart: Date | undefined;
-  onStart: () => Promise<void>;
-  onError: (e: string | null) => void;
-  onOpenPast: () => void;
-  onClosePast: () => void;
-  /** Resolves to the message to show when the sleep was not saved. */
-  onSavePast: (startedAt: Date, endedAt: Date | null) => Promise<string | null>;
-};
-
-function SleepCard({
-  pastOpen,
-  birthStart,
-  onStart,
-  onError,
-  onOpenPast,
-  onClosePast,
-  onSavePast,
-}: SleepCardProps) {
+function SleepCard({ onStart, onError }: { onStart: () => Promise<void>; onError: (e: string | null) => void }) {
   const { session } = useSession();
   const { openSleep, endSleep, now } = useTodayEvents();
   const [busy, setBusy] = useState(false);
@@ -345,66 +338,46 @@ function SleepCard({
     setBusy(false);
   }
 
-  // The past-sleep sheet sits under the start/stop controls, so the open sleep stays in view.
-  const past = pastOpen ? (
-    <PastSleepPanel birthStart={birthStart} onSave={onSavePast} onCancel={onClosePast} />
-  ) : (
-    <Button
-      title="Add a past sleep"
-      variant="quiet"
-      accessibilityHint="Opens start and end time fields"
-      onPress={onOpenPast}
-    />
-  );
-
   if (!openSleep) {
     return (
-      <View style={styles.sleepCard}>
-        {pastOpen ? null : (
-          <Button
-            title="Start sleep"
-            variant="tint"
-            size="large"
-            icon={<TintIcon name="sleep" />}
-            onPress={() => void run(onStart)}
-            busy={busy}
-          />
-        )}
-        {past}
-      </View>
+      <Button
+        title="Start sleep"
+        variant="tint"
+        size="large"
+        icon={<TintIcon name="sleep" />}
+        onPress={() => void run(onStart)}
+        busy={busy}
+      />
     );
   }
 
   const byPartner = openSleep.created_by !== session?.user.id;
   return (
-    <View style={styles.sleepCard}>
-      <Card tone="sleepSoft">
-        <View style={styles.asleepHead}>
-          <Icon name="sleep" size={32} fill="sleepSoft" />
-          <ThemedText type="cardTitle" style={styles.shrink}>
-            Asleep {formatDuration(now.getTime() - Date.parse(openSleep.started_at))}
-          </ThemedText>
-        </View>
-        <ThemedText type="small" themeColor="textSecondary">
-          Since {formatTime(openSleep.started_at)}
-          {byPartner ? ', started by your partner' : ''}
+    <Card tone="sleepSoft">
+      <View style={styles.asleepHead}>
+        <Icon name="sleep" size={32} fill="sleepSoft" />
+        <ThemedText type="cardTitle" style={styles.shrink}>
+          Asleep {formatDuration(now.getTime() - Date.parse(openSleep.started_at))}
         </ThemedText>
-        <Button
-          title="Woke up"
-          variant="tint"
-          size="large"
-          icon={<TintIcon name="wake" />}
-          busy={busy}
-          onPress={() =>
-            void run(async () => {
-              onError(null);
-              if (await endSleep(openSleep.id)) onError(SAVE_FAILED);
-            })
-          }
-        />
-      </Card>
-      {past}
-    </View>
+      </View>
+      <ThemedText type="small" themeColor="textSecondary">
+        Since {formatTime(openSleep.started_at)}
+        {byPartner ? ', started by your partner' : ''}
+      </ThemedText>
+      <Button
+        title="Woke up"
+        variant="tint"
+        size="large"
+        icon={<TintIcon name="wake" />}
+        busy={busy}
+        onPress={() =>
+          void run(async () => {
+            onError(null);
+            if (await endSleep(openSleep.id)) onError(SAVE_FAILED);
+          })
+        }
+      />
+    </Card>
   );
 }
 
@@ -459,8 +432,18 @@ function PastSleepPanel({
         maximumDate={now}
       />
       <ErrorText>{error}</ErrorText>
-      <Button title="Save sleep" onPress={() => void submit()} busy={busy} />
-      <Button title="Cancel" variant="secondary" onPress={onCancel} />
+      <Button
+        title="Save sleep"
+        accessibilityHint="Saves the sleep with the times above"
+        onPress={() => void submit()}
+        busy={busy}
+      />
+      <Button
+        title="Cancel"
+        variant="secondary"
+        accessibilityHint="Closes this without saving"
+        onPress={onCancel}
+      />
     </Card>
   );
 }
@@ -534,8 +517,18 @@ function FeedPanel({
         maximumDate={new Date()}
       />
       <ErrorText>{error}</ErrorText>
-      <Button title={time ? 'Log feed' : 'Log feed now'} onPress={() => void submit()} busy={busy} />
-      <Button title="Cancel" variant="secondary" onPress={onCancel} />
+      <Button
+        title={time ? 'Log feed' : 'Log feed now'}
+        accessibilityHint={time ? 'Logs the feed at the time above' : 'Logs the feed now'}
+        onPress={() => void submit()}
+        busy={busy}
+      />
+      <Button
+        title="Cancel"
+        variant="secondary"
+        accessibilityHint="Closes this without saving"
+        onPress={onCancel}
+      />
     </Card>
   );
 }
@@ -544,11 +537,11 @@ const styles = StyleSheet.create({
   wrap: { gap: Spacing.three },
   row: { flexDirection: 'row', gap: Spacing.three },
   cell: { flex: 1 },
-  sleepCard: { gap: Spacing.one },
   asleepHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   shrink: { flexShrink: 1 },
   panel: { gap: Spacing.three },
-  diaper: { flexDirection: 'row', alignItems: 'center' },
+  diaper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  diaperStacked: { gap: Spacing.two },
   diaperLabel: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -573,4 +566,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   center: { textAlign: 'center' },
+  dimmed: { opacity: 0.6 },
 });
