@@ -20,9 +20,11 @@ tightens safety for a parent in crisis.
 ## What's new
 
 **Muse Spark in plain view**
-- **Agent steps:** under each live reply, a "Muse Spark · N steps" row opens to show
+- **Agent steps:** under the live reply, a "Muse Spark · N steps" row opens to show
   what the agent did, such as "Read the log", "Checked Next up" or "Proposed a feed".
-  The server builds these labels from the tools that ran, never from model text.
+  The server builds these labels from the tools that ran, never from model text. The
+  steps are not stored yet: only the phone that sent the message shows them, until the
+  chat screen is closed.
 - **Named models:** voice transcripts carry a "Muse Voice Transcribe" chip. The
   thinking state reads "Muse Spark is thinking…", and every confirm card says "Proposed
   by Muse Spark · confirm to save".

@@ -112,7 +112,7 @@ README.md  SECURITY.md  LICENSE  .env.example
 | F7 | Notifications | Local reminders before predicted windows and for the daily check-in |
 | F8 | Account deletion | Deletes the user, and the family's data when they are the last member |
 
-Roadmap only: an output keyword check on model replies (tried in v1.1.1, removed after safety run D), dropping the 5-argument `consume_chat_budget` wrapper (kept for `chat` v9), relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
+Roadmap only: edit events by chat (the agent only proposes new events), storing the agent's steps (the steps row shows on the live reply only), an output keyword check on model replies (tried in v1.1.1, removed after safety run D), dropping the 5-argument `consume_chat_budget` wrapper (kept for `chat` v9), relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
 
 ## Agent tools (chat function)
 

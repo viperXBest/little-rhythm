@@ -116,7 +116,7 @@ Everything in this repository was written during the hackathon, which started on
 | 29 Oct (52) | The prediction engine, the `predict` function, the Next up card and reminders. The health gate, the family-life companion with memory, shared and private threads, the check-in and night-feed balance. The safety set, account deletion, rate limits, CI with gitleaks, and the security review |
 | 30 Oct (24) | Demo data, the first palette with contrast tests, loading and error states, the notification icon, this README. Release v1.0.0 |
 | 2 Nov (73) | v1.1.0. The "Cloud Lullaby" redesign (design system, illustrations as theme-aware SVG, accessibility audit at 200% text). A second security review (Muse Spark Open plus by hand), then the server track: daily chat caps per user and family, a global spend breaker, token caps on every model call, a "never reveal tools" rule, 17 jailbreak prompts, and safety run C |
-| 2–3 Nov, after v1.1.0 (24) | v1.1.1. The agent's steps shown under each reply, Muse named in the app, calmer Next up copy, a local emergency number, a parent-crisis override and a safe-sleep prompt line, a new-account chat cap, a reply grader, the breaker runbook, and safety run D (`chat` v10) |
+| 2–3 Nov, after v1.1.0 (24) | v1.1.1. The agent's steps shown under the live reply, Muse named in the app, calmer Next up copy, a local emergency number, a parent-crisis override and a safe-sleep prompt line, a new-account chat cap, a reply grader, the breaker runbook, and safety run D (`chat` v10) |
 
 ## Meta AI in the app
 
@@ -152,11 +152,14 @@ code: it is whatever `SAFETY_GEN_MODEL` names for that endpoint.
     card always agree;
   - `search_chat_history`, limited to the current thread.
 
-**The agent's steps are visible.** Under each live reply the app shows a row such as
-"Muse Spark · 3 steps"; tap it to see what the agent did, for example "Read the log",
-"Checked Next up", "Proposed a feed". The server builds these labels from the tools that actually
-ran, never from model text. A voice transcript carries a "Muse Voice Transcribe" chip,
-and each confirm card says "Proposed by Muse Spark · confirm to save".
+**The agent's steps are visible on the live reply.** Under the reply you just got, the app
+shows a row such as "Muse Spark · 3 steps"; tap it to see what the agent did, for example
+"Read the log", "Checked Next up", "Proposed a feed". The server builds these labels from
+the tools that actually ran, never from model text. The steps are not stored yet (on the
+roadmap): they show on the phone that sent the message, until the chat screen is closed, and
+the other phone and a reloaded chat show the reply without them. A voice transcript carries
+a "Muse Voice Transcribe" chip (also live only), and each confirm card says "Proposed by
+Muse Spark · confirm to save".
 
 The baby and family always come from the session, never from the model or the request.
 Tool arguments are validated with zod: bottle 5–400 ml, breast 1–90 min, times within
@@ -252,6 +255,18 @@ The tool calls the agent makes for that sentence (abridged; the shape is
 - **F6 Couple layer:** a daily check-in revealed once both answered, night-feed balance, shared and private chats. Couple data never goes to the AI.
 - **F7 Notifications:** local reminders before predicted windows and for the check-in.
 - **F8 Account deletion:** password re-entered and checked on the server; the partner's data stays.
+
+## Roadmap
+
+Not built, and not part of this submission:
+- **Edit events by chat.** The agent can only propose new events. To change or delete a
+  logged event, use the timeline in the app.
+- **Store the agent's steps** with the reply, so they show after a reload and on the other
+  phone.
+- An output keyword check on model replies (tried in v1.1.1, removed after safety run D;
+  the replies are graded in tests instead, see [`docs/safety.md`](docs/safety.md)).
+- Relationship nudges, pumping, growth charts, medication tracking, a tips library, more
+  caregivers and babies, iOS, WhatsApp logging, and EU hosting for the AI.
 
 ## Architecture
 

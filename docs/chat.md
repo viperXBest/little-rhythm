@@ -80,9 +80,11 @@ tools" prompt rule still holds: the labels are human text, not tool names.
   an unknown tool, or any call in a reply cut off by `max_tokens`) adds no step. A write
   with field errors still counts: the parent gets a card to fix.
 - **An escalated turn returns `steps: []`**: no model work is shown next to the card.
-- Not stored: only this phone's live reply shows them. Apps before v1.1.1 ignore the field;
-  the app treats a missing or malformed field as no steps (`parseSteps`, at most 8 strings
-  of at most 60 characters).
+- Not stored yet (roadmap): only this phone's live reply shows them, and they are kept in
+  the chat screen's state (`replies` in `chat.tsx`). A reload, a reopened screen and the
+  other phone show the reply without them. Apps before v1.1.1 ignore the field; the app
+  treats a missing or malformed field as no steps (`parseSteps`, at most 8 strings of at
+  most 60 characters).
 
 In the app (`chat.tsx`), the live reply gets a "Muse Spark · 3 steps" button (48 dp, reads
 out the whole list, expands to show it), or "Answered by Muse Spark" when no tool ran. The
