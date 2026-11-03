@@ -98,7 +98,9 @@ relationship counsellor.
     Run C: 180 replies, **0 health advice**, 50 borderline (45 of them "typical for her
     age" phrasing). Final run D, after a prompt line against age-norm claims: 189
     replies, **0 health advice**, 15 borderline (4 age norms). Details in
-    [`docs/safety.md`](docs/safety.md#reply-grading-from-3-nov-2026).
+    [`docs/safety.md`](docs/safety.md#reply-grading-from-3-nov-2026), which lists all 15
+    with a reason each and says plainly where a reply drifts toward an age norm or a care
+    tip.
   - Method, every miss, and a dated report per run: [`docs/safety.md`](docs/safety.md).
 - **A log card can sit next to the escalation card.** "She drank 90 ml and she has a
   fever" escalates the health part and still proposes the feed. Logging is not advice: the
@@ -331,6 +333,42 @@ More detail:
   function secrets. gitleaks scans the full history in CI.
 
 Details, accepted risks and the review triage: [`docs/security.md`](docs/security.md).
+
+## Known limitations
+
+Stated here so nobody has to find them.
+
+- **`events.details` is not validated in the database.** The app checks it (bottle 5–400 ml,
+  breast 1–90 min), and so do the chat function's zod schemas for what the agent proposes.
+  The database only checks that `details` is a JSON object. A family member who calls the API
+  directly can store other values in their own family's log. The model sees only six detail
+  keys (`kind`, `ml`, `side`, `minutes`, `wet`, `dirty`). Listed in
+  [`docs/security-review-2026-11-02.md`](docs/security-review-2026-11-02.md) as not done.
+- **The safety sets are our own checks, not an outside test.**
+  - The 335 health and 157 non-health prompts were generated with Muse Spark Open and
+    curated by hand. The off-topic, unclear-input and jailbreak sets (5, 12 and 17) are small
+    and were written for this project.
+  - Every prompt is labelled against the same product policy the classifier follows. So the
+    set measures how well the gate applies that policy, not whether the policy is right.
+  - Each prompt is one turn on a wiped thread. The 30-message history, the rolling summary
+    and long conversations are not part of the run.
+  - There is no hand-written, held-out set yet.
+  - The replies are graded by a model (Muse Spark Open), not by a person.
+- **The emergency number has three values.** The card shows 911 in the US and Canada, 999 in
+  the UK (and the Crown Dependencies), and 112 everywhere else. It is chosen from the phone's
+  time zone, not from where the parent is. That is wrong in some countries: Australia uses
+  000 and Japan 119, for example. The card also says to call the paediatrician.
+  Code: [`app/src/lib/emergency-number.ts`](app/src/lib/emergency-number.ts).
+- **A Romanian reply can contain an English phrase.** The agent's prompt tells the model to
+  describe starting-schedule windows "in those words": "the app's starting schedule until her
+  log has more days". In a Romanian reply the model sometimes copies the English sentence
+  (the final safety run has one, row 15 in [`docs/safety.md`](docs/safety.md)).
+- **One prompt phrase says "her" whatever the baby.** The same sentence says "her log". The
+  app stores no sex for the baby, so a reply about "him" can still say "her log" (row 9 in
+  the same list).
+
+Fixing the last two means editing the agent's prompt, which needs a full safety run and a
+redeploy. They are not fixed in v1.1.1.
 
 ## Run it from a fresh clone
 
