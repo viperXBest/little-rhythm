@@ -6,7 +6,7 @@
 - **Release:** v1.1.1 is the current release.
   - Tag `v1.1.1` is on `e649c88` (main: the v1.1.1 merge `cd74c02` plus the release docs).
   - `v1.1.0` is on `ba15979`.
-  - Both tags and main are pushed. CI ran green locally on the merge, on all four jobs.
+  - Both tags and main are pushed. The commands of the four CI jobs were run locally on the merge and passed (the GitHub Actions run was not checked from this PC).
 - **Shipped equals the tag:**
   - `git diff 5e9175b v1.1.1 -- app/` is empty (the APK's build commit).
   - `git diff 38a81e7 v1.1.1 -- supabase/functions` is empty (hosted `chat` v10).
@@ -153,7 +153,7 @@ Twelve tables, all with RLS. Every row hangs off a family; one helper, `is_famil
 - Session tokens in expo-secure-store, never AsyncStorage.
 - The APK contains only the public Supabase URL and anon key. EAS builds get them from the EAS `production` environment (`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`; `app/.env` is not uploaded). `app/app.config.ts` fails any build or expo command when either is missing or the key isn't anon/publishable, and requires `https://<ref>.supabase.co` for the production profile. The production profile builds an APK, and `requireCommit` is on. Never commit: `.env` files, the service_role key, `MODEL_API_KEY`, keystores, real personal data.
 - Account deletion re-checks the password server-side. A stolen session can't change the password first: hosted Auth has "Require current password when updating" on (hosted-only; CLI v2.122.0 has no config.toml key, so local and CI don't cover it) and secure password change (also in config.toml). Verified on hosted; see docs/security.md.
-- Per-user rate limits on `chat`, `pair` and `predict` via `api_usage`. Chat caps (v1.1.0): 60/h and 60/day per user, 100/day per family, and a global $10/day spend breaker (reserve the worst case, settle to metered usage; assumed prices in `_shared/chat-limits.ts`). All return `429 rate_limited` before any model call. Every Muse Spark call sends `max_completion_tokens` 4096 (reasoning counts); a `length` finish runs no tool calls and a cut-off classifier fails closed. The classifier times out at 30 s, like the agent.
+- Per-user rate limits on `chat`, `pair` and `predict` via `api_usage`. Chat caps (v1.1.0): 60/h and 60/day per user, 100/day per family, and a global $10/day spend breaker (reserve the worst case, settle to metered usage; assumed prices in `_shared/chat-limits.ts`). A new account (under an hour old) gets 10 chat turns that UTC day (v1.1.1, `newAccountDailyTurns`). All return `429 rate_limited` before any model call. Every Muse Spark call sends `max_completion_tokens` 4096 (reasoning counts); a `length` finish runs no tool calls and a cut-off classifier fails closed. The classifier times out at 30 s, like the agent.
 - Prediction reminders use the fixed ids `predict-feed`, `predict-nap` and `predict-routine`; the check-in reminder uses `checkin-daily`. Each sync cancels only its own ids. Never call `cancelAllScheduledNotificationsAsync`.
 - Couple data (check-ins, night-feed balance) never goes to the AI.
 - Every security control gets a test (pgTAP for RLS, function tests for pair/chat).
@@ -173,7 +173,7 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
 
 - TypeScript strict everywhere; no `any`.
 - Database changes only through migrations in `/supabase/migrations`.
-  - A new migration's timestamp must be later than the latest one (currently `20261102120000`).
+  - A new migration's timestamp must be later than the latest one (currently `20261103090000`).
   - Until 2026-10-29 10:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
   - Never use `supabase db push --include-all`.
 - Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Day 4 build swapped expo-audio for @siteed/audio-studio (plugin: device detection, background audio, notifications and phone-state handling all off; only RECORD_AUDIO). Rebuild only when a native module changes. Day 8 changed native config without a new module: the expo-notifications plugin (`app/assets/images/notification-icon.png`), the splash background and the adaptive-icon background. Since v1.1.0 all three colours are `#5146B8` and every icon PNG is rendered by `scripts/assets/render.ts` from `app/assets/source/` (it replaced `notification-icon.ts`). It needs a new build, and the icon must be checked on a release APK. Day 10 (v1.1.0) added react-native-svg 15.16.0 (`0124ed8`), before the first local dev-client build.
@@ -184,6 +184,8 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
 
 ## Day plan
 
+**The day numbers and dates below are the plan made at the start, not what happened.** The build ran ahead of it. Git has commits only on 28, 29 and 30 Oct and on 2 and 3 Nov: none on 31 Oct or 1 Nov. Predictions (the plan's Day 5) and the buddy and couple layer (Day 6) were built on 29 Oct, and v1.0.0 (Day 9, planned for Nov 4) was tagged on 30 Oct. The build timeline in `README.md` matches the git dates. "Day N" in this file and in commit messages is this plan's numbering. The plan is kept as written.
+
 1. Oct 27–28 · Setup (done): Muse test call, repo, Supabase, Expo scaffold, dev build, this file
 2. Oct 28 · Auth, schema, all RLS, pairing, RLS tests (done)
 3. Oct 29 · Tracking and real-time sync; add expo-audio and rebuild (done)
@@ -192,14 +194,14 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
 6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance (done, deployed, verified on both phones; safety set awaiting generation and curation; see `docs/chat.md`, `docs/couple.md`, `docs/safety.md`)
 7. Nov 2 · delete-account (must cascade the family's chat threads, so `thread_memory` goes too), rate limits, security review, safety prompts, CI green
 8. Nov 3 · Polish, seed-demo, README, rehearse
-   - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and `#0064E0` (theme `primary`), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
+   - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and `#0064E0` (theme `primary` at the time; replaced in v1.1.0 by `#5146B8`, the colour `app.json` now uses), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
 9. Nov 4 · Release v1.0.0, 3-min demo video, X post, submit in the evening
    - **seed-demo works ~06:50–18:35 local.** The nap window opens 15–45 min ahead and tonight's routine is still to come (the 2 h routine cap is gone). Today's wake moves within 05:50–08:25 to fit. Nights can't work in one zone: at 13 weeks bedtime is a clock time, and naps only start in the day. `--tz <IANA>` seeds in a zone where it is daytime; the night refusal suggests one. **With `--tz`, set both phones or the emulator to that zone.** The seed prints the take's expected Next up card. The demo line is relative: "she drank 90 ml twenty minutes ago, she's asleep now".
    - **Confirm card (app-only):**
      - Time fields take the page colour on the card, with an outline and a "Change ›" link.
      - Next to its cards, a reply hides the proposal line and the server's assumed-time note (`app/src/lib/chat-display.ts`). The server still appends the note for older app versions.
      - The new pure helpers have Deno tests in CI: `chat-display`, `mic-label`, `asLanguageTag`.
-   - **Device checks** run on the release APK on both phones: Next up after seeding, the card, the demo line, the mic warm-up, the notification icon and the splash. This PC has no Android SDK or emulator.
+   - **Device checks** run on the release APK on both phones: Next up after seeding, the card, the demo line, the mic warm-up, the notification icon and the splash. On Day 9 this PC had no Android SDK or emulator; Day 10 added them (see Conventions).
    - **Safety:** no rerun for v1.0.0. The Oct 30 report (`2fb02cc`, `functions_dirty: false`) stands, because `supabase/functions` is unchanged since. If any commit before the tag touches `supabase/functions`, rerun the full set and redeploy.
    - **Deploys:** `pair` v4, `predict` v3 and `delete-account` v2 were redeployed from `3191717` so hosted equals the release commit. `chat` stays v8. Table in `docs/security.md`, "Deployed versions".
    - **Demo order:**
@@ -207,7 +209,7 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
      - Step 3 is the voice log; afterwards Next up switches to "Expected to wake".
    - **Release:**
      - Build `3c12fe52-5dd8-46aa-9409-79b7734763b1` from `d4dcdf0` (APK SHA-256 `63f232d8…2e93dab`).
-     - Tag `v1.0.0` goes on `d4dcdf0` after the APK is confirmed on both phones; ask before pushing it.
+     - Tag `v1.0.0` is on `d4dcdf0` (created 30 Oct, pushed).
      - No `gh` on this PC: the APK and `release-notes.md` go in a local folder, and the user creates the GitHub Release by hand.
    - **versionCode** is EAS-remote (`appVersionSource: remote`, `autoIncrement`). It was 3, so the v1.0.0 production build gets 4. `app.json` stays 1.0.0.
 

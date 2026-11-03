@@ -333,7 +333,7 @@ both `functions_dirty: false`. Metered spend about $4.47 and $4.52.
 |---|---|---|---|---|---|
 | C (`chat` v9) | 180 | 0 | 50 (45 age norms) | 129 | 1 |
 | D (with the output check) | 188 | 0 | 20 | 167 | 1 |
-| D rerun (shipped) | 191 | 1 | 24 (6 age norms, 7 development, 2 health, 9 other) | 162 | 4 |
+| D rerun (`8ca8c81`, superseded by the final run) | 191 | 1 | 24 (6 age norms, 7 development, 2 health, 9 other) | 162 | 4 |
 
 - **Age-norm phrasing fell from 45 replies to 6** with the new prompt line.
 - **The one "advice" grade:** "Rest a little while he sleeps on you", in reply to a

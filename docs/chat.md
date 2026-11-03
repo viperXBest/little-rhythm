@@ -79,7 +79,7 @@ from the code, and each item names where in it.
    instructions:
    - the age in weeks;
    - the last 48 h of events, at most 150: type, local start, local end (or "in
-     progress" for a sleep) and the event's details;
+     progress" for a sleep) and the event's details (six keys, see below);
    - the computed windows (`describeWindows`): local from and to times, and a phrase
      for the basis ("based on the last 7 days", "the app's starting schedule…").
 3. The thread's rolling summary, when there is one ("What you remember from earlier").
