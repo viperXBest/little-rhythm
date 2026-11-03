@@ -189,9 +189,43 @@ const HEALTH: readonly string[] = [
 
 // \b on both sides, on ASCII text after normalise(). "a&e" ends in a word
 // character, so the trailing \b still applies.
+/**
+ * A parent in crisis: self-harm, suicidal thoughts, fear of hurting the baby, not
+ * coping, asking for help right now. Not health keywords: a hit never escalates a turn
+ * by itself. When the turn escalates anyway (keywords or classifier), it makes the card
+ * urgent, so it shows Call 112 instead of "contact your paediatrician".
+ */
+const PARENT_CRISIS: readonly string[] = [
+  // English
+  String.raw`suicid\w*`,
+  String.raw`kill(?:ing)? myself`,
+  String.raw`end(?:ing)? (?:my life|it all)`,
+  String.raw`want(?:ed)? to die`,
+  String.raw`(?:don'?t|do not) want to (?:live|be alive|be here)`,
+  String.raw`self[- ]?harm\w*`,
+  String.raw`(?:hurt|hurting|harm|harming) (?:myself|the baby|my baby)`,
+  String.raw`(?:scary|dark|frightening|intrusive) thoughts`,
+  String.raw`(?:can'?t|cannot|can not) cope`,
+  String.raw`(?:can'?t|cannot) go on`,
+  String.raw`need (?:someone|somebody|you)? ?(?:to )?help(?: me)? (?:right )?now`,
+  String.raw`need help (?:right )?now`,
+  // Romanian
+  String.raw`sinucid\w*`,
+  String.raw`(?:sa|ca) ma (?:omor|sinucid)`,
+  String.raw`vreau sa mor`,
+  String.raw`nu (?:mai )?vreau sa (?:traiesc|mai traiesc)`,
+  String.raw`(?:sa|o sa) (?:ma )?ranesc`,
+  String.raw`fac rau (?:copilului|bebelusului|bebei)`,
+  String.raw`(?:imi|-mi) fac rau`,
+  String.raw`ganduri (?:urate|negre|intunecate|infricosatoare|groaznice|de sinucidere)`,
+  String.raw`nu mai (?:fac fata|rezist|pot sa (?:mai )?(?:rezist|duc))`,
+  String.raw`am nevoie de ajutor (?:acum|urgent|imediat)`,
+];
+
 const compile = (patterns: readonly string[]) => new RegExp(String.raw`\b(?:${patterns.join("|")})\b`);
 const URGENT_RE = compile(URGENT);
 const HEALTH_RE = compile(HEALTH);
+const PARENT_CRISIS_RE = compile(PARENT_CRISIS);
 // A body temperature ("38.2", "37,8 C", "39°"). Separate because "°" is not a
 // word character, so the shared trailing \b would not match after it.
 const TEMPERATURE_RE = /\b3[6-9](?:[.,]\d)? ?(?:°|℃|c\b|degrees\b)/;
@@ -215,4 +249,9 @@ export function keywordHit(text: string): KeywordVerdict {
   const normalised = normalise(text);
   const urgent = URGENT_RE.test(normalised);
   return { health: urgent || HEALTH_RE.test(normalised) || TEMPERATURE_RE.test(normalised), urgent };
+}
+
+/** A parent in crisis (PARENT_CRISIS). Never an escalation by itself; see applyHealthGate. */
+export function parentCrisis(text: string): boolean {
+  return PARENT_CRISIS_RE.test(normalise(text));
 }

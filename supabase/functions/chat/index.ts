@@ -51,7 +51,7 @@ import {
   classifyHealth,
   type Escalation,
 } from "../_shared/health-gate.ts";
-import { keywordHit } from "../_shared/health-keywords.ts";
+import { keywordHit, parentCrisis } from "../_shared/health-keywords.ts";
 import { languageBias } from "../_shared/asr-language.ts";
 import { CHAT_LIMITS, globalDailyMicros, SpendMeter, WORST_TURN_MICROS } from "../_shared/chat-limits.ts";
 import { MuseError, sparkComplete, sparkJson, sparkText, transcribe } from "../_shared/muse.ts";
@@ -201,6 +201,7 @@ Deno.serve(async (req) => {
     const prediction = predict({ now, zone, birthDate, events: predictionEvents });
 
     const keyword = keywordHit(text);
+    const crisis = parentCrisis(text);
     const [agent, classifier] = await Promise.allSettled([
       runAgent({
         text,
@@ -234,7 +235,7 @@ Deno.serve(async (req) => {
       // gets an error and retries, and nothing is stored.
       const escalation = verdict === null && !keyword.health
         ? null
-        : applyHealthGate({ keyword, classifier: verdict, caption: null });
+        : applyHealthGate({ keyword, classifier: verdict, caption: null, crisis });
       if (!escalation) {
         await settle();
         return museFailure(agent.reason);
@@ -248,7 +249,7 @@ Deno.serve(async (req) => {
     }
 
     const result = agent.value;
-    const escalation = applyHealthGate({ keyword, classifier: verdict, caption: result.caption });
+    const escalation = applyHealthGate({ keyword, classifier: verdict, caption: result.caption, crisis });
     const caption = escalation ? null : result.caption;
     // Stored only now that the gate has decided, so a health question is never
     // stored ungated, not even for a moment.

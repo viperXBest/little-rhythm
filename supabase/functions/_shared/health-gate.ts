@@ -151,6 +151,20 @@ export function applyHealthGate(input: {
   keyword: KeywordVerdict;
   classifier: HealthVerdict | null;
   caption: string | null;
+  /** parentCrisis(text): the parent's message names a crisis (health-keywords.ts). */
+  crisis?: boolean;
+}): Escalation | null {
+  const escalation = baseEscalation(input);
+  // A parent in crisis gets the urgent card (Call 112). Only on a turn that already
+  // escalated: crisis words never create an escalation on their own.
+  if (escalation && input.crisis) return { urgent: true };
+  return escalation;
+}
+
+function baseEscalation(input: {
+  keyword: KeywordVerdict;
+  classifier: HealthVerdict | null;
+  caption: string | null;
 }): Escalation | null {
   const { keyword, classifier } = input;
   if (classifier === null) return { urgent: keyword.urgent };

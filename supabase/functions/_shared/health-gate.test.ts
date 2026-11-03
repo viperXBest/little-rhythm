@@ -9,7 +9,7 @@ import {
   classifyHealth,
   REFERRAL_SENTENCE,
 } from "./health-gate.ts";
-import { keywordHit, normalise } from "./health-keywords.ts";
+import { keywordHit, normalise, parentCrisis } from "./health-keywords.ts";
 
 const NONE = { health: false, urgent: false };
 const HEALTH = { health: true, urgent: false };
@@ -152,6 +152,83 @@ Deno.test("gate: the agent's own referral sentence escalates", () => {
   const caption = `${REFERRAL_SENTENCE} Please call your paediatrician, or 112 in an emergency.`;
   assertEquals(applyHealthGate({ keyword: NONE, classifier: NONE, caption }), { urgent: false });
   assertEquals(applyHealthGate({ keyword: NONE, classifier: NONE, caption: "Proposed a feed." }), null);
+});
+
+Deno.test("crisis: a parent's self-harm, fear of hurting the baby or not coping is a crisis, EN and RO", () => {
+  for (
+    const text of [
+      "I'm exhausted and having scary thoughts and need someone to help me right now",
+      "I keep having dark thoughts",
+      "I can’t cope anymore",
+      "I'm scared I might hurt the baby",
+      "sometimes I want to hurt myself",
+      "I've had suicidal thoughts since the birth",
+      "I don't want to be here anymore",
+      "I need help right now",
+      "Am ganduri urate si nu mai fac fata",
+      "Am gânduri urâte și nu mai fac față",
+      "mi-e frica sa nu-i fac rau copilului",
+      "m-am gandit sa ma sinucid",
+      "îmi vine să îmi fac rău",
+      "am nevoie de ajutor acum",
+    ]
+  ) {
+    assertEquals(parentCrisis(text), true, text);
+  }
+});
+
+Deno.test("crisis: ordinary family-life words are not a crisis", () => {
+  for (
+    const text of [
+      "we can cope with one more night feed",
+      "she watched a scary cartoon",
+      "the vaccine seemed to hurt her a bit",
+      "nu mai pot de oboseala, dar e bine",
+      "help me plan the weekend",
+      "she drank 90 ml twenty minutes ago, she's asleep now",
+    ]
+  ) {
+    assertEquals(parentCrisis(text), false, text);
+  }
+});
+
+Deno.test("gate: crisis words never escalate a turn on their own", () => {
+  assertEquals(
+    applyHealthGate({ keyword: NONE, classifier: NONE, caption: "That sounds hard.", crisis: true }),
+    null,
+  );
+  assertEquals(applyHealthGate({ keyword: NONE, classifier: NONE, caption: null, crisis: true }), null);
+});
+
+Deno.test("gate: an escalated turn with crisis words gets the urgent card, whichever check escalated", () => {
+  assertEquals(applyHealthGate({ keyword: NONE, classifier: HEALTH, caption: null, crisis: true }), {
+    urgent: true,
+  });
+  assertEquals(applyHealthGate({ keyword: HEALTH, classifier: NONE, caption: null, crisis: true }), {
+    urgent: true,
+  });
+  assertEquals(applyHealthGate({ keyword: NONE, classifier: null, caption: null, crisis: true }), {
+    urgent: true,
+  });
+  const referral = `${REFERRAL_SENTENCE} Please call your paediatrician, or 112 in an emergency.`;
+  assertEquals(applyHealthGate({ keyword: NONE, classifier: NONE, caption: referral, crisis: true }), {
+    urgent: true,
+  });
+  // Without crisis words nothing changes.
+  assertEquals(applyHealthGate({ keyword: NONE, classifier: HEALTH, caption: null }), { urgent: false });
+});
+
+Deno.test("gate: the run A / run D miss gets the urgent card even when the classifier says non-urgent", () => {
+  const text = "I'm exhausted and having scary thoughts and need someone to help me right now";
+  assertEquals(
+    applyHealthGate({
+      keyword: keywordHit(text),
+      classifier: HEALTH,
+      caption: null,
+      crisis: parentCrisis(text),
+    }),
+    { urgent: true },
+  );
 });
 
 Deno.test("classifier: sends the fixed prompt and the text as a JSON string, parses strict JSON", async () => {

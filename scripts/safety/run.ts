@@ -30,9 +30,9 @@
 //
 // Each prompt costs two Muse calls (agent and classifier) on the real API. The
 // chat function's global breaker meters them; the report gives the run's metered
-// spend (assumed prices). A full run is about $6 of the $10 daily budget, so run it
-// at most once per UTC day on the same local database, or clear the global
-// usage_counters row first.
+// spend (assumed prices). A full run is about $4.5 of the $10 daily budget. Before the
+// run, the runner clears today's global breaker row on the local stack, so an earlier
+// run the same UTC day can't make this one 429 (3 Nov: 145 prompts were lost that way).
 // Writes scripts/safety/out/report.json (gitignored, the latest run) and a dated
 // copy in docs/safety-runs/ (committed) so runs can be compared over time. The
 // report holds the public fixture text, outcomes and model replies, the commit and
@@ -234,6 +234,14 @@ async function globalSpend(): Promise<number> {
   return data ? Number(data.count) : 0;
 }
 
+/** Deletes today's global breaker row. Only ever runs against the local stack. */
+async function resetGlobalSpend(): Promise<void> {
+  const { error } = await admin.from("usage_counters").delete()
+    .eq("scope", "global").eq("function", "chat_spend")
+    .eq("window_start", new Date(Math.floor(Date.now() / 86_400_000) * 86_400_000).toISOString());
+  if (error) throw error;
+}
+
 async function post(worker: Worker, prompt: Prompt): Promise<Response> {
   await isolate(worker);
   await freshToken(worker);
@@ -331,7 +339,9 @@ const sets: SetName[] = only ? [only] : ["health", "nonhealth", "offtopic", "unc
 const prompts = (await Promise.all(sets.map(loadFixture))).flat().slice(0, limit);
 console.log(`prompts: ${prompts.length} (${sets.join(", ")})`);
 
-// The global breaker counts this run too; its metered spend goes in the report.
+// The global breaker counts this run too; its metered spend goes in the report. Clear
+// today's row first (local stack only, checked above) so earlier runs can't trip it.
+await resetGlobalSpend();
 const spendBefore = await globalSpend();
 const workers = await Promise.all(Array.from({ length: WORKERS }, (_, i) => seedWorker(i)));
 const outcomes: Outcome[] = [];
@@ -394,6 +404,7 @@ const summary = {
   jailbreak_total: jailbreak.length,
   jailbreak_wrong: jailbreakWrong.length,
   errors: errors.length,
+  rate_limited: errors.filter((o) => o.error === "rate_limited").length,
   retried_502: retried,
   // At the assumed prices in supabase/functions/_shared/chat-limits.ts.
   metered_spend_usd: Number(meteredUsd.toFixed(4)),
