@@ -29,8 +29,8 @@ const REFRESH_DEBOUNCE_MS = 2000;
 
 const BASIS_TEXT: Record<Basis, string> = {
   personal: 'based on the last 7\u00A0days',
-  blend: 'based on the last 7\u00A0days and age',
-  age: 'typical for this age',
+  blend: 'based on the last 7\u00A0days and the starting schedule',
+  age: 'the app\u2019s starting schedule',
 };
 
 const REASON_TEXT: Record<NullReason, string> = {
@@ -119,6 +119,11 @@ export function NextUp({ onNightFeeds }: { onNightFeeds?: (value: NightFeeds | n
         />
       ) : null}
       {prediction ? <Tiles prediction={prediction} /> : null}
+      {prediction ? (
+        <ThemedText type="caption" themeColor="textSecondary">
+          Estimates from your log, not advice
+        </ThemedText>
+      ) : null}
       <ReminderToggle prediction={prediction} />
     </Card>
   );
@@ -173,21 +178,21 @@ function Tiles({ prediction }: { prediction: Prediction }) {
 function TileView({ tile, now, highlighted }: { tile: Tile; now: Date; highlighted: boolean }) {
   const theme = useTheme();
   const w = tile.slot.window;
-  const overdue = w !== null && Date.parse(w.end) < now.getTime();
+  const late = w !== null && Date.parse(w.end) < now.getTime();
   const start = w ? formatTime(w.start) : '';
   const end = w ? formatTime(w.end) : '';
-  // "· overdue" stays inline while it fits; once it wraps it goes on its own line without the dot,
-  // so no line starts with the separator. A new tile width (rotation, font scale) tries inline again.
-  const [overdueOwnLine, setOverdueOwnLine] = useState(false);
+  // "· past the usual window" stays inline while it fits; once it wraps it goes on its own line
+  // without the dot, so no line starts with the separator. A new tile width (rotation, font scale) tries inline again.
+  const [lateOwnLine, setLateOwnLine] = useState(false);
   const rangeWidth = useRef(0);
   const onRangeLayout = (e: LayoutChangeEvent) => {
     const width = e.nativeEvent.layout.width;
-    if (rangeWidth.current !== 0 && Math.abs(width - rangeWidth.current) >= 1) setOverdueOwnLine(false);
+    if (rangeWidth.current !== 0 && Math.abs(width - rangeWidth.current) >= 1) setLateOwnLine(false);
     rangeWidth.current = width;
   };
   // One element for TalkBack; "earliest" names the highlight without visible copy.
   const spoken = w
-    ? `${tile.label}, ${start}–${end}${overdue ? ', overdue' : ''}, ${BASIS_TEXT[w.basis]}${highlighted ? ', earliest' : ''}`
+    ? `${tile.label}, ${start}–${end}${late ? ', past the usual window' : ''}, ${BASIS_TEXT[w.basis]}${highlighted ? ', earliest' : ''}`
     : `${tile.label}, ${REASON_TEXT[tile.slot.reason]}`;
   return (
     <Shelf
@@ -214,19 +219,19 @@ function TileView({ tile, now, highlighted }: { tile: Tile; now: Date; highlight
             <View style={styles.range} onLayout={onRangeLayout}>
               <ThemedText type="time">{start}–</ThemedText>
               <ThemedText type="time">{end}</ThemedText>
-              {overdue && !overdueOwnLine ? (
+              {late && !lateOwnLine ? (
                 <ThemedText
                   type="smallBold"
                   onLayout={(e) => {
                     // A wrapped piece starts at the row's left edge.
-                    if (e.nativeEvent.layout.x < 1) setOverdueOwnLine(true);
+                    if (e.nativeEvent.layout.x < 1) setLateOwnLine(true);
                   }}>
                   {' '}
-                  · overdue
+                  · past the usual window
                 </ThemedText>
               ) : null}
             </View>
-            {overdue && overdueOwnLine ? <ThemedText type="smallBold">overdue</ThemedText> : null}
+            {late && lateOwnLine ? <ThemedText type="smallBold">past the usual window</ThemedText> : null}
             <ThemedText type="caption" themeColor="textSecondary" textBreakStrategy="balanced">
               {BASIS_TEXT[w.basis]}
             </ThemedText>

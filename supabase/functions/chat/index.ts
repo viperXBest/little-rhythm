@@ -1,14 +1,17 @@
 // Agentic logging and the buddy: text or a voice clip in, a reply and proposals out.
 // POST application/json        { text, thread_id, tz_offset_minutes, tz? }
 // POST multipart/form-data      audio (16 kHz mono PCM16 WAV), thread_id, tz_offset_minutes, tz?
-//   -> { transcript?, caption, escalation, proposals, source: "chat" | "voice", thread_id }
+//   -> { transcript?, caption, escalation, proposals, steps, source: "chat" | "voice", thread_id }
+// steps: what the agent did, as fixed labels built from the tools that ran (agent.ts,
+// STEP_LABELS), never model text; [] on an escalated turn. Apps before v1.1.1 ignore it.
 // No event is saved here: the app shows each proposal as a confirm card and
 // inserts it with the parent's own session (RLS). The baby comes from the
 // session, never from the body or the model.
 //
 // Limits (_shared/chat-limits.ts), all before any model call and all answered with
 // the same 429 rate_limited: 60 an hour per user, then (after the thread check, so
-// voice turns count too) a daily cap per user and per family and the global spend
+// voice turns count too) a daily cap per user (10 for accounts under an hour old) and
+// per family and the global spend
 // breaker. Each admitted turn reserves its worst-case cost and settles to what its
 // Muse calls (and any memory fold) actually reported.
 //
@@ -25,7 +28,7 @@
 // (_shared/thread-memory.ts). Text, transcripts,
 // audio and tool arguments are never logged.
 
-import { runAgent } from "../_shared/agent.ts";
+import { MAX_STEPS, runAgent } from "../_shared/agent.ts";
 import { buildContext, buildHistory, proposalSummary } from "../_shared/buddy-context.ts";
 import {
   ageInWeeks,
@@ -48,9 +51,9 @@ import {
   classifyHealth,
   type Escalation,
 } from "../_shared/health-gate.ts";
-import { keywordHit } from "../_shared/health-keywords.ts";
+import { keywordHit, parentCrisis } from "../_shared/health-keywords.ts";
 import { languageBias } from "../_shared/asr-language.ts";
-import { CHAT_LIMITS, GLOBAL_DAILY_MICROS, SpendMeter, WORST_TURN_MICROS } from "../_shared/chat-limits.ts";
+import { CHAT_LIMITS, globalDailyMicros, SpendMeter, WORST_TURN_MICROS } from "../_shared/chat-limits.ts";
 import { MuseError, sparkComplete, sparkJson, sparkText, transcribe } from "../_shared/muse.ts";
 import { predict } from "../_shared/predict.ts";
 import { EMPTY_SUMMARY, maybeFoldMemory, runInBackground } from "../_shared/thread-memory.ts";
@@ -198,6 +201,7 @@ Deno.serve(async (req) => {
     const prediction = predict({ now, zone, birthDate, events: predictionEvents });
 
     const keyword = keywordHit(text);
+    const crisis = parentCrisis(text);
     const [agent, classifier] = await Promise.allSettled([
       runAgent({
         text,
@@ -231,7 +235,7 @@ Deno.serve(async (req) => {
       // gets an error and retries, and nothing is stored.
       const escalation = verdict === null && !keyword.health
         ? null
-        : applyHealthGate({ keyword, classifier: verdict, caption: null });
+        : applyHealthGate({ keyword, classifier: verdict, caption: null, crisis });
       if (!escalation) {
         await settle();
         return museFailure(agent.reason);
@@ -239,11 +243,13 @@ Deno.serve(async (req) => {
       const replyTo = await storeUserMessage(admin, { threadId, userId: user.id, text, gated: true });
       await storeReply(admin, { threadId, replyTo, caption: null, escalation, summary: null });
       foldMemory();
-      return json(reply({ transcript, caption: null, escalation, proposals: [], source, threadId }));
+      return json(
+        reply({ transcript, caption: null, escalation, proposals: [], steps: [], source, threadId }),
+      );
     }
 
     const result = agent.value;
-    const escalation = applyHealthGate({ keyword, classifier: verdict, caption: result.caption });
+    const escalation = applyHealthGate({ keyword, classifier: verdict, caption: result.caption, crisis });
     const caption = escalation ? null : result.caption;
     // Stored only now that the gate has decided, so a health question is never
     // stored ungated, not even for a moment.
@@ -261,18 +267,29 @@ Deno.serve(async (req) => {
       summary: proposalSummary(result.proposals, zone),
     });
     foldMemory();
-    return json(reply({ transcript, caption, escalation, proposals: result.proposals, source, threadId }));
+    return json(reply({
+      transcript,
+      caption,
+      escalation,
+      proposals: result.proposals,
+      // An escalated turn shows no model work, only the static card (and any log cards).
+      steps: escalation ? [] : result.steps,
+      source,
+      threadId,
+    }));
   } catch (error) {
     await settle();
     return museFailure(error);
   }
 });
 
-type Budget = { outcome: "ok" | "user" | "family" | "global"; dayStart: string };
+const OUTCOMES = ["ok", "user", "new_account", "family", "global"] as const;
+type Budget = { outcome: (typeof OUTCOMES)[number]; dayStart: string };
 
 /**
- * consume_chat_budget (service role): the daily cap per user, then per family, then a
- * worst-case reservation against the global daily budget. Null on a database error
+ * consume_chat_budget (service role): the daily cap per user (smaller for an account under
+ * an hour old: "new_account"), then per family, then a worst-case reservation against the
+ * global daily budget (CHAT_GLOBAL_DAILY_USD, $10 by default). Null on a database error
  * (the turn is refused: fails closed).
  */
 async function consumeBudget(admin: ReturnType<typeof adminClient>, userId: string): Promise<Budget | null> {
@@ -281,8 +298,10 @@ async function consumeBudget(admin: ReturnType<typeof adminClient>, userId: stri
       p_user_id: userId,
       p_user_max: CHAT_LIMITS.dailyPerUser,
       p_family_max: CHAT_LIMITS.dailyPerFamily,
-      p_global_max: GLOBAL_DAILY_MICROS,
+      p_global_max: globalDailyMicros(Deno.env.get("CHAT_GLOBAL_DAILY_USD")),
       p_reserve: WORST_TURN_MICROS,
+      p_new_account_max: CHAT_LIMITS.newAccountDailyTurns,
+      p_new_account_seconds: CHAT_LIMITS.newAccountSeconds,
     })
     .single<{ outcome: string; day_start: string }>();
   if (error || !data) {
@@ -290,11 +309,12 @@ async function consumeBudget(admin: ReturnType<typeof adminClient>, userId: stri
     return null;
   }
   const outcome = data.outcome;
-  if (outcome !== "ok" && outcome !== "user" && outcome !== "family" && outcome !== "global") {
+  const known = OUTCOMES.find((o) => o === outcome);
+  if (!known) {
     console.error("chat: budget failed", "bad_outcome");
     return null;
   }
-  return { outcome, dayStart: data.day_start };
+  return { outcome: known, dayStart: data.day_start };
 }
 
 /** settle_chat_spend (service role). A failure keeps the full reservation (fails safe). */
@@ -320,6 +340,7 @@ function reply(input: {
   caption: string | null;
   escalation: Escalation | null;
   proposals: unknown[];
+  steps: string[];
   source: "chat" | "voice";
   threadId: string;
 }) {
@@ -328,6 +349,7 @@ function reply(input: {
     caption: input.caption,
     escalation: input.escalation,
     proposals: input.proposals,
+    steps: input.steps.slice(0, MAX_STEPS),
     source: input.source,
     thread_id: input.threadId,
   };

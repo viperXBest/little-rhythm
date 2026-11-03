@@ -5,9 +5,10 @@
 //      agent so it adds no latency.
 // Either one positive: the reply carries an escalation and no model text. The
 // app shows a static card (never model-generated). Proposals from the same turn
-// still show: logging is not advice. A classifier failure with no keyword hit
-// gives the normal reply. The agent's system prompt keeps the no-advice rule as
-// a further layer, and its fixed referral sentence also escalates.
+// still show: logging is not advice. The gate fails closed: a classifier failure
+// (error, timeout, bad JSON) escalates the turn even with no keyword hit. The agent's
+// system prompt keeps the no-advice rule as a further layer, and its fixed referral
+// sentence also escalates.
 
 import { z } from "npm:zod@4.6.6";
 
@@ -147,6 +148,20 @@ export async function classifyHealth(
  * for a normal reply. Fails closed: a failed classifier (null) escalates the turn.
  */
 export function applyHealthGate(input: {
+  keyword: KeywordVerdict;
+  classifier: HealthVerdict | null;
+  caption: string | null;
+  /** parentCrisis(text): the parent's message names a crisis (health-keywords.ts). */
+  crisis?: boolean;
+}): Escalation | null {
+  const escalation = baseEscalation(input);
+  // A parent in crisis gets the urgent card (Call 112). Only on a turn that already
+  // escalated: crisis words never create an escalation on their own.
+  if (escalation && input.crisis) return { urgent: true };
+  return escalation;
+}
+
+function baseEscalation(input: {
   keyword: KeywordVerdict;
   classifier: HealthVerdict | null;
   caption: string | null;

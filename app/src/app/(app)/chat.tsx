@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
-import { Segmented } from '@/components/controls';
+import { Chip, Segmented } from '@/components/controls';
 import { EscalationCard } from '@/components/escalation-card';
 import { Button, ErrorText } from '@/components/form';
 import { Icon, Illustration } from '@/components/illustrations';
@@ -22,7 +22,16 @@ import { Empty, ErrorState, Loading } from '@/components/states';
 import { ProposalCard } from '@/components/proposal-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { font, MaxContentWidth, Radius, Spacing, Sticker, TypeScale, type ThemeColor } from '@/constants/theme';
+import {
+  font,
+  MaxContentWidth,
+  MinTouch,
+  Radius,
+  Spacing,
+  Sticker,
+  TypeScale,
+  type ThemeColor,
+} from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
   chatErrorMessage,
@@ -36,7 +45,7 @@ import {
   type ChatResult,
   type ThreadIds,
 } from '@/lib/chat';
-import { cardMessageId, messageText } from '@/lib/chat-display';
+import { cardMessageId, messageText, replyMessageId, stepsLabel, transcriptMessageId } from '@/lib/chat-display';
 import { formatTime } from '@/lib/events';
 import { useSession } from '@/lib/session';
 
@@ -160,6 +169,9 @@ export default function Chat() {
   const list = threadId ? (messages[threadId] ?? []) : [];
   const reply = threadId ? replies[threadId] : undefined;
   const withCards = cardMessageId(list, reply);
+  // Only this phone's live reply has steps and a transcript chip; they aren't stored.
+  const withSteps = replyMessageId(list, reply);
+  const transcribed = transcriptMessageId(list, reply, userId);
   const newestAssistant = [...list].reverse().find((m) => m.role === 'assistant')?.id ?? null;
   const loadState: Load = threadsStatus !== 'ready' ? threadsStatus : threadId ? (listStatus[threadId] ?? 'loading') : 'loading';
 
@@ -235,6 +247,8 @@ export default function Chat() {
                   shared={scope === 'shared'}
                   withCards={m.id === withCards}
                   newest={m.id === newestAssistant}
+                  steps={m.id === withSteps && reply ? reply.steps : null}
+                  transcribed={m.id === transcribed}
                 />
               ))}
             </View>
@@ -269,7 +283,7 @@ export default function Chat() {
               </View>
             ) : null}
 
-            {busy ? <Loading label="Little Rhythm is thinking…" /> : null}
+            {busy ? <Loading label="Muse Spark is thinking…" /> : null}
             <ThemedText type="caption" themeColor="textSecondary" style={styles.privacy}>
               Voice clips are transcribed by Muse Voice Transcribe and not stored. The transcript is saved in this
               conversation.
@@ -337,6 +351,8 @@ function Message({
   shared,
   withCards,
   newest,
+  steps,
+  transcribed,
 }: {
   message: ChatMessage;
   mine: boolean;
@@ -345,6 +361,10 @@ function Message({
   withCards: boolean;
   /** The newest assistant message is a polite live region, so a new reply is read out. */
   newest: boolean;
+  /** The agent's steps for this phone's live reply; null for every other message. */
+  steps: readonly string[] | null;
+  /** This phone's latest voice transcript: gets the Muse Voice Transcribe chip. */
+  transcribed: boolean;
 }) {
   const theme = useTheme();
   const live = newest ? 'polite' : undefined;
@@ -371,6 +391,12 @@ function Message({
           {summary}
         </ThemedText>
       ) : null}
+      {transcribed ? (
+        <View style={styles.chipRow}>
+          <Chip label="Muse Voice Transcribe" tone="info" accessibilityLabel="Transcribed by Muse Voice Transcribe" />
+        </View>
+      ) : null}
+      {steps ? <Steps steps={steps} /> : null}
     </>
   );
 
@@ -406,8 +432,64 @@ function Message({
   );
 }
 
+/**
+ * "Muse Spark · 3 steps" under the live reply: the labels the server built from the
+ * tools that ran (never model text). Tap to show the list; TalkBack reads it all at once.
+ */
+function Steps({ steps }: { steps: readonly string[] }) {
+  const theme = useTheme();
+  const [open, setOpen] = useState(false);
+  const { text, spoken } = stepsLabel(steps);
+  if (steps.length === 0) {
+    return (
+      <ThemedText type="caption" themeColor="textSecondary" style={styles.stepsRow}>
+        {text}
+      </ThemedText>
+    );
+  }
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={spoken}
+        accessibilityHint={open ? 'Hides the steps' : 'Shows the steps'}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen((value) => !value)}
+        style={({ pressed }) => [
+          styles.stepsButton,
+          { backgroundColor: pressed ? theme.surface : 'transparent', borderColor: theme.border },
+        ]}>
+        <ThemedText type="smallBold" themeColor="textSecondary">
+          {text} {open ? '▴' : '▾'}
+        </ThemedText>
+      </Pressable>
+      {open ? (
+        <View style={styles.stepsList} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {steps.map((step) => (
+            <ThemedText key={step} type="small" themeColor="textSecondary">
+              ✓ {step}
+            </ThemedText>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: Spacing.one },
+  stepsRow: { marginTop: Spacing.one },
+  stepsButton: {
+    alignSelf: 'flex-start',
+    minHeight: MinTouch,
+    justifyContent: 'center',
+    marginTop: Spacing.one,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Radius.pill,
+    borderWidth: Sticker.outline,
+  },
+  stepsList: { gap: Spacing.half, paddingTop: Spacing.one, paddingLeft: Spacing.two },
   header: {
     gap: Spacing.three,
     paddingHorizontal: Spacing.three,

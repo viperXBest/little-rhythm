@@ -128,8 +128,11 @@ Sources:
     partner's realtime changes).
 - **What it shows:**
   - local time ranges, each with its basis: "based on the last 7 days", "based on
-    the last 7 days and age" or "typical for this age";
-  - an overdue marker when a window has passed;
+    the last 7 days and the starting schedule" or "the app's starting schedule" (v1.1.1;
+    was "… and age" and "typical for this age", which read like an age norm);
+  - "past the usual window" when a window has passed (v1.1.1; was "overdue", which read
+    like a deadline);
+  - a footnote under the tiles: "Estimates from your log, not advice" (v1.1.1);
   - loading, empty and error states.
 - **Reminders** (`lib/reminders.ts`, logic in `lib/reminder-plan.ts`):
   - **Toggle and permission:** there is one toggle per phone, stored in

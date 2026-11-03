@@ -91,7 +91,7 @@ README.md  SECURITY.md  LICENSE  .env.example
 | F7 | Notifications | Local reminders before predicted windows and for the daily check-in |
 | F8 | Account deletion | Deletes the user, and the family's data when they are the last member |
 
-Roadmap only: relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
+Roadmap only: an output keyword check on model replies (tried in v1.1.1, removed after safety run D), relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
 
 ## Agent tools (chat function)
 

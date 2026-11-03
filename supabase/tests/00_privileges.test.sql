@@ -55,6 +55,7 @@ select ok(
   and not has_function_privilege('authenticated', 'public.redeem_invite(uuid, text)', 'execute')
   and not has_function_privilege('authenticated', 'public.consume_rate_limit(uuid, text, integer, integer)', 'execute')
   and not has_function_privilege('authenticated', 'public.consume_chat_budget(uuid, integer, integer, bigint, bigint)', 'execute')
+  and not has_function_privilege('authenticated', 'public.consume_chat_budget(uuid, integer, integer, bigint, bigint, integer, integer)', 'execute')
   and not has_function_privilege('authenticated', 'public.settle_chat_spend(timestamptz, bigint, bigint)', 'execute'),
   'pairing, rate-limit and chat-budget functions are service-role only'
 );

@@ -48,7 +48,7 @@ jobs:
       - name: Edge Function units (predictions, agent, health gate, voice, memory)
         run: deno test -A supabase/functions/
       # Every tracked app test (*.test.ts): reminder ids, palette contrast (WCAG AA), chat display,
-      # mic label, language tag, timeline, units, earliest start, and the build guard (public
+      # mic label, language tag, emergency number, timeline, units, earliest start, and the build guard (public
       # Supabase env only). A new test file runs without a CI change.
       - name: App units (all app *.test.ts)
         run: deno test $(git ls-files 'app/*.test.ts')

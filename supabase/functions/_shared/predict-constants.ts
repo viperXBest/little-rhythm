@@ -2,7 +2,7 @@
 // are minutes; bedtimes are minutes after local midnight.
 //
 // These are scheduling heuristics for a family log, not medical guidance. The
-// app shows them as "typical for this age" and the buddy never turns them into
+// app shows them as "the app's starting schedule" and the buddy never turns them into
 // advice.
 //
 // Sources, by band column:
