@@ -1,8 +1,20 @@
 import { randomUUID } from 'expo-crypto';
 
 import type { Json, Tables } from '@/lib/database.types';
+import {
+  inRange,
+  MINUTES_RANGE,
+  ML_RANGE,
+  validateEntry,
+  type EntryDraft,
+  type EntryProblem,
+  type SleepSpan,
+} from '@/lib/entry-time';
 import { supabase } from '@/lib/supabase';
 import { feedLabel } from '@/lib/units';
+
+// The ranges live in entry-time.ts (pure, tested under Deno); existing imports from here keep working.
+export { MINUTES_RANGE, ML_RANGE };
 
 export type EventRow = Tables<'events'>;
 export type EventType = 'feed' | 'sleep' | 'diaper';
@@ -17,15 +29,8 @@ export type DiaperDetails = { wet: boolean; dirty: boolean };
 /** Columns members may change after insert (the DB grants update on these only). */
 export type EventPatch = Partial<Pick<EventRow, 'started_at' | 'ended_at' | 'details'>>;
 
-export const ML_RANGE = { min: 5, max: 400 } as const;
-export const MINUTES_RANGE = { min: 1, max: 90 } as const;
-
 function isObject(value: Json): value is { [key: string]: Json | undefined } {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function inRange(value: unknown, range: { min: number; max: number }): value is number {
-  return Number.isInteger(value) && (value as number) >= range.min && (value as number) <= range.max;
 }
 
 /** Details as written by this app, or null when the row holds something else. */
@@ -118,6 +123,40 @@ export async function stopSleep(id: string, endedAt: Date): Promise<WriteError |
 export async function deleteEvent(id: string): Promise<WriteError | null> {
   const { error } = await supabase.from('events').delete().eq('id', id);
   return error ? 'failed' : null;
+}
+
+const CHECK_FAILED = 'Could not check your sleeps. Check your connection and try again.';
+
+/**
+ * Sleeps that could overlap [start, end): they started before `end` (any start when `end` is null, an
+ * open sleep) and are open or ended after `start`. RLS limits this to the caller's baby. Null on failure.
+ */
+export async function fetchSleepsNear(
+  babyId: string,
+  start: Date,
+  end: Date | null,
+  excludeId?: string,
+): Promise<SleepSpan[] | null> {
+  let query = supabase
+    .from('events')
+    .select('id, started_at, ended_at')
+    .eq('baby_id', babyId)
+    .eq('type', 'sleep')
+    .or(`ended_at.is.null,ended_at.gt.${start.toISOString()}`);
+  if (end) query = query.lt('started_at', end.toISOString());
+  if (excludeId) query = query.neq('id', excludeId);
+  // One overlapping sleep is enough to refuse; the pure test still runs on whatever comes back.
+  const { data, error } = await query.limit(20);
+  return error ? null : data;
+}
+
+/** The rules in entry-time.ts, plus the sleep-overlap test against the baby's log (sleeps only). */
+export async function checkEntry(babyId: string, draft: EntryDraft): Promise<EntryProblem | null> {
+  const problem = validateEntry(draft);
+  if (problem || draft.type !== 'sleep') return problem;
+  const others = await fetchSleepsNear(babyId, draft.start, draft.end, draft.ignoreId);
+  if (!others) return { code: 'check_failed', message: CHECK_FAILED };
+  return validateEntry({ ...draft, others });
 }
 
 /** Start of the phone's local day. */
