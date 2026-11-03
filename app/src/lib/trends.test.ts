@@ -11,6 +11,7 @@ import {
   buildTrends,
   type Calendar,
   countLabel,
+  dayHasData,
   diapersText,
   feedsText,
   formatSleep,
@@ -21,10 +22,12 @@ import {
   sleepText,
   type TrendEvent,
   trendsFromMs,
+  unitLabel,
 } from './trends.ts';
 
 const HOUR = 60 * 60 * 1000;
-const NB = ' ';
+const DAY = 24 * HOUR;
+const NB = '\u00A0';
 
 /** Wall-clock calendar of an IANA zone, from Intl: what the phone's Date does in that zone. */
 function zoneCalendar(timeZone: string): Calendar {
@@ -50,10 +53,15 @@ function zoneCalendar(timeZone: string): Calendar {
     },
     startOf: (year, month, day) => {
       const target = Date.UTC(year, month, day);
-      // The instant whose wall clock reads `target`; two passes settle on the offset at that instant.
-      let instant = target - (wall(target) - target);
-      instant = target - (wall(instant) - instant);
-      return instant;
+      // The instants where the wall clock reads `target` under the offset of the day before or after.
+      const reads = [target - DAY, target + DAY]
+        .map((around) => target - (wall(around) - around))
+        .filter((instant) => wall(instant) === target)
+        .sort((a, b) => a - b);
+      if (reads.length > 0) return reads[0]; // midnight happening twice: the first one, like Date
+      // Midnight doesn't exist (the clocks jump over it): Date reads it with the offset from before the jump.
+      const before = target - DAY;
+      return target - (wall(before) - before);
     },
   };
 }
@@ -206,6 +214,48 @@ Deno.test('events outside the days, backwards sleeps and other types are ignored
   assertEquals(hasTrendData(days), false);
 });
 
+Deno.test('overlapping sleeps count once, as their union', () => {
+  // The same nap from a tap and from chat, a few minutes apart, and a second nap inside a longer one.
+  const days = buildTrends(
+    [
+      sleep(nov(3, 9), nov(3, 10, 30)),
+      sleep(nov(3, 9, 10), nov(3, 10, 40)),
+      sleep(nov(3, 9, 30), nov(3, 10)),
+      sleep(nov(3, 11), nov(3, 11, 30)),
+    ],
+    7,
+    NOW,
+  );
+  assertEquals(days[6].sleepMs, 1.5 * HOUR + 10 * 60_000 + 0.5 * HOUR);
+});
+
+Deno.test('sleeps that touch end to end add up without a gap or an overlap', () => {
+  const days = buildTrends([sleep(nov(3, 1), nov(3, 2)), sleep(nov(3, 2), nov(3, 4))], 7, NOW);
+  assertEquals(days[6].sleepMs, 3 * HOUR);
+});
+
+Deno.test('no day can hold more sleep than it is long, however many overlap', () => {
+  const days = buildTrends(
+    [
+      sleep(nov(1, 12), nov(3, 6)),
+      sleep(nov(1, 20), nov(2, 18)),
+      sleep(nov(2, 0), nov(2, 12)),
+      sleep(nov(2, 0), nov(3, 6)),
+      sleep(nov(2, 5), null), // open, inside the others
+    ],
+    7,
+    NOW,
+  );
+  for (const day of days) assertEquals(day.sleepMs <= day.endMs - day.startMs, true);
+  assertEquals(days[5].sleepMs, days[5].endMs - days[5].startMs); // Nov 2 is all asleep
+  assertEquals(days[6].sleepMs, 12 * HOUR); // Nov 3: midnight to "now" (12:00), the open sleep reaches it
+});
+
+Deno.test('a sleep never runs past now', () => {
+  const days = buildTrends([sleep(nov(3, 11), nov(3, 18))], 7, NOW);
+  assertEquals(days[6].sleepMs, 1 * HOUR);
+});
+
 Deno.test('the 7-day view is the last 7 days of the 14-day view', () => {
   const events = [bottle(nov(3, 6), 90), sleep(nov(2, 22), nov(3, 7)), diaper(nov(-2, 9), true, true)];
   const seven = buildTrends(events, 7, NOW);
@@ -214,9 +264,9 @@ Deno.test('the 7-day view is the last 7 days of the 14-day view', () => {
   assertEquals(fourteen[0].date, '2026-10-21');
 });
 
-Deno.test('fetch lower bound: the first day plus a day of margin', () => {
-  assertEquals(trendsFromMs(7, NOW), new Date(2026, 9, 28).getTime() - 24 * HOUR);
-  assertEquals(trendsFromMs(14, NOW), new Date(2026, 9, 21).getTime() - 24 * HOUR);
+Deno.test('fetch lower bound: the start of the first day', () => {
+  assertEquals(trendsFromMs(7, NOW), new Date(2026, 9, 28).getTime());
+  assertEquals(trendsFromMs(14, NOW), new Date(2026, 9, 21).getTime());
 });
 
 // Europe/Bucharest: the clocks go back on the last Sunday of October (25 Oct 2026, 04:00 to 03:00),
@@ -278,7 +328,6 @@ Deno.test('Bucharest: sleeps across the extra hour use elapsed time', () => {
   // The 25th: midnight to 07:00 is 8 h of elapsed time (wall clocks say 7), then 22:00 to midnight.
   assertEquals(days[5].sleepMs, 8 * HOUR + 2 * HOUR);
   assertEquals(days[6].sleepMs, 6 * HOUR);
-  assertEquals(days[4].sleepMs + 8 * HOUR, 10 * HOUR);
 });
 
 Deno.test('Bucharest: a sleep across the spring change loses the hour that does not exist', () => {
@@ -293,8 +342,35 @@ Deno.test('Bucharest: a sleep across the spring change loses the hour that does 
   assertEquals(days[2].sleepMs, 7 * HOUR); // midnight to 08:00 on the clock, 7 h elapsed
 });
 
-Deno.test('Bucharest: the fetch lower bound is a day before the first day starts', () => {
-  assertEquals(new Date(trendsFromMs(7, NOW_BUCHAREST, bucharest)).toISOString(), '2026-10-18T21:00:00.000Z');
+Deno.test('Bucharest: the fetch lower bound is midnight of the first day', () => {
+  assertEquals(new Date(trendsFromMs(7, NOW_BUCHAREST, bucharest)).toISOString(), '2026-10-19T21:00:00.000Z');
+});
+
+// Santiago: the clocks jump from 24:00 to 01:00 on 5-6 Sep 2026, so midnight on the 6th doesn't exist.
+Deno.test('Santiago: a day that starts at 01:00 because midnight is skipped is 23 hours long', () => {
+  const santiago = zoneCalendar('America/Santiago');
+  const days = buildTrends([], 3, new Date('2026-09-07T15:00:00Z'), santiago);
+  assertEquals(days.map((d) => d.date), ['2026-09-05', '2026-09-06', '2026-09-07']);
+  assertEquals(new Date(days[1].startMs).toISOString(), '2026-09-06T04:00:00.000Z'); // 01:00 -03
+  assertEquals(days.map((d) => (d.endMs - d.startMs) / HOUR), [24, 23, 24]);
+});
+
+// The other tests prove the day logic against a calendar the test builds; this one proves that calendar
+// is what the phone's own Date does. CI runs the file under several TZ values (Bucharest, Santiago).
+Deno.test('the local calendar matches a wall-clock calendar of the process zone, all year', () => {
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const reference = zoneCalendar(zone);
+  for (let day = 1; day <= 366; day++) {
+    const start = localCalendar.startOf(2026, 0, day);
+    const next = localCalendar.startOf(2026, 0, day + 1);
+    assertEquals(reference.startOf(2026, 0, day), start, `start of day ${day} of 2026 in ${zone}`);
+    assertEquals(reference.startOf(2026, 0, day + 1) - reference.startOf(2026, 0, day), next - start);
+    for (const probe of [start - 1000, start, start + 12 * HOUR, next - 1000]) {
+      assertEquals(reference.dateOf(probe), localCalendar.dateOf(probe), `date at ${probe} in ${zone}`);
+    }
+    const noon = new Date(2026, 0, day, 12);
+    assertEquals(buildTrends([], 14, noon, reference), buildTrends([], 14, noon, localCalendar));
+  }
 });
 
 Deno.test('local calendar: out-of-range days roll over into the previous month and year', () => {
@@ -319,6 +395,15 @@ Deno.test('counts and totals read as plain numbers with units', () => {
   assertEquals(sleepText(days[6]), `0${NB}min`);
   assertEquals(countLabel(1, 'feed'), `1${NB}feed`);
   assertEquals(countLabel(0, 'diaper'), `0${NB}diapers`);
+});
+
+Deno.test('a day has data when it has a feed, a diaper or some sleep', () => {
+  const days = buildTrends([bottle(nov(3, 6), 90), sleep(nov(2, 22), nov(2, 23))], 7, NOW);
+  assertEquals(days.map(dayHasData), [false, false, false, false, false, true, true]);
+});
+
+Deno.test('unitLabel keeps the unit with its number', () => {
+  assertEquals(unitLabel(640, 'ml'), `640${NB}ml`);
 });
 
 Deno.test('sleepHours converts ms to hours', () => {
