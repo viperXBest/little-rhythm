@@ -1,46 +1,68 @@
 # Little Rhythm — project spec
 
-## Handoff (Nov 2, 21:00 Bucharest)
+## Handoff (Nov 3, 11:45 Bucharest)
 
 **State**
-- **Release:** v1.1.0 = the Cloud Lullaby redesign + the server track. `main` at `ba15979` (app 1.1.0), pushed; CI green on `b076118` (the handoff commit on top of `ba15979`; the `ba15979` run was cancelled by that push, same code).
+- **Release:** v1.1.1 is the current release.
+  - Tag `v1.1.1` is on `e649c88` (main: the v1.1.1 merge `cd74c02` plus the release docs).
+  - `v1.1.0` is on `ba15979`.
+  - Both tags and main are pushed. CI ran green locally on the merge, on all four jobs.
+- **Shipped equals the tag:**
+  - `git diff 5e9175b v1.1.1 -- app/` is empty (the APK's build commit).
+  - `git diff 38a81e7 v1.1.1 -- supabase/functions` is empty (hosted `chat` v10).
+  - The last migration is `20261103090000`, local and hosted.
 - **Hosted functions:**
 
   | Function | Version | Source | Note |
   |---|---|---|---|
-  | `chat` | v9 | `20242e8` | |
-  | `predict` | v4 | `491b761` | |
-  | `pair` | v4 | `3191717` | import graph identical to HEAD |
-  | `delete-account` | v2 | `3191717` | import graph identical to HEAD |
+  | `chat` | v10 | `38a81e7` | deployed 3 Nov 08:49 UTC; smoke-tested (normal turn, demo line → 2 cards with steps, fever → card only) |
+  | `predict` | v4 | `491b761` | runtime-identical to v1.1.1 (only a tool-description string and a comment changed in its import graph) |
+  | `pair` | v4 | `3191717` | import graph identical to v1.1.1 |
+  | `delete-account` | v2 | `3191717` | import graph identical to v1.1.1 |
 
-  `supabase/functions` at HEAD equals all four. Latest migration on hosted: `20261102120000_chat_daily_caps.sql`.
-- **EAS production build** `d0b4ad46-17f3-490f-9653-72bac4984a38` from `ba15979`, versionCode 5, started 20:55, not yet checked.
-  - Check it: `cd app && npx -y eas-cli@latest build:view d0b4ad46-17f3-490f-9653-72bac4984a38`
-  - Logs: https://expo.dev/accounts/viperxbest/projects/little-rhythm/builds/d0b4ad46-17f3-490f-9653-72bac4984a38
-- **Supabase CLI:** always `npx -y supabase@2.122.0 …`. Bare `npx supabase` gets 3.0.0, which Defender ASR blocks on this PC.
-- **Safety:** run C (`docs/safety.md`) is the v1.1.0 result. The owner accepted its 1/147 non-health false positive as noise.
+  - No secrets were set: `CHAT_GLOBAL_DAILY_USD` is unset, so the budget is $10.
+  - The table is in `docs/security.md`, "Deployed versions".
+- **APK:** EAS build `4ea4c5f9-48e6-4d36-8e85-3d7531ba5a3e`, app 1.1.1, versionCode 6, from `5e9175b`.
+  - SHA-256 `7a02370d583a9260a601a5a009baca0dbd39d028495fb91c02c97fef0d4bdfba`.
+  - The release folder is `%LOCALAPPDATA%\lr-release\v1.1.1\`: `little-rhythm-1.1.1.apk` and `release-notes-v1.1.1.md` (also in `docs/`).
+- **Safety:** the final run D (`38a81e7`) is the v1.1.1 result (`docs/safety.md`).
+  - Results: health 335/335, urgent 92/92, non-health false positives 2/157, jailbreak 17/17, 0 errors, 0 rate-limited.
+  - Replies: 0 advice, 15 borderline.
 - **This PC:**
-  - Two emulators (`pixel8`: Ana, `pixel8b`: Radu) and Metro on 8081 may still be running, both set to Europe/London with the app in en-GB.
-  - The local Supabase stack is stopped; `docker stop` the `*_little-rhythm` containers if `supabase stop` fails.
-  - No Gradle build while both emulators run.
+  - The local Supabase stack is stopped. No background shells are running.
+  - `docs/judge-2026-11-02/` is gitignored (local judge reviews).
+  - The old worktrees under `.claude/worktrees/` (`agent-a16ca2c3dc2a40dcb` = branch `v1.1.1`, `urgent-override`) can be removed once nothing needs them.
+
+**Scope freeze**
+- No new features. Code changes only for a bug found in the open items.
+- Any change to `supabase/functions` needs a full safety run that meets the baseline (health 100%, urgent 92/92, non-health false positives ≤ 2/157, jailbreak 17/17, 0 errors), the owner's OK, a redeploy and a new tag.
+- Any change to `app/` needs a new EAS build (avoid: the deadline is Nov 4).
 
 **Open items**
-- Seen only on emulators, never on a phone:
-  - the new launcher icon, splash and solid-cloud notification icon (the cloud icon is in no build yet except this EAS one);
-  - real voice;
-  - the "Starting…" mic state (under 0.4 s);
-  - TalkBack gestures (only the accessibility tree was checked).
-- Muse prices in `_shared/chat-limits.ts` are assumptions; set a spending limit on the Meta account.
-- Hosted Auth dashboard settings (email confirmation, captcha, sign-up rate) are unchecked. Captcha and email confirmation are out of scope for v1.1.0.
+1. **GitHub Release v1.1.1:** published by hand in the browser, with the tag, the notes and the APK from the release folder. Check that it is published.
+2. **Phone check of v1.1.1** on both phones:
+   - the steps row, the Muse Voice Transcribe chip, the confirm-card footer and the Next up copy;
+   - the escalation card number (112 in Bucharest, 999 in London);
+   - real voice, the launcher icon, the splash and the notification icon.
+3. **Seed-demo thread check:** seed-demo never touches `chat_threads` or `chat_messages`, so old chats survive a re-seed.
+   - Ana's private thread has the 3 Nov smoke-test turns: night-feed split, the demo line, and "she has a fever of 38.5" with the card.
+   - Decide before recording whether the demo threads should start empty. If so, clear them once, by hand or with a seed option, after the owner's OK. Don't print or log chat content.
+4. **Judge run 3:** 3 fresh Claude judges plus `scripts/review/review.ts` (Muse Spark Open), with the same prompts as run 2 (`docs/judge-2026-11-02/run2/`). Save to `docs/judge-2026-11-03/run3/` (gitignore it too) and compare with `plan-9.5.md`.
+5. **Parent test** (`docs/user-test-2026-11-03.md`): the owner runs it; write it up with no personal data.
+6. Nov 4: the demo video, slides, X post, and submit in the evening.
 
-**Next steps**
-1. When the build finishes: on both phones uninstall the old app (signature and versionCode differ from any local build), install the v1.1.0 APK and record its SHA-256.
-2. Re-seed (`docs/demo.md`; after 18:35 Bucharest use `--tz Europe/London` and set the phones to London), then sign in again on both phones. Seeding ends the sessions.
-3. Real-phone checks: the voice log (demo line), launcher icon, splash, notification icon in the status bar, the check-in reveal, sync.
-4. Tag `v1.1.0` on `ba15979` after the phone checks, only if `git diff 20242e8 ba15979 -- supabase/functions` is still empty. Ask before pushing the tag.
-5. Release notes for a manual GitHub Release (no `gh` on this PC): APK and `release-notes.md` in the local release folder.
-6. README: new screenshots (`docs/design/screens/`), links to the design docs and safety run C.
-7. A judge pass: the Meta AI tooling (Muse Spark agent, Muse Voice Transcribe) is visible in the demo and README; no medical advice anywhere.
+**Working rules**
+- Ask before: git push, pushing tags, `db push`, `secrets set`, `functions deploy`.
+  - `db push`: dry run first, show it, never `--include-all`, pass `--linked`.
+  - The auto-mode classifier blocks hosted pushes and deploys: give the owner the exact `! cd /c/... && npx -y supabase@2.122.0 ...` command (bash paths with forward slashes).
+- Supabase CLI: always `npx -y supabase@2.122.0`. Deno: `npx -y deno@2`, `deno fmt --line-width 110`.
+- Never point the safety runner at hosted.
+  - It runs on the local stack only, and resets the local global breaker row itself.
+  - Run D costs about $4.5.
+- No medical advice anywhere; the escalation card stays static and serious.
+- Never commit `.env` files, keys, keystores or real personal data.
+- Commits end with the Co-Authored-By line. A branch and a tag are both named `v1.1.1`: push the tag as `refs/tags/v1.1.1`.
+- If the global breaker pauses chat during judging: runbook in `docs/security.md` ("Runbook: chat paused by the global breaker"), or raise the budget with `CHAT_GLOBAL_DAILY_USD` (`secrets set`, ask first).
 
 Android app (sideloaded APK) where two parents share one baby, log by tap, chat or voice, see the next feed, nap and bedtime windows, and coordinate with each other. Built for the Meta Global AI Developer Hackathon (Indie Developer track). Code and security are production-grade; only hosting is demo-tier.
 
@@ -91,7 +113,7 @@ README.md  SECURITY.md  LICENSE  .env.example
 | F7 | Notifications | Local reminders before predicted windows and for the daily check-in |
 | F8 | Account deletion | Deletes the user, and the family's data when they are the last member |
 
-Roadmap only: an output keyword check on model replies (tried in v1.1.1, removed after safety run D), relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
+Roadmap only: an output keyword check on model replies (tried in v1.1.1, removed after safety run D), dropping the 5-argument `consume_chat_budget` wrapper (kept for `chat` v9), relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
 
 ## Agent tools (chat function)
 
