@@ -195,6 +195,25 @@ Deno.test({
           .select("id").single(),
       );
       const today = new Date().toISOString().slice(0, 10);
+      // Growth records: one from each parent (v1.2.0). They hang off the baby.
+      const growthA = await must(
+        a.client.from("growth_measurements").insert({
+          baby_id: baby.id,
+          kind: "weight",
+          value: 4200,
+          measured_on: today,
+        })
+          .select("id").single(),
+      );
+      const growthB = await must(
+        b.client.from("growth_measurements").insert({
+          baby_id: baby.id,
+          kind: "length",
+          value: 540,
+          measured_on: today,
+        })
+          .select("id").single(),
+      );
       await run(
         a.client.from("checkins").insert({
           family_id: family,
@@ -296,6 +315,16 @@ Deno.test({
       // A's event stays, without an author.
       const kept = await must(admin.from("events").select("created_by").eq("id", eventA.id).single());
       assertEquals(kept.created_by, null);
+      // So does A's growth record, which stays with the family; B's keeps its author.
+      const keptGrowth = await must(
+        admin.from("growth_measurements").select("created_by").eq("id", growthA.id).single(),
+      );
+      assertEquals(keptGrowth.created_by, null);
+      const bGrowth = await must(
+        admin.from("growth_measurements").select("created_by").eq("id", growthB.id).single(),
+      );
+      assertEquals(bGrowth.created_by, b.id);
+      assertEquals(await count("growth_measurements", "baby_id", baby.id), 2);
 
       // B's data is intact, including B's shared-thread turns and their replies.
       assert(await userExists(b.id));
@@ -325,6 +354,7 @@ Deno.test({
           ["families", "id", family],
           ["babies", "family_id", family],
           ["events", "baby_id", baby.id],
+          ["growth_measurements", "baby_id", baby.id],
           ["invites", "family_id", family],
           ["chat_threads", "family_id", family],
           ["chat_messages", "thread_id", shared],
