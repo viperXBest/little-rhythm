@@ -1,5 +1,5 @@
-// seedDemo against the local stack: two runs give the same state, another
-// family is untouched, a re-seed clears the demo chats and budget rows (and keeps
+// seedDemo against the local stack: two runs give the same state (with the
+// growth check-ups), another family is untouched, a re-seed clears the demo chats and budget rows (and keeps
 // the accounts and the global spend row), and a demo family with an outside
 // member is refused.
 // Uses a fixed clock inside the valid range, so it passes at any hour.
@@ -48,6 +48,9 @@ async function rows<T>(query: PromiseLike<{ data: T[] | null; error: unknown }>)
   return data ?? [];
 }
 
+const byDateAndKind = (a: { measured_on: string; kind: string }, b: { measured_on: string; kind: string }) =>
+  `${a.measured_on} ${a.kind}`.localeCompare(`${b.measured_on} ${b.kind}`);
+
 /** The demo family's state with ids replaced by labels, so two runs can be compared. */
 async function snapshot(acc: Accounts) {
   const label = new Map([[await userId(acc.parent1.email), "parent1"], [
@@ -73,6 +76,12 @@ async function snapshot(acc: Accounts) {
       "user_id",
     ),
   );
+  const growth = await rows(
+    admin.from("growth_measurements").select("kind, value, measured_on, created_by").eq(
+      "baby_id",
+      babies[0].id,
+    ),
+  );
   const threads = await rows(admin.from("chat_threads").select("id").eq("family_id", familyId));
   const profiles = await rows(admin.from("profiles").select("id, display_name").in("id", ids));
   const name = (id: unknown) => label.get(id as string) ?? `other:${id}`;
@@ -87,6 +96,7 @@ async function snapshot(acc: Accounts) {
       checkins: checkins.map((c) => ({ ...c, user_id: name(c.user_id) })).sort((a, b) =>
         `${a.day}${a.user_id}`.localeCompare(`${b.day}${b.user_id}`)
       ),
+      growth: growth.map((g) => ({ ...g, created_by: name(g.created_by) })).sort(byDateAndKind),
       threads: threads.length,
     },
   };
@@ -292,6 +302,18 @@ Deno.test({
       assertEquals(a.state.threads, 0);
       assertEquals(a.state.events.length, first.plan.events.length);
       assertEquals(a.state.checkins.length, 6);
+      // The growth check-ups: the plan's 12 measurements (weight, length, head at 4 dates), both parents.
+      assertEquals(
+        a.state.growth,
+        first.plan.growth.map((g) => ({
+          kind: g.kind,
+          value: g.value,
+          measured_on: g.measured_on,
+          created_by: g.by,
+        })).sort(byDateAndKind),
+      );
+      assertEquals(a.state.growth.length, 12);
+      assertEquals(new Set(a.state.growth.map((g) => g.created_by)), new Set(["parent1", "parent2"]));
       assertEquals((await rows(admin.from("families").select("id").eq("id", a.familyId))).length, 0);
 
       assertEquals(await other.state(), before);
@@ -299,6 +321,7 @@ Deno.test({
       // The printed summary carries names, counts and times, never a login.
       const printed = describe(second);
       assert(printed.includes(NAMES.parent1) && printed.includes("Night feeds"), printed);
+      assert(printed.includes("Growth: 12 measurements at 4 check-ups."), printed);
       // The take's expected card, in the seed's zone (default: no phone-zone warning).
       assert(
         /Next up at 17:30 \(Europe\/Bucharest\): nap \d\d:\d\d–\d\d:\d\d, routine starts \d\d:\d\d tonight/
@@ -352,6 +375,11 @@ Deno.test({
       const accountsBefore = await authUsers(acc);
       const old = await snapshot(acc);
 
+      const [oldBaby] = await rows(admin.from("babies").select("id").eq("family_id", old.familyId));
+      const growthOf = (babyId: string) =>
+        rows(admin.from("growth_measurements").select("id").eq("baby_id", babyId));
+      assertEquals((await growthOf(oldBaby.id)).length, 12);
+
       const demo = await addChatState(old.familyId, [accountsBefore.parent1.id, accountsBefore.parent2.id]);
       const outside = await addChatState(other.familyId, [other.user]);
       await rows(admin.from("usage_counters").insert(globalRow).select());
@@ -388,6 +416,9 @@ Deno.test({
       const fresh = await snapshot(acc);
       assert(fresh.familyId !== old.familyId, "the family is recreated");
       assertEquals(fresh.state.threads, 0);
+      // The old baby's growth rows went with it; the new baby has its own 12.
+      assertEquals(await growthOf(oldBaby.id), []);
+      assertEquals(fresh.state.growth.length, 12);
       assertEquals(
         await rows(admin.from("usage_counters").select("function").eq("family_id", fresh.familyId)),
         [],

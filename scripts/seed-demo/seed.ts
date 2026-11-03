@@ -1,6 +1,7 @@
 // Creates or resets the demo family: two paired parents (Ana and Radu) and Maia,
-// 13 weeks old, with three weeks of events ending just before the recording
-// (plan.ts). Runs from the developer's PC only, never in CI against hosted.
+// 13 weeks old, with three weeks of events ending just before the recording and
+// four growth check-ups from birth to 10 weeks (plan.ts). Runs from the
+// developer's PC only, never in CI against hosted.
 //
 //   npx -y deno@2 run --env-file=scripts/seed-demo/.env --allow-env --allow-net \
 //     scripts/seed-demo/seed.ts --project <ref> [--at HH:MM] [--tz <IANA zone>]
@@ -15,7 +16,7 @@
 // Reset deletes only families whose every member is a demo account. If a demo
 // account shares a family with anyone else, nothing is changed.
 // What a re-seed clears: the old family and, by cascade, its chat threads,
-// messages, thread memory, check-ins, invites and per-family usage counters, so
+// messages, thread memory, check-ins, invites, growth measurements and per-family usage counters, so
 // the demo chats start empty; and the two parents' api_usage rows (rate limits
 // and the daily chat count). What it keeps: the two accounts (updated, never
 // recreated, so the ids and auth created_at stay and the 10-turn new-account
@@ -94,6 +95,18 @@ async function findUser(admin: SupabaseClient, email: string): Promise<string | 
     if (found) return found.id;
     if (data.users.length < perPage) return null;
   }
+}
+
+/** Refuses, before anything is written, a database that has no growth_measurements table yet. */
+async function requireGrowthTable(admin: SupabaseClient): Promise<void> {
+  const { error } = await admin.from("growth_measurements").select("id", { head: true }).limit(1);
+  if (error?.code === "42P01" || error?.code === "PGRST205") {
+    throw new SeedError(
+      "no_growth_table",
+      "The database has no growth_measurements table yet: apply the latest migrations first. Nothing was changed.",
+    );
+  }
+  check(error, "probe_growth");
 }
 
 /** Creates the account, or resets its password and name to the demo values. */
@@ -196,6 +209,7 @@ export async function seedDemo(opts: {
   if (accounts.parent1.email.toLowerCase() === accounts.parent2.email.toLowerCase()) {
     throw new SeedError("same_account", "The two demo logins must be different accounts.");
   }
+  await requireGrowthTable(admin);
 
   const ids: Record<Parent, string> = {
     parent1: await upsertUser(admin, accounts.parent1, NAMES.parent1),
@@ -243,6 +257,16 @@ export async function seedDemo(opts: {
     })),
   );
   check(checkins.error, "insert_checkins");
+  const growth = await admin.from("growth_measurements").insert(
+    plan.growth.map((g) => ({
+      baby_id: babyId,
+      kind: g.kind,
+      value: g.value,
+      measured_on: g.measured_on,
+      created_by: ids[g.by],
+    })),
+  );
+  check(growth.error, "insert_growth");
 
   const nights = countNightFeeds({
     feeds: plan.events.filter((e) => e.type === "feed").map((e) => ({
@@ -283,6 +307,9 @@ export function describe(summary: Summary): string {
       count("diaper")
     } diapers.`,
     `Check-ins for ${new Set(plan.checkins.map((c) => c.day)).size} past days; today is unanswered.`,
+    `Growth: ${plan.growth.length} measurements at ${
+      new Set(plan.growth.map((g) => g.measured_on)).size
+    } check-ups.`,
     `Night feeds, last 7 nights: ${NAMES.parent1} ${summary.nightFeeds.parent1}, ${NAMES.parent2} ${summary.nightFeeds.parent2}.`,
     `Next up at ${localTime(plan.anchor.getTime(), zone)} (${zoneName(zone)}): ${slot("nap", p.nap)}, ` +
     `routine starts ${routine}, ${slot("bedtime", p.bedtime)}, ${slot("feed", p.feed)}.`,
