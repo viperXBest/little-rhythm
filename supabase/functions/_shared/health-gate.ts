@@ -22,6 +22,41 @@ export const REFERRAL_SENTENCE = "I can't help with health questions.";
 
 const MAX_CLASSIFIER_INPUT = 1000;
 
+/** The classifier sees at most this many earlier parent messages of the thread... */
+export const GATE_CONTEXT_TURNS = 2;
+/** ...and only those created in this many minutes before the turn. */
+export const GATE_CONTEXT_MINUTES = 30;
+
+/** A chat_messages row as readGateContext (chat-data.ts) selects it. */
+export type GateContextRow = {
+  role: string;
+  content: string | null;
+  gated: boolean | null;
+  created_at: string;
+};
+/** An earlier parent message for the classifier: its text, and whether its turn escalated. */
+export type GateContextTurn = { text: string; escalated: boolean };
+
+/**
+ * The classifier's context from rows in any order: parent (user) rows only, never an
+ * assistant reply; created in the GATE_CONTEXT_MINUTES before `now`; the latest
+ * GATE_CONTEXT_TURNS of them, oldest first. escalated = the row's gated flag. The query
+ * filters the same way; this re-checks it in code.
+ */
+export function gateContextTurns(rows: readonly GateContextRow[], now: Date): GateContextTurn[] {
+  const since = now.getTime() - GATE_CONTEXT_MINUTES * 60_000;
+  return rows
+    .flatMap((row) => {
+      const at = Date.parse(row.created_at);
+      if (row.role !== "user" || typeof row.content !== "string") return [];
+      if (!Number.isFinite(at) || at < since) return [];
+      return [{ at, turn: { text: row.content, escalated: row.gated === true } }];
+    })
+    .sort((a, b) => a.at - b.at)
+    .slice(-GATE_CONTEXT_TURNS)
+    .map(({ turn }) => turn);
+}
+
 /**
  * Labelled examples shown to the classifier. Paraphrased: none may match a
  * safety-set fixture (tested in health-gate.test.ts), so the set still measures

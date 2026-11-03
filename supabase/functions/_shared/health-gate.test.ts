@@ -7,6 +7,10 @@ import {
   type ClassifierMessage,
   type ClassifyCall,
   classifyHealth,
+  GATE_CONTEXT_MINUTES,
+  GATE_CONTEXT_TURNS,
+  type GateContextRow,
+  gateContextTurns,
   REFERRAL_SENTENCE,
 } from "./health-gate.ts";
 import { keywordHit, normalise, parentCrisis } from "./health-keywords.ts";
@@ -381,4 +385,71 @@ Deno.test("classifier examples: in the prompt, and none matches a safety-set fix
   assertEquals(CLASSIFIER_EXAMPLES.some((e) => e.health) && CLASSIFIER_EXAMPLES.some((e) => !e.health), true);
   assertEquals(CLASSIFIER_EXAMPLES.some((e) => /[ăâîșț]/.test(e.text)), true);
   assertEquals(CLASSIFIER_PROMPT.includes("If unsure, choose health = true."), true);
+});
+
+// ---------------------------------------------------------------------------
+// Gate context: the earlier parent messages the classifier reads beside the turn
+// ---------------------------------------------------------------------------
+
+const NOW = new Date("2026-11-03T12:00:00.000Z");
+const minutesAgo = (m: number) => new Date(NOW.getTime() - m * 60_000).toISOString();
+const row = (minutes: number, content: string, extra: Partial<GateContextRow> = {}): GateContextRow => ({
+  role: "user",
+  content,
+  gated: false,
+  created_at: minutesAgo(minutes),
+  ...extra,
+});
+
+Deno.test("gate context: the limits are 2 turns and 30 minutes", () => {
+  assertEquals(GATE_CONTEXT_TURNS, 2);
+  assertEquals(GATE_CONTEXT_MINUTES, 30);
+});
+
+Deno.test("gate context: none, one or two rows, oldest first, escalated from gated", () => {
+  assertEquals(gateContextTurns([], NOW), []);
+  assertEquals(gateContextTurns([row(3, "first", { gated: true })], NOW), [
+    { text: "first", escalated: true },
+  ]);
+  // Rows come newest first from the query; the classifier gets them oldest first.
+  assertEquals(gateContextTurns([row(1, "second"), row(4, "first", { gated: true })], NOW), [
+    { text: "first", escalated: true },
+    { text: "second", escalated: false },
+  ]);
+});
+
+Deno.test("gate context: only the latest 2, whatever the input order", () => {
+  const rows = [row(10, "b"), row(2, "d", { gated: true }), row(20, "a"), row(5, "c")];
+  assertEquals(gateContextTurns(rows, NOW), [
+    { text: "c", escalated: false },
+    { text: "d", escalated: true },
+  ]);
+});
+
+Deno.test("gate context: only rows from the last 30 minutes", () => {
+  const rows = [row(31, "too old", { gated: true }), row(30, "edge"), row(29.9, "inside")];
+  assertEquals(gateContextTurns(rows, NOW), [
+    { text: "edge", escalated: false },
+    { text: "inside", escalated: false },
+  ]);
+  assertEquals(gateContextTurns([row(45, "old", { gated: true }), row(120, "older")], NOW), []);
+  // A bad timestamp is dropped, not treated as recent.
+  assertEquals(gateContextTurns([row(1, "x", { created_at: "not a date" })], NOW), []);
+});
+
+Deno.test("gate context: an assistant row never appears, even if a query returned one", () => {
+  const rows = [
+    row(1, "Her next feed is 15:00.", { role: "assistant" }),
+    row(2, "she drank 90 ml"),
+    row(3, "caption", { role: "assistant", gated: true }),
+  ];
+  assertEquals(gateContextTurns(rows, NOW), [{ text: "she drank 90 ml", escalated: false }]);
+  // A row with no text (an escalation reply) is dropped too.
+  assertEquals(gateContextTurns([row(1, "x", { role: "assistant", content: null })], NOW), []);
+  assertEquals(gateContextTurns([row(1, "x", { content: null })], NOW), []);
+});
+
+Deno.test("gate context: escalated is true only for gated = true", () => {
+  assertEquals(gateContextTurns([row(1, "x", { gated: null })], NOW), [{ text: "x", escalated: false }]);
+  assertEquals(gateContextTurns([row(1, "x", { gated: true })], NOW), [{ text: "x", escalated: true }]);
 });
