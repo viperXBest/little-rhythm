@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackHeader } from '@/components/account-ui';
 import { Card } from '@/components/card';
 import { Segmented } from '@/components/controls';
-import { ErrorText, Screen } from '@/components/form';
+import { Screen } from '@/components/form';
 import { Illustration } from '@/components/illustrations';
 import { Empty, ErrorState, Loading } from '@/components/states';
 import { ThemedText } from '@/components/themed-text';
@@ -18,6 +18,8 @@ import { useSession } from '@/lib/session';
 import {
   bottleText,
   buildTrends,
+  countLabel,
+  dayHasData,
   diapersText,
   feedsText,
   hasTrendData,
@@ -25,6 +27,7 @@ import {
   sleepText,
   type TrendDay,
   type TrendRange,
+  unitLabel,
 } from '@/lib/trends';
 import { useTrendEvents } from '@/lib/trends-data';
 
@@ -35,6 +38,7 @@ const RANGES = [
 type RangeKey = (typeof RANGES)[number]['value'];
 
 const ERROR_TEXT = 'Couldn’t load the log. Check your connection.';
+const STALE_TEXT = 'Couldn’t refresh. These are the numbers from the last time it loaded.';
 
 export default function Trends() {
   const { family } = useSession();
@@ -93,7 +97,8 @@ function TrendsView({ babyId }: { babyId: string }) {
           {status === 'error' ? (
             <ErrorState message={ERROR_TEXT} onRetry={retry} illustration={<Illustration name="error" size={160} />} />
           ) : null}
-          {stale ? <ErrorText>Couldn’t refresh. These are the numbers from the last time it loaded.</ErrorText> : null}
+          {/* Pull-to-refresh has no TalkBack action, so the failure carries its own button. */}
+          {stale ? <ErrorState message={STALE_TEXT} onRetry={retry} /> : null}
           {status === 'ready' && !hasTrendData(days) ? (
             <Empty illustration={<Illustration name="emptyTimeline" size={200} />}>
               Nothing logged in these days
@@ -114,7 +119,7 @@ function Charts({ days }: { days: readonly TrendDay[] }) {
         days={days}
         series={[{ name: 'Feeds', tone: 'feed', values: days.map((d) => d.feeds) }]}
         minTop={4}
-        topLabel={(top) => `${top} feeds`}
+        topLabel={(top) => countLabel(top, 'feed')}
         summary={summaryOf('Feeds', days, feedsText)}
       />
       <TrendBars
@@ -122,7 +127,7 @@ function Charts({ days }: { days: readonly TrendDay[] }) {
         days={days}
         series={[{ name: 'Bottle ml', tone: 'feed', values: days.map((d) => d.bottleMl) }]}
         minTop={100}
-        topLabel={(top) => `${top} ml`}
+        topLabel={(top) => unitLabel(top, 'ml')}
         summary={summaryOf('Bottle ml', days, bottleText)}
         note="Bottle feeds only. Breast feeds have no ml."
       />
@@ -131,7 +136,7 @@ function Charts({ days }: { days: readonly TrendDay[] }) {
         days={days}
         series={[{ name: 'Sleep hours', tone: 'sleep', values: days.map((d) => sleepHours(d.sleepMs)) }]}
         minTop={4}
-        topLabel={(top) => `${top} h`}
+        topLabel={(top) => unitLabel(top, 'h')}
         summary={summaryOf('Sleep', days, sleepText)}
         note="Time asleep inside each day; a sleep over midnight is split between the two days."
       />
@@ -143,7 +148,7 @@ function Charts({ days }: { days: readonly TrendDay[] }) {
           { name: 'Dirty', tone: 'diaper', outlined: true, values: days.map((d) => d.dirty) },
         ]}
         minTop={4}
-        topLabel={(top) => `${top} diapers`}
+        topLabel={(top) => countLabel(top, 'diaper')}
         summary={summaryOf('Diapers', days, diapersText)}
         note="A diaper that is both counts as wet and as dirty."
       />
@@ -162,8 +167,7 @@ function DayByDay({ days }: { days: readonly TrendDay[] }) {
         Day by day
       </ThemedText>
       {newestFirst.map((day, i) => {
-        const empty = day.feeds === 0 && day.diapers === 0 && day.sleepMs === 0;
-        const lines = empty
+        const lines = !dayHasData(day)
           ? ['Nothing logged']
           : [`${feedsText(day)}, ${bottleText(day)}`, `Sleep ${sleepText(day)}`, diapersText(day)];
         return (
