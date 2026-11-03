@@ -52,10 +52,18 @@ jobs:
       # Supabase env only). A new test file runs without a CI change.
       - name: App units (all app *.test.ts)
         run: deno test $(git ls-files 'app/*.test.ts')
+      # Trends bucket by the phone's local day: run them again in zones with DST, one of which
+      # changes its clocks at midnight.
+      - name: Trends in other time zones
+        run: |
+          TZ=Europe/Bucharest deno test app/src/lib/trends.test.ts
+          TZ=America/Santiago deno test app/src/lib/trends.test.ts
       - name: Demo seed plan (timeline, DST, --project guard)
         run: deno test -A scripts/seed-demo/plan.test.ts
       - name: Safety reply grader (parsing, candidates, JSON-encoded input)
         run: deno test scripts/safety/grade.test.ts
+      - name: Held-out runner evaluation (labels, triggers, input checks)
+        run: deno test scripts/safety/heldout-eval.test.ts
 
   supabase:
     name: RLS, realtime and function tests (local stack)
