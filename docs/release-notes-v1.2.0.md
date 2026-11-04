@@ -61,7 +61,10 @@ keeps the baby's growth as a plain record, and shows seven or fourteen days of t
   Method and results are in
   [`docs/safety-runs/`](https://github.com/viperXBest/little-rhythm/blob/main/docs/safety-runs/README.md).
 
-<!-- CLASSIFIER_RELEASE_NOTE -->
+- Known gap it found: the health classifier judges each message on its own, so a follow-up
+  that only makes sense after a card ("ok but what would you do?") can get a plain reply
+  instead of a second card (2 of 53 sequences). A fix was tested but missed its gate, so it
+  is not in this release.
 
 ## Server
 
