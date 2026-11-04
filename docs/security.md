@@ -2,11 +2,11 @@
 
 ## Realtime and RLS
 
-`events`, `family_members`, `chat_messages` and `checkins` are in the
+`events`, `family_members`, `chat_messages`, `checkins` and `growth_measurements` are in the
 `supabase_realtime` publication (`20261029090000_events_realtime.sql`,
-`20261029100000_chat_checkin.sql`). `chat_threads`, `invites`, `api_usage`, `usage_counters`,
+`20261029100000_chat_checkin.sql`, `20261103140000_growth.sql`). `chat_threads`, `invites`, `api_usage`, `usage_counters`,
 `profiles`, `babies` and `families` are not; `supabase/tests/05_events.test.sql`
-asserts both.
+asserts both (and `10_growth.test.sql` asserts `growth_measurements`).
 
 For INSERT and UPDATE, Realtime runs the subscriber's `select` policy against the
 changed row before sending it. A client filter such as `baby_id=eq.<id>` narrows
@@ -57,14 +57,29 @@ UPDATE), which goes through RLS like any other update.
   insert. To fix a wrong type, delete the event and log it again.
 - Inserts must have `created_by = auth.uid()` and a baby in the caller's family.
 
+## Growth records (v1.2.0)
+
+`growth_measurements` (weight in grams, length and head in millimetres, a date) is protected
+by family RLS only, through `is_family_member` on the baby's family. Members can select and
+delete, insert `baby_id`, `kind`, `value` and `measured_on`, and update only `value` and
+`measured_on`; the author comes from `auth.uid()`. The CHECK bounds are typo guards (for
+example weight 300–30,000 g), not norms. **No Edge Function reads this table, so growth
+never reaches the AI:** a CI step runs `git grep growth_measurements -- supabase/functions`
+and fails the build on any hit. Rows go with the baby (`on delete cascade`), so the last
+member's account deletion removes them with the family. When one of two parents deletes
+their account, the rows stay and `created_by` becomes null. The migration is not on hosted
+until it is pushed (see "Deployed versions").
+
 ## Chat memory
 
-- **What the model sees:** chat history (the last 30 messages) and the thread
-  summary. The server adds no profile names, ids or emails; personal details a
-  parent types are sent as typed. Gated turns are excluded from later history,
-  summary and search. The
-  summary is rejected before storage if it holds a health keyword, an email, a UUID
-  or a family name. Names are read through RLS only for that check.
+- **What the model sees:** chat history (the last 30 usable messages) and the thread
+  summary. The server adds no names, ids or emails to them, and gated turns never
+  go in. The messages are what the parents typed or said, so a name or an email a
+  parent wrote would be in them: only the summary is checked, and is rejected before
+  storage if it holds a health keyword, an email, a UUID or a family name. Names are read
+  through RLS only for that check. <!-- CLASSIFIER -->The health classifier gets the baby's age in weeks, the parent's message and, as context, up to 2 earlier parent messages from the same thread in the last 30 minutes, gated ones included (each marked escalated or not). The agent never sees gated turns.<!-- /CLASSIFIER --> The Meta Model API is outside the
+  EU. Growth records and couple data are never sent. The full list of what goes to the AI is in
+  [`docs/chat.md`](chat.md#what-goes-to-the-ai).
 - **`chat_messages` writes:** only the chat function writes messages, with the service
   role after the thread check and the health gate. Clients have no insert policy and no
   INSERT or UPDATE privilege (`20261030100000_chat_messages_server_insert.sql`), so a
@@ -308,6 +323,17 @@ full safety run meters about $4–5.
     also build-time only. The rest are the same chain reported again.
 
 ## Deployed versions
+
+**Pending for v1.2.0 (4 Nov):** hosted still has migration `20261103090000` as its last one.
+`20261103140000_growth.sql` (the growth table) is not pushed yet. The hosted functions are
+still v1.1.1's (`chat` v10 and the three below). Since v1.1.1, `chat` changed: the health
+classifier reads up to 2 earlier parent messages as context (`_shared/health-gate.ts`,
+`_shared/chat-data.ts`, `chat/index.ts`; merged 4 Nov on the owner's revised gate, see
+[`safety-runs/README.md`](safety-runs/README.md#held-out-multi-turn-result)), so `chat` needs a
+deploy. `predict` imports `chat-data.ts`, which now imports `health-gate.ts`; `predict`
+calls none of the new code, but its import graph changed, so redeploy it too to keep "hosted
+equals the release commit" exact. `pair` and `delete-account` import nothing that changed.
+The app build for v1.2.0 needs the migration first. The table below is the hosted state.
 
 Hosted Edge Functions for release v1.1.1 (checked with `supabase functions list` on
 3 Nov). Each was deployed from source identical to the release commit for that

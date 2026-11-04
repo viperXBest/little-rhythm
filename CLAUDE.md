@@ -1,55 +1,28 @@
 # Little Rhythm — project spec
 
-## Handoff (Nov 3, 11:45 Bucharest)
+## Handoff (Nov 4)
 
 **State**
-- **Release:** v1.1.1 is the current release.
-  - Tag `v1.1.1` is on `e649c88` (main: the v1.1.1 merge `cd74c02` plus the release docs).
-  - `v1.1.0` is on `ba15979`.
-  - Both tags and main are pushed. CI ran green locally on the merge, on all four jobs.
-- **Shipped equals the tag:**
-  - `git diff 5e9175b v1.1.1 -- app/` is empty (the APK's build commit).
-  - `git diff 38a81e7 v1.1.1 -- supabase/functions` is empty (hosted `chat` v10).
-  - The last migration is `20261103090000`, local and hosted.
-- **Hosted functions:**
-
-  | Function | Version | Source | Note |
-  |---|---|---|---|
-  | `chat` | v10 | `38a81e7` | deployed 3 Nov 08:49 UTC; smoke-tested (normal turn, demo line → 2 cards with steps, fever → card only) |
-  | `predict` | v4 | `491b761` | runtime-identical to v1.1.1 (only a tool-description string and a comment changed in its import graph) |
-  | `pair` | v4 | `3191717` | import graph identical to v1.1.1 |
-  | `delete-account` | v2 | `3191717` | import graph identical to v1.1.1 |
-
+- **Code:** `main` is `3ad3402` (PR #1, the integration trial: v1.2.0 features plus review fixes). The branch `audit-final` (the final audit) and `docs-final` (docs only) sit on top of it. Nothing is pushed from this PC without the owner's OK.
+- **Published release:** v1.1.1 (tag `v1.1.1` on `e649c88`; APK from EAS build `4ea4c5f9-48e6-4d36-8e85-3d7531ba5a3e`, versionCode 6, from `5e9175b`). `v1.1.0` is on `ba15979`.
+- **v1.2.0 is pending a build.** It adds manual entry of past events, growth records and trends (see Features), plus the Codex fixes (`ee17c2a`). The notes are drafted in `docs/release-notes-v1.2.0.md` with placeholders for the EAS build id, the APK SHA-256 and the versionCode.
+- **Hosted:**
+  - **Lacks migration `20261103140000_growth`.** The last hosted migration is `20261103090000`; the latest in the repo is `20261103140000`.
+  - **Hosted functions:** `chat` v10 from `38a81e7`, `predict` v4, `pair` v4, `delete-account` v2. Table in `docs/security.md`, "Deployed versions".
+  - **`chat` changed after v1.1.1 (Nov 4, owner decision 14:40):** the classifier-context fix (the health classifier reads up to 2 earlier parent messages from the last 30 min, gated ones included) is merged into `audit-final` and needs a `chat` deploy (ask first). `_shared/health-gate.ts` and `_shared/chat-data.ts` changed, so check each function's import graph before redeploying `predict`, `pair` and `delete-account`.
   - No secrets were set: `CHAT_GLOBAL_DAILY_USD` is unset, so the budget is $10.
-  - The table is in `docs/security.md`, "Deployed versions".
-- **APK:** EAS build `4ea4c5f9-48e6-4d36-8e85-3d7531ba5a3e`, app 1.1.1, versionCode 6, from `5e9175b`.
-  - SHA-256 `7a02370d583a9260a601a5a009baca0dbd39d028495fb91c02c97fef0d4bdfba`.
-  - The release folder is `%LOCALAPPDATA%\lr-release\v1.1.1\`: `little-rhythm-1.1.1.apk` and `release-notes-v1.1.1.md` (also in `docs/`).
-- **Safety:** the final run D (`38a81e7`) is the v1.1.1 result (`docs/safety.md`).
-  - Results: health 335/335, urgent 92/92, non-health false positives 2/157, jailbreak 17/17, 0 errors, 0 rate-limited.
-  - Replies: 0 advice, 15 borderline.
-- **This PC:**
-  - The local Supabase stack is stopped. No background shells are running.
-  - `docs/judge-2026-11-02/` is gitignored (local judge reviews).
-  - The old worktrees under `.claude/worktrees/` (`agent-a16ca2c3dc2a40dcb` = branch `v1.1.1`, `urgent-override`) can be removed once nothing needs them.
+- **Safety:** the classifier-context code got its own full suite (`docs/safety-runs/2026-11-04T1135Z-*`, `209cda7`): health 335/335, urgent 92/92, non-health false positives 0/157, jailbreak 17/17, 0 errors; held-out 48/53 (`2026-11-04T1130Z`, v10 was 46/53), the same 5 fail-safe over-escalations as v10, no missed card; stickiness 0 reply turns escalated (`1133Z`). Shipped under the owner's revised gate (Nov 4, 14:40). Final run D (`docs/safety-runs/2026-11-03T0712Z-*`, chat v10) is the earlier result: health 335/335, urgent 92/92, non-health false positives 2/157, jailbreak 17/17, 0 errors, 0 rate-limited; replies 0 advice, 15 borderline (`docs/safety.md`). The held-out multi-turn runner (`scripts/safety/run-heldout.ts`) is separate; its result goes in `docs/safety-runs/README.md`.
+- **This PC:** the local Supabase stack is stopped. `docs/judge-2026-11-02/` is gitignored. `.claude/worktrees/` holds old worktrees that can be removed once nothing needs them.
 
-**Scope freeze**
-- No new features. Code changes only for a bug found in the open items.
-- Any change to `supabase/functions` needs a full safety run that meets the baseline (health 100%, urgent 92/92, non-health false positives ≤ 2/157, jailbreak 17/17, 0 errors), the owner's OK, a redeploy and a new tag.
-- Any change to `app/` needs a new EAS build (avoid: the deadline is Nov 4).
-
-**Open items**
-1. **GitHub Release v1.1.1:** published by hand in the browser, with the tag, the notes and the APK from the release folder. Check that it is published.
-2. **Phone check of v1.1.1** on both phones:
-   - the steps row, the Muse Voice Transcribe chip, the confirm-card footer and the Next up copy;
-   - the escalation card number (112 in Bucharest, 999 in London);
-   - real voice, the launcher icon, the splash and the notification icon.
-3. **Seed-demo thread check:** seed-demo never touches `chat_threads` or `chat_messages`, so old chats survive a re-seed.
-   - Ana's private thread has the 3 Nov smoke-test turns: night-feed split, the demo line, and "she has a fever of 38.5" with the card.
-   - Decide before recording whether the demo threads should start empty. If so, clear them once, by hand or with a seed option, after the owner's OK. Don't print or log chat content.
-4. **Judge run 3:** 3 fresh Claude judges plus `scripts/review/review.ts` (Muse Spark Open), with the same prompts as run 2 (`docs/judge-2026-11-02/run2/`). Save to `docs/judge-2026-11-03/run3/` (gitignore it too) and compare with `plan-9.5.md`.
-5. **Parent test** (`docs/user-test-2026-11-03.md`): the owner runs it; write it up with no personal data.
-6. Nov 4: the demo video, slides, X post, and submit in the evening.
+**Open items, in order**
+1. Push the growth migration to hosted: dry run first, show it, `--linked`, never `--include-all`; ask the owner (the owner runs it).
+2. Deploy `chat` with the classifier-context fix (ask first; the owner runs it), then smoke-test fever → card and "ok but what would you do?" → card. Update the "Deployed versions" table in `docs/security.md`.
+3. Bump the version to 1.2.0 (`app.json`, `package.json`); versionCode is EAS-remote (v1.1.1 got 6, so v1.2.0 gets 7).
+4. EAS build (production profile), then record the build id and the APK SHA-256 in `docs/release-notes-v1.2.0.md` and in `docs/security.md`.
+5. Phone check on both phones: manual entry (Earlier…, a past sleep, the overlap refusal), growth, trends, plus the v1.1.1 items (steps row, Muse Voice Transcribe chip, confirm-card footer, escalation number 112 in Bucharest and 999 in London, real voice, launcher icon, splash, notification icon).
+6. Release v1.2.0: tag on the build commit, GitHub Release by hand with the notes and the APK (ask before pushing the tag).
+7. Seed-demo thread check: seed-demo never touches `chat_threads` or `chat_messages`; decide whether the demo threads should start empty (clear only with the owner's OK; don't print chat content).
+8. Demo video, slides, X post, and submit in the evening (deadline Nov 4, 9 PM ET = Nov 5, 04:00 Bucharest).
 
 **Working rules**
 - Ask before: git push, pushing tags, `db push`, `secrets set`, `functions deploy`.
@@ -112,20 +85,23 @@ README.md  SECURITY.md  LICENSE  .env.example
 | F6 | Couple layer | Daily 2-question check-in revealed once both answered; night-feed balance; private and shared chats |
 | F7 | Notifications | Local reminders before predicted windows and for the daily check-in |
 | F8 | Account deletion | Deletes the user, and the family's data when they are the last member |
+| F9 | Manual entry (v1.2.0) | Log a feed, sleep or diaper at a past time; one validator (`app/src/lib/entry-time.ts`): no future, nothing before birth, end after start, no overlapping sleeps; the same rules on edit |
+| F10 | Growth (v1.2.0) | Weight, length and head circumference as a plain record and line chart; never interpreted (no percentiles, norms or reference lines); never sent to the AI |
+| F11 | Trends (v1.2.0) | 7 or 14 days of feeds, bottle ml, sleep (split at local midnight) and diapers, computed on the phone; text tables for screen readers |
 
-Roadmap only: an output keyword check on model replies (tried in v1.1.1, removed after safety run D), dropping the 5-argument `consume_chat_budget` wrapper (kept for `chat` v9), relationship nudges, pumping, growth charts, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
+Roadmap only: edit events by chat (the agent only proposes new events), storing the agent's steps (the steps row shows on the live reply only), an output keyword check on model replies (tried in v1.1.1, removed after safety run D), dropping the 5-argument `consume_chat_budget` wrapper (kept for `chat` v9), relationship nudges, pumping, medication tracking, tips library, more caregivers and babies, iOS, WhatsApp logging, EU hosting for the AI.
 
 ## Agent tools (chat function)
 
 `log_feed`, `log_sleep`, `end_sleep`, `log_diaper`, `get_recent_events`, `get_next_windows` (the same engine as `predict`, bound to the session baby, no arguments read), `search_chat_history` (bound to the session thread, RLS RPC, gated and escalation rows excluded). Write tools return proposals that the app shows as confirm cards; nothing is saved until the user confirms. `end_sleep` closes the open sleep the server finds, never one the model names. Muse Spark runs with `reasoning_effort: "low"` (measured faster and as accurate, see `docs/chat.md`). Chat feed ranges match the app: bottle 5–400 ml, breast 1–90 min. Write tools take `time_stated`; the server sets `time_assumed` (no time given, or "now" with no time words / a garbled transcript) and adds the fixed note "Time not mentioned, set to now. Edit if wrong."; a garbled transcript makes the agent ask again (`_shared/unclear-input.ts`, regression set `chat/safety-unclear.json`). Transcription sends `languageBias` from the app's `lang` (unsupported, e.g. Romanian, or missing → English); no keywords, never the baby's name.
 
-Each turn also gets a server-built context (age in weeks, last 48 h of events, the computed windows, the thread's last 10 messages minus escalated turns) and passes the health gate: `_shared/health-keywords.ts` (EN/RO) plus a Muse Spark structured-output classifier run in parallel with the agent. Either positive → `escalation`, no model text; the card text is static in the app. Requests carry `thread_id`; the function checks the thread is the caller's before storing anything. See `docs/chat.md` and `docs/safety.md`.
+Each turn also gets a server-built context (age in weeks, last 48 h of events, the computed windows, the thread's last 30 usable messages and rolling summary) and passes the health gate: `_shared/health-keywords.ts` (EN/RO) plus a Muse Spark structured-output classifier run in parallel with the agent (it also reads up to 2 earlier parent messages of the thread from the last 30 min, gated ones included, marked escalated or not; `readGateContext`). Either positive → `escalation`, no model text; the card text is static in the app. Requests carry `thread_id`; the function checks the thread is the caller's before storing anything. See `docs/chat.md` and `docs/safety.md`.
 
 Memory (Day 6b): the last 30 usable messages verbatim; a rolling summary in `thread_memory` folded after the response (`_shared/thread-memory.ts`), checked for health keywords, emails, ids and names before storage; search through `search_thread_messages` (SECURITY INVOKER, unaccented `simple` FTS). The parent's message is stored after the gate; gated turns are inserted with `gated = true` by the function and never reused.
 
 ## Data model
 
-Twelve tables, all with RLS. Every row hangs off a family; one helper, `is_family_member(family_id)`, protects all of it.
+Thirteen tables, all with RLS. Every row hangs off a family; one helper, `is_family_member(family_id)`, protects all of it.
 
 | Table | Key columns |
 |---|---|
@@ -140,6 +116,7 @@ Twelve tables, all with RLS. Every row hangs off a family; one helper, `is_famil
 | checkins | family_id, user_id, day, answers (jsonb) |
 | api_usage | user_id, function, window_start, count |
 | thread_memory | thread_id (PK), summary (<= 4000), covered_until, updated_at |
+| growth_measurements | id, baby_id, kind (weight/length/head), value (integer: grams for weight, mm for length and head), measured_on, created_by (null if the author is deleted), created_at; family RLS only; no Edge Function reads it (a CI step greps for it) |
 | usage_counters | scope (family/global), family_id, function, window_start, count (family chat turns; global chat spend in micro-USD; service-role writes only) |
 
 ## Security rules (non-negotiable)
@@ -150,13 +127,13 @@ Twelve tables, all with RLS. Every row hangs off a family; one helper, `is_famil
 - AI tool calls: `baby_id` and `family_id` come from the session, **never** from the model. Validate all tool arguments with zod (ranges for ml, minutes, timestamps).
 - Edge Functions use zod >= 4.6.6; every array schema has .max(), every string .max().
 - Buddy: no medical advice, no diagnosis, no medication doses. Health questions → escalation card only.
-- Only age in weeks and recent events go to the AI. No names, no emails. Voice clips are transcribed and not stored. No chat content, audio or tokens in logs.
+- What goes to the AI is the list in `docs/chat.md` ("What goes to the AI"): the parent's message or transcript, the thread's last 30 usable messages and rolling summary, age in weeks, the last 48 h of events (type, local times, details limited to `kind`, `ml`, `side`, `minutes`, `wet`, `dirty`) and the computed windows; <!-- CLASSIFIER -->the classifier gets the baby's age in weeks, the parent's message and, as context, up to 2 earlier parent messages from the same thread in the last 30 minutes, gated ones included (each marked escalated or not); the agent never sees gated turns<!-- /CLASSIFIER -->; also the parent's local time and weekday. The server adds no names, ids or emails and never sends couple data or growth records (a CI step fails the build if any function mentions `growth_measurements`). The Meta Model API is outside the EU. What a parent types is sent as typed. Voice clips go to Muse Voice Transcribe and are not stored. A health message reaches the agent on its own turn and never again (gated turns never enter history, summary or search); only the classifier may re-read it as context for the next 2 parent messages within 30 minutes. No chat content, audio or tokens in logs.
 - Session tokens in expo-secure-store, never AsyncStorage.
 - The APK contains only the public Supabase URL and anon key. EAS builds get them from the EAS `production` environment (`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`; `app/.env` is not uploaded). `app/app.config.ts` fails any build or expo command when either is missing or the key isn't anon/publishable, and requires `https://<ref>.supabase.co` for the production profile. The production profile builds an APK, and `requireCommit` is on. Never commit: `.env` files, the service_role key, `MODEL_API_KEY`, keystores, real personal data.
 - Account deletion re-checks the password server-side. A stolen session can't change the password first: hosted Auth has "Require current password when updating" on (hosted-only; CLI v2.122.0 has no config.toml key, so local and CI don't cover it) and secure password change (also in config.toml). Verified on hosted; see docs/security.md.
-- Per-user rate limits on `chat`, `pair` and `predict` via `api_usage`. Chat caps (v1.1.0): 60/h and 60/day per user, 100/day per family, and a global $10/day spend breaker (reserve the worst case, settle to metered usage; assumed prices in `_shared/chat-limits.ts`). All return `429 rate_limited` before any model call. Every Muse Spark call sends `max_completion_tokens` 4096 (reasoning counts); a `length` finish runs no tool calls and a cut-off classifier fails closed. The classifier times out at 30 s, like the agent.
+- Per-user rate limits on `chat`, `pair` and `predict` via `api_usage`. Chat caps (v1.1.0): 60/h and 60/day per user, 100/day per family, and a global $10/day spend breaker (reserve the worst case, settle to metered usage; assumed prices in `_shared/chat-limits.ts`). A new account (under an hour old) gets 10 chat turns that UTC day (v1.1.1, `newAccountDailyTurns`). `pair`: 10 creates an hour and 5 redeems per 15 min; `predict`: 240 an hour; `delete-account`: 5 an hour. All return `429 rate_limited` before any model call. Every Muse Spark call sends `max_completion_tokens` 4096 (reasoning counts); a `length` finish runs no tool calls and a cut-off classifier fails closed. The classifier times out at 30 s, like the agent.
 - Prediction reminders use the fixed ids `predict-feed`, `predict-nap` and `predict-routine`; the check-in reminder uses `checkin-daily`. Each sync cancels only its own ids. Never call `cancelAllScheduledNotificationsAsync`.
-- Couple data (check-ins, night-feed balance) never goes to the AI.
+- Couple data (check-ins, night-feed balance) and growth records never go to the AI.
 - Every security control gets a test (pgTAP for RLS, function tests for pair/chat).
 
 ## Design (v1.1.0: Cloud Lullaby)
@@ -174,16 +151,18 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
 
 - TypeScript strict everywhere; no `any`.
 - Database changes only through migrations in `/supabase/migrations`.
-  - A new migration's timestamp must be later than the latest one (currently `20261102120000`).
+  - A new migration's timestamp must be later than the latest one (currently `20261103140000`).
   - Until 2026-10-29 10:00 UTC, `supabase migration new` would generate an earlier timestamp: name the file manually with a later one.
   - Never use `supabase db push --include-all`.
 - Any change to native modules needs a new EAS build (quota: 15 Android builds/month on free). Prefer JS-only changes. Day 3 build added expo-audio, @react-native-community/datetimepicker and expo-crypto; expo-speech-recognition removed. Day 4 build swapped expo-audio for @siteed/audio-studio (plugin: device detection, background audio, notifications and phone-state handling all off; only RECORD_AUDIO). Rebuild only when a native module changes. Day 8 changed native config without a new module: the expo-notifications plugin (`app/assets/images/notification-icon.png`), the splash background and the adaptive-icon background. Since v1.1.0 all three colours are `#5146B8` and every icon PNG is rendered by `scripts/assets/render.ts` from `app/assets/source/` (it replaced `notification-icon.ts`). It needs a new build, and the icon must be checked on a release APK. Day 10 (v1.1.0) added react-native-svg 15.16.0 (`0124ed8`), before the first local dev-client build.
 - **Local Android builds (this PC, Day 10):** JDK 17 in `%LOCALAPPDATA%\Programs\jdk-17.0.20.1+1`, SDK in `%LOCALAPPDATA%\Android\Sdk`, emulator AVD `pixel8` (Android 16, x86_64, WHPX). `app/android/local.properties` (gitignored) sets `cmake.dir` to SDK CMake 3.31.6: its ninja 1.12.1 handles paths over 260 chars, the default CMake 3.22.1 fails. `~/.gradle/gradle.properties` caps Gradle at 1 worker and 1.5 GB heap (an earlier build was killed for low memory). Build with `./gradlew app:assembleDebug` or `app:assembleRelease` and `-PreactNativeArchitectures=x86_64` (emulator) or `arm64-v8a` (phones). Checkpoint reviews use a local release APK, debug-signed, `adb install`ed on phone 2 over USB (uninstall first if the signature differs); no EAS build before Nov 3. Screenshots come from the release APK: the dev client's menu, Tools button and navigation warning get in the way.
 - Deno is not installed globally: run it as `npx -y deno@2 ...` (2.9.6 in use). Format with `deno fmt --line-width 110`. App files named `*.test.ts` run under Deno and are excluded from the app's tsc and eslint. Commands: `docs/predictions.md` ("Running the tests").
 - **Supabase CLI pinned to 2.122.0** (same as CI's `supabase/setup-cli` `version: 2.122.0`): run every command as `npx -y supabase@2.122.0 ...`, never bare `npx supabase`. On Nov 2 npx resolved bare `supabase` to 3.0.0, whose new `supabase.exe` Defender ASR's prevalence rule blocks on this PC ("Access is denied" / spawn EPERM); 2.122.0 has enough reputation. Don't change Defender or the npx cache.
-- CI (GitHub Actions) on every push: typecheck + lint, prediction unit tests, RLS tests against local Supabase, gitleaks.
+- CI (GitHub Actions) on every push, four jobs: typecheck + lint; Deno (`deno fmt --check`, function units, the growth guard, every app `*.test.ts`, trends in `Europe/Bucharest` and `America/Santiago`, the demo-seed plan, the reply grader, the held-out evaluation); RLS, realtime and function tests against local Supabase; gitleaks.
 
 ## Day plan
+
+**The day numbers and dates below are the plan made at the start, not what happened.** The build ran ahead of it. Git has commits only on 28, 29 and 30 Oct and on 2, 3 and 4 Nov: none on 31 Oct or 1 Nov. Predictions (the plan's Day 5) and the buddy and couple layer (Day 6) were built on 29 Oct, and v1.0.0 (Day 9, planned for Nov 4) was tagged on 30 Oct. The build timeline in `README.md` matches the git dates. "Day N" in this file and in commit messages is this plan's numbering. The plan is kept as written.
 
 1. Oct 27–28 · Setup (done): Muse test call, repo, Supabase, Expo scaffold, dev build, this file
 2. Oct 28 · Auth, schema, all RLS, pairing, RLS tests (done)
@@ -193,14 +172,14 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
 6. Nov 1 · Buddy (no health advice, escalation card), private/shared threads, check-in, night-feed balance (done, deployed, verified on both phones; safety set awaiting generation and curation; see `docs/chat.md`, `docs/couple.md`, `docs/safety.md`)
 7. Nov 2 · delete-account (must cascade the family's chat threads, so `thread_memory` goes too), rate limits, security review, safety prompts, CI green
 8. Nov 3 · Polish, seed-demo, README, rehearse
-   - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and `#0064E0` (theme `primary`), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
+   - Add the expo-notifications plugin to app.json: a monochrome (white on transparent) 96×96 notification icon and `#0064E0` (theme `primary` at the time; replaced in v1.1.0 by `#5146B8`, the colour `app.json` now uses), so the Day 9 release build includes it. Verify on the release APK before recording the demo.
 9. Nov 4 · Release v1.0.0, 3-min demo video, X post, submit in the evening
    - **seed-demo works ~06:50–18:35 local.** The nap window opens 15–45 min ahead and tonight's routine is still to come (the 2 h routine cap is gone). Today's wake moves within 05:50–08:25 to fit. Nights can't work in one zone: at 13 weeks bedtime is a clock time, and naps only start in the day. `--tz <IANA>` seeds in a zone where it is daytime; the night refusal suggests one. **With `--tz`, set both phones or the emulator to that zone.** The seed prints the take's expected Next up card. The demo line is relative: "she drank 90 ml twenty minutes ago, she's asleep now".
    - **Confirm card (app-only):**
      - Time fields take the page colour on the card, with an outline and a "Change ›" link.
      - Next to its cards, a reply hides the proposal line and the server's assumed-time note (`app/src/lib/chat-display.ts`). The server still appends the note for older app versions.
      - The new pure helpers have Deno tests in CI: `chat-display`, `mic-label`, `asLanguageTag`.
-   - **Device checks** run on the release APK on both phones: Next up after seeding, the card, the demo line, the mic warm-up, the notification icon and the splash. This PC has no Android SDK or emulator.
+   - **Device checks** run on the release APK on both phones: Next up after seeding, the card, the demo line, the mic warm-up, the notification icon and the splash. On Day 9 this PC had no Android SDK or emulator; Day 10 added them (see Conventions).
    - **Safety:** no rerun for v1.0.0. The Oct 30 report (`2fb02cc`, `functions_dirty: false`) stands, because `supabase/functions` is unchanged since. If any commit before the tag touches `supabase/functions`, rerun the full set and redeploy.
    - **Deploys:** `pair` v4, `predict` v3 and `delete-account` v2 were redeployed from `3191717` so hosted equals the release commit. `chat` stays v8. Table in `docs/security.md`, "Deployed versions".
    - **Demo order:**
@@ -208,7 +187,7 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
      - Step 3 is the voice log; afterwards Next up switches to "Expected to wake".
    - **Release:**
      - Build `3c12fe52-5dd8-46aa-9409-79b7734763b1` from `d4dcdf0` (APK SHA-256 `63f232d8…2e93dab`).
-     - Tag `v1.0.0` goes on `d4dcdf0` after the APK is confirmed on both phones; ask before pushing it.
+     - Tag `v1.0.0` is on `d4dcdf0` (created 30 Oct, pushed).
      - No `gh` on this PC: the APK and `release-notes.md` go in a local folder, and the user creates the GitHub Release by hand.
    - **versionCode** is EAS-remote (`appVersionSource: remote`, `autoIncrement`). It was 3, so the v1.0.0 production build gets 4. `app.json` stays 1.0.0.
 
@@ -218,5 +197,7 @@ The v1.1.0 redesign is UI-only: no change to data, RLS, Edge Functions, security
    - **Every seed ends the demo sessions** (it resets the passwords): sign in again on both phones after seeding (`docs/demo.md`). After 18:35 Bucharest seed with `--tz Europe/London` and set the devices to London.
    - **Checkpoint on two emulators** (owner, Nov 2) instead of a phone: Ana on `pixel8`, Radu on `pixel8b`, both with the full Gboard (`hw.keyboard=no`). No Gradle build while both run. Real voice and the hardware feel are checked on the phones with the v1.1.0 EAS build.
    - `npx supabase stop` failed with a spawn EPERM on this PC on Nov 2; stopping the `*_little-rhythm` containers with `docker stop` works and keeps the volume.
+
+11. Nov 3–4 · **v1.1.1 released; v1.2.0 built on `main`, build pending.** v1.1.1: agent steps, crisis override, safe-sleep line, new-account cap, `chat` v10, safety run D. v1.2.0: manual entry, growth, trends, the held-out safety runner, then an integration trial and review fixes (PR #1, including the Codex fixes `ee17c2a`), plus the classifier-context fix in `chat` (merged Nov 4 on the owner's revised gate). It needs the growth migration pushed, a `chat` deploy, the version bump to 1.2.0, a new EAS build and a phone check; see the Handoff. No new features after this.
 
 Protect in this order if behind: security, pairing and sync, agentic chat logging, predictions. Trim UI polish first.

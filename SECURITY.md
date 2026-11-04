@@ -30,7 +30,9 @@ Out of scope for this demo build:
 ## Controls in short
 
 - **Database:**
-  - Postgres row-level security on all 12 tables from their first migration.
+  - Postgres row-level security on all 13 tables from their first migration. Growth records
+    (`growth_measurements`) are family-RLS only, and a CI step fails the build if any Edge
+    Function mentions the table, so they cannot reach the AI.
   - SECURITY DEFINER functions with an empty `search_path`, callable only where
     needed.
   - Clients can update only the columns that should change.
@@ -39,13 +41,19 @@ Out of scope for this demo build:
   - The service role is used only after that check.
   - Request bodies are strict zod schemas with size limits.
 - **AI:**
-  - The model receives the parent's text or transcript, this thread's usable history,
-    summary and search results, the baby's age in weeks, recent events and computed
-    windows. The server adds no profile names, emails or couple-feature data; personal
-    details a parent types are sent as typed. Voice audio goes to transcription and
-    is not stored.
+  - The model gets the parent's message or transcript, the thread's last 30 usable
+    messages and summary, the baby's age in weeks, the last 48 h of events (type, times
+    and six detail fields), the computed windows and search hits from the same thread, plus the parent's local time and
+    weekday. <!-- CLASSIFIER -->The health classifier gets the baby's age in weeks, the parent's message and, as context, up to 2 earlier parent messages from the same thread in the last 30 minutes, gated ones included (each marked escalated or not). The agent never sees gated turns.<!-- /CLASSIFIER --> The server adds no names, ids or
+    emails and never sends couple data or growth records. What a parent types is sent as
+    typed. The Meta Model API is outside the EU. The full list is in
+    [`docs/chat.md`](docs/chat.md#what-goes-to-the-ai).
   - Every turn passes the health gate.
-  - Gated turns never reach the model again.
+  - A health message reaches the agent once, on the turn it is sent. After that, gated
+    turns never reach the agent again (not as history, summary or search). Only the health
+    classifier may read it again, as context for at most the next 2 parent messages within
+    30 minutes.
+  - A voice clip goes to Muse Voice Transcribe and is never stored.
 - **Account deletion:** the password is re-entered and checked on the server, and the
   call is rate-limited. The last member's family is deleted in full; when one of two
   parents leaves, only their own data goes.

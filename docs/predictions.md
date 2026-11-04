@@ -7,8 +7,8 @@ the `predict` function (the card) and the chat agent's `get_next_windows` tool,
 so the card and the chat always agree. Results are computed on request and never
 stored.
 
-These are scheduling estimates from the family's own log and typical ranges for
-the age. They are **not medical advice**, and the app and the buddy never present
+These are scheduling estimates from the family's own log and the app's starting
+schedule for the age (used until the log has enough days). They are **not medical advice**, and the app and the buddy never present
 them as advice.
 
 ```

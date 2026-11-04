@@ -1,5 +1,9 @@
 # Security review, 2 Nov 2026 (read-only)
 
+> **Historical.** This is the review as it stood on 2 Nov, before v1.1.0. Counts and numbers in it
+> (commits, tables, safety results) are superseded; for the current state see
+> [`security.md`](security.md), [`safety.md`](safety.md) and [`../SECURITY.md`](../SECURITY.md).
+
 A read-only review before v1.1.0: report only, no changes, no deploys, hosted untouched. Item 6 ran
 against the local stack, which was stopped afterwards. Decisions on the findings are at the end.
 

@@ -1,7 +1,8 @@
 # Demo script
 
-Under 3 minutes. Two Android phones side by side, signed in as **Mom** and **Dad** on
-the same baby.
+Under 3 minutes. Two Android phones side by side, signed in as **Ana** (the
+"Mom" phone in this script) and **Radu** (the "Dad" phone), the two demo parents the seed
+creates, on the same baby (Maia).
 
 **Before every rehearsal and the recording:** run `seed-demo`, so the log, the windows
 and the check-in start from the same state each time. **Then sign in again on both phones**
@@ -60,6 +61,14 @@ npx -y deno@2 run --env-file=scripts/seed-demo/.env --allow-env --allow-net \
 | 6 | 1:50–2:20 | Both | **Check-in:** both answer; the answers reveal; the **night-feed balance** shows who carried more this week. | Couple layer; revealed only once both answered; never sent to the AI |
 | 7 | 2:20–2:35 | Both | Dad's **private thread** doesn't exist on Mom's phone. | Private threads readable only by their owner (RLS) |
 | 8 | 2:35–2:55 | Laptop | The repo: RLS policies, tests passing in CI, keys server-side, the APK in Releases. | Production-grade security and tests |
+
+**Optional step for v1.2.0 (only if the v1.2.0 build and the growth migration are on the
+phones and hosted before the take; otherwise cut it).** About 15 s, after step 3 or on the
+laptop side: open **Trends** and show the 7 or 14 day switch, the feeds and bottle ml, sleep
+and diapers per day. Then say that **Growth** keeps weight, length and head size as the
+parents' own record, never interpreted and never sent to the AI. Logging a forgotten feed
+with "Earlier…" is a one-line mention at most. The seed writes four growth check-ups (birth to
+10 weeks), so the Growth chart has a line to show.
 
 ## Notes for the recording
 

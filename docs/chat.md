@@ -48,15 +48,107 @@ app: escalation card, or caption + confirm cards → insertEvent / endSleep (RLS
     its start.
   - An invalid call is returned as a proposal with per-field errors, never dropped.
     Confirm stays disabled until the parent edits the flagged fields.
-- **Privacy.** The model sees only the baby's age in weeks, the parent's message or
-  transcript, recent events (type, local time, details), the computed windows, the
-  thread's last 30 usable messages and its summary as plain text, and search results
-  from the same thread. The server adds no profile names, ids, authors, emails or
-  couple-feature data (night-feed balance, check-ins). A parent's text is sent as
-  typed, including personal details they include; the summary is checked against
-  family names before storage. Gated turns never reach the model again. Audio is forwarded to Muse Voice Transcribe
-  and never stored. The app deletes the local WAV after upload, also when the upload
-  fails. Logs carry error codes only. Tests: `_shared/agent.test.ts` ("buddy context").
+- **Privacy.** What the model receives is listed in full under "What goes to the AI"
+  below. In short: the baby's age in weeks, the parent's message or transcript, the last
+  48 h of events with six detail fields, the computed windows, the thread's last 30 usable
+  messages and its summary, and search results from the same thread. The server adds no
+  names, ids, authors or emails, and no couple data (night-feed balance, check-ins) or growth
+  records. A
+  summary is rejected if it holds a family name. Gated turns never reach the agent again; the
+  health classifier alone may read one as context for the next 2 parent messages within 30
+  minutes.
+  Audio is forwarded to Muse Voice Transcribe and never stored. The app deletes the local
+  WAV after upload, also when the upload fails. Logs carry error codes only. Tests:
+  `_shared/agent.test.ts` ("buddy context").
+
+## What goes to the AI
+
+Only the `chat` function calls the Meta Model API (`_shared/muse.ts`). `predict`, `pair`
+and `delete-account` make no model calls. Four kinds of call carry data. The list is built
+from the code, and each item names where in it.
+
+**Muse Voice Transcribe** (voice turns only; `muse.ts` `transcribe`, `chat/index.ts`):
+- The WAV clip, forwarded unchanged: 16 kHz mono PCM16, at most 30 s.
+- A `languageBias` with one language name from the phone's language tag
+  (`asr-language.ts`), English when the language is unsupported or missing. No keywords.
+- The clip is not stored anywhere. The transcript (cut to 1,000 characters) then goes on
+  as the parent's message.
+
+**Muse Spark agent** (every turn; `agent.ts` `runAgent`). In this order:
+1. The system prompt (`systemPrompt`): fixed text, plus the baby's age in whole weeks
+   (twice), the parent's local date, time and weekday with the UTC offset, and whether a
+   sleep is open and since when.
+2. The server context (`buildContext` in `buddy-context.ts`), as data and not
+   instructions:
+   - the age in weeks;
+   - the last 48 h of events, at most 150: type, local start, local end (or "in
+     progress" for a sleep) and the event's details (six keys, see below);
+   - the computed windows (`describeWindows`): local from and to times, and a phrase
+     for the basis ("based on the last 7 days", "the app's starting schedule…").
+3. The thread's rolling summary, when there is one ("What you remember from earlier").
+4. The thread's last 30 usable messages, oldest first (`buildHistory`). Usable means not
+   gated and not an escalation reply (`usable`, and the same filter in the query,
+   `readThreadHistory`). In a shared thread they come from either parent. An assistant
+   message carries its one-line proposal summary ("Proposed: bottle 90 ml at 15:00"). Each
+   message is cut to 1,000 characters.
+5. For a transcript that looks garbled, a fixed server note (`GARBLED_NOTE`).
+6. The parent's message: the typed text, or the transcript.
+7. During the turn, the tool results: events from `get_recent_events` (the same fields as
+   in 2, up to 50, from the last 1–48 h), the windows, search hits from this thread only
+   (who, local time, text; not gated, not an escalation: `search_thread_messages`), and a
+   status for each proposal. The tool definitions (names and argument schemas) go with
+   every call.
+
+**Details of an event.** Only six keys leave the database: `kind`, `ml`, `side`,
+`minutes`, `wet` and `dirty` (`DETAIL_KEYS` in `chat-data.ts`), and only as a number, a
+boolean or a string of at most 10 characters. Anything else in the `details` column is
+dropped. The model sees no event id, author, `source` or `created_at`.
+
+**Muse Spark classifier** (every turn, beside the agent; `health-gate.ts`
+`classifierMessages`):
+- The fixed classifier prompt, with its 12 fixed example lines. When the thread has earlier
+  parent messages in the window below, the prompt adds fixed rules for reading them and 7
+  fixed context examples (`CLASSIFIER_CONTEXT_PROMPT`); otherwise it is the v1.1.1 prompt
+  unchanged (`CLASSIFIER_PROMPT`).
+- One user message: "Baby age: N weeks.", then up to 2 earlier parent messages, then the
+  parent's message, one line each, every text as a JSON string cut to the first 1,000
+  characters with invisible format characters removed.
+- The earlier messages (`readGateContext` in `chat-data.ts`, `gateContextTurns`): the
+  thread's latest user rows from the 30 minutes before the turn, at most 2, oldest first,
+  each marked `escalated: true/false` from its `gated` flag. Gated rows are included on
+  purpose, so "ok but what would you do?" after a card is judged with the question it
+  follows. Parent text only: never an assistant reply, a name, an author or an id. In a
+  shared thread they can come from either parent. The keyword check still reads only the
+  current message.
+- <!-- CLASSIFIER -->The health classifier gets the baby's age in weeks, the parent's message and, as context, up to 2 earlier parent messages from the same thread in the last 30 minutes, gated ones included (each marked escalated or not). The agent never sees gated turns.<!-- /CLASSIFIER --> No assistant replies, events, summary or windows.
+
+**Muse Spark memory fold** (after the response, only when more than 20 usable messages sit
+outside the 30-message window; `thread-memory.ts` `summarizerMessages`):
+- The fixed summariser prompt, the current summary and the older usable messages, at most
+  150, as "parent: …" and "assistant: …" lines.
+- Gated and escalated messages are not read. The family's names are read only to check the
+  draft afterwards and are never sent.
+
+**What the server never sends:** the baby's name, the parents' display names or emails,
+any user, family, baby, thread, event or message id, the birth date (only the age in
+whole weeks), the time zone's name, the check-in answers, the night-feed balance, growth
+records (weight, length, head circumference), and audio other than the one clip above. No Edge
+Function reads the growth table, and a CI step fails the build if any function mentions
+`growth_measurements`. Function logs carry error codes only, never message text, transcripts,
+audio or tool arguments. The Meta Model API is outside the EU.
+
+**Two things to read carefully:**
+- **What a parent types goes as typed.** The server strips nothing from the message, the
+  transcript or the history. A name or an email a parent writes in a message is sent with
+  it, now and again as history or a search hit. The system prompt tells the model not to
+  ask for or use names. Only the summary is checked for the family's names, emails and
+  ids before it is stored.
+- **A health message still reaches the model on the turn it is sent.** The agent and the
+  classifier run in parallel with the keyword check (`chat/index.ts`), so a health turn
+  reaches the agent once. The reply is then replaced by the static card, the turn is
+  stored as gated, and it never enters the history, the summary or a search again. The
+  classifier may read it again, marked escalated, as context for the next 2 parent messages
+  within 30 minutes.
 
 ## Visible agent steps (v1.1.1)
 
@@ -80,9 +172,11 @@ tools" prompt rule still holds: the labels are human text, not tool names.
   an unknown tool, or any call in a reply cut off by `max_tokens`) adds no step. A write
   with field errors still counts: the parent gets a card to fix.
 - **An escalated turn returns `steps: []`**: no model work is shown next to the card.
-- Not stored: only this phone's live reply shows them. Apps before v1.1.1 ignore the field;
-  the app treats a missing or malformed field as no steps (`parseSteps`, at most 8 strings
-  of at most 60 characters).
+- Not stored yet (roadmap): only this phone's live reply shows them, and they are kept in
+  the chat screen's state (`replies` in `chat.tsx`). A reload, a reopened screen and the
+  other phone show the reply without them. Apps before v1.1.1 ignore the field; the app
+  treats a missing or malformed field as no steps (`parseSteps`, at most 8 strings of at
+  most 60 characters).
 
 In the app (`chat.tsx`), the live reply gets a "Muse Spark · 3 steps" button (48 dp, reads
 out the whole list, expands to show it), or "Answered by Muse Spark" when no tool ran. The
@@ -244,11 +338,15 @@ Every turn, typed or a voice transcript, is checked twice (`_shared/health-gate.
 2. **Classifier**: a Muse Spark 1.3 call with strict structured output
    `{health, urgent}`, `reasoning_effort: "low"`, 30 s timeout (10 s until run C), validated with zod. It
    runs in parallel with the agent, so it adds no latency. The prompt is
-   `CLASSIFIER_PROMPT` in `health-gate.ts`. It treats the message as data and covers
-   the baby's and a parent's health, feeding amounts and medicine. It gets only the
-   baby's age ("Baby age: N weeks.", for the under-13-weeks fever rule) and the
-   message as one JSON string, so the text can't close a delimiter and add
-   instructions. No name, no ids. The urgent list is mirrored in `docs/safety.md`.
+   `CLASSIFIER_PROMPT` in `health-gate.ts` for a message with no earlier parent message in
+   the last 30 minutes, and `CLASSIFIER_CONTEXT_PROMPT` otherwise. It treats every message
+   as data and covers the baby's and a parent's health, feeding amounts and medicine. It
+   gets the baby's age ("Baby age: N weeks.", for the under-13-weeks fever rule), up to 2
+   earlier parent messages of the thread from the last 30 minutes (gated ones included, each
+   marked escalated or not; never an assistant reply) and the message, each as one JSON
+   string, so the text can't close a delimiter and add instructions. No name, no ids. It
+   classifies only the last message; the context lets a follow-up such as "ok but what
+   would you do?" after a card get a card too. The urgent list is mirrored in `docs/safety.md`.
 
 Before the keyword check, the text is normalised: lower case, no diacritics, and no
 invisible format characters (`\p{Cf}`: zero-width spaces and joiners, soft hyphens),
@@ -352,8 +450,9 @@ of the sentence was lost, and the agent proposed the sleep at now.
     support), a missing tag from older app versions, or a malformed one. **Voice
     logging is English-first; Romanian works when typed.**
 - **No keywords.** `keywords` (vocabulary biasing) gave no consistent gain and added
-  repeated words ("ml ml", "fell fell"). The baby's name is never sent: no names go
-  to the AI.
+  repeated words ("ml ml", "fell fell"). The server sends no names of its own, and
+  never the baby's name; what the parent says is transcribed as it is (see "What goes to
+  the AI").
 - **Start of the recording.** The recorder used to start only once the press had
   passed an async permission check, while the button still said "Hold to talk".
   - Now it is warmed up with `prepareRecording` when the chat opens, but only if mic
@@ -480,7 +579,8 @@ Each thread remembers on its own; shared and private threads never mix.
 
 - **History:** the last 30 usable messages, verbatim. Usable means not gated and not
   an escalation reply.
-- **Gated turns:**
+- **Gated turns** (agent side; the classifier's context is the one exception, see "What goes
+  to the AI"):
   - The parent's message is stored only after the gate has decided. When the turn
     escalated, it is inserted with `gated = true`. Clients can't insert or update
     messages.
