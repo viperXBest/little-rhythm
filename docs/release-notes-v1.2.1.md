@@ -8,9 +8,9 @@ layout after a feed is logged.
 
 | File | Version | SHA-256 |
 |---|---|---|
-| `little-rhythm-1.2.1.apk` | 1.2.1 (versionCode BUILD_VERSION_CODE) | `BUILD_APK_SHA256` |
+| `little-rhythm-1.2.1.apk` | 1.2.1 (versionCode 8) | `4a918894c2eab28940267a5c088f3e036b759ee7162af0ef4056f1ca1ce7188e` |
 
-- Built by EAS (build `BUILD_ID`, production profile).
+- Built by EAS (build `a4e47684-0e33-4c5d-8fa6-4af8141527bd`, production profile).
 - **Installing over v1.2.0 or v1.1.1:** updating from an EAS APK works without uninstalling.
   Uninstall first if you have v1.0.0 or a local build, because the signature differs.
 - Check the file: `sha256sum little-rhythm-1.2.1.apk` (Windows:
