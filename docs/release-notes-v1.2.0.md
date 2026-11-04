@@ -55,25 +55,34 @@ keeps the baby's growth as a plain record, and shows seven or fourteen days of t
 - **Trends refresh:** the Trends screen refetches after a change to today's log (a partner's
   tap, a chat confirm), so it no longer shows old numbers.
 
-**Safety tooling (no change to the app or to `chat`)**
+**Safety tooling (no change to the app)**
 - A held-out multi-turn runner (`scripts/safety/run-heldout.ts`) with hand-written
   conversations, which sends turns one by one on a single thread against the local stack.
   Method and results are in
   [`docs/safety-runs/`](https://github.com/viperXBest/little-rhythm/blob/main/docs/safety-runs/README.md).
 
-- Known gap it found: the health classifier judges each message on its own, so a follow-up
-  that only makes sense after a card ("ok but what would you do?") can get a plain reply
-  instead of a second card (2 of 53 sequences). A fix was tested but missed its gate, so it
-  is not in this release.
+- It found a gap in `chat` v10: the health classifier judged each message on its own, so a
+  follow-up that only makes sense after a card ("ok but what would you do?") could get a plain
+  reply instead of a second card (2 of 53 sequences). Fixed in this release, see Server.
 
 ## Server
 
-- **`chat` is unchanged since v10**, and so are `predict`, `pair` and `delete-account`. The
-  only server change is the growth migration above.
-- Safety results therefore stand: final run D (`38a81e7`) got health 335/335, urgent 92/92,
+- **The health classifier reads the message in context.** It now also sees up to 2 earlier
+  parent messages of the same thread from the last 30 minutes, gated ones included and marked
+  escalated or not, so "ok but what would you do?" right after a card gets a card too. A first
+  message is classified exactly as in v1.1.1. The agent still never sees gated turns.
+- Results on the local stack: full suite health 335/335, urgent 92/92, non-health false
+  positives 0/157, jailbreak 17/17, 0 errors; held-out 48/53 (v10: 46/53) with no missed
+  card; no benign follow-up escalated in the 20-sequence stickiness set. The 5 remaining
+  held-out failures are over-escalations that also happen on v10 and fail safe (a card instead
+  of a reply). Details in
+  [`docs/safety-runs/README.md`](https://github.com/viperXBest/little-rhythm/blob/main/docs/safety-runs/README.md#held-out-multi-turn-result).
+- The earlier result for `chat` v10, final run D (`38a81e7`): health 335/335, urgent 92/92,
   non-health false positives 2/157, jailbreak 17/17, 0 errors; the replies graded 0 advice
   and 15 borderline
   ([`docs/safety.md`](https://github.com/viperXBest/little-rhythm/blob/main/docs/safety.md)).
+- `predict`, `pair` and `delete-account` have no behaviour change. The other server change
+  is the growth migration above.
 
 ## Known limits
 

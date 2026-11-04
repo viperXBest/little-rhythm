@@ -54,7 +54,9 @@ app: escalation card, or caption + confirm cards → insertEvent / endSleep (RLS
   messages and its summary, and search results from the same thread. The server adds no
   names, ids, authors or emails, and no couple data (night-feed balance, check-ins) or growth
   records. A
-  summary is rejected if it holds a family name. Gated turns never reach the model again.
+  summary is rejected if it holds a family name. Gated turns never reach the agent again; the
+  health classifier alone may read one as context for the next 2 parent messages within 30
+  minutes.
   Audio is forwarded to Muse Voice Transcribe and never stored. The app deletes the local
   WAV after upload, also when the upload fails. Logs carry error codes only. Tests:
   `_shared/agent.test.ts` ("buddy context").
@@ -104,10 +106,21 @@ dropped. The model sees no event id, author, `source` or `created_at`.
 
 **Muse Spark classifier** (every turn, beside the agent; `health-gate.ts`
 `classifierMessages`):
-- The fixed classifier prompt, with its 12 fixed example lines.
-- One user message: "Baby age: N weeks." and the parent's message as a JSON string, cut to
-  the first 1,000 characters.
-- <!-- CLASSIFIER -->The health classifier gets only the baby's age in weeks and the parent's message.<!-- /CLASSIFIER --> No history, events, summary or windows.
+- The fixed classifier prompt, with its 12 fixed example lines. When the thread has earlier
+  parent messages in the window below, the prompt adds fixed rules for reading them and 7
+  fixed context examples (`CLASSIFIER_CONTEXT_PROMPT`); otherwise it is the v1.1.1 prompt
+  unchanged (`CLASSIFIER_PROMPT`).
+- One user message: "Baby age: N weeks.", then up to 2 earlier parent messages, then the
+  parent's message, one line each, every text as a JSON string cut to the first 1,000
+  characters with invisible format characters removed.
+- The earlier messages (`readGateContext` in `chat-data.ts`, `gateContextTurns`): the
+  thread's latest user rows from the 30 minutes before the turn, at most 2, oldest first,
+  each marked `escalated: true/false` from its `gated` flag. Gated rows are included on
+  purpose, so "ok but what would you do?" after a card is judged with the question it
+  follows. Parent text only: never an assistant reply, a name, an author or an id. In a
+  shared thread they can come from either parent. The keyword check still reads only the
+  current message.
+- <!-- CLASSIFIER -->The health classifier gets the baby's age in weeks, the parent's message and, as context, up to 2 earlier parent messages from the same thread in the last 30 minutes, gated ones included (each marked escalated or not). The agent never sees gated turns.<!-- /CLASSIFIER --> No assistant replies, events, summary or windows.
 
 **Muse Spark memory fold** (after the response, only when more than 20 usable messages sit
 outside the 30-message window; `thread-memory.ts` `summarizerMessages`):
@@ -132,8 +145,10 @@ audio or tool arguments. The Meta Model API is outside the EU.
   ids before it is stored.
 - **A health message still reaches the model on the turn it is sent.** The agent and the
   classifier run in parallel with the keyword check (`chat/index.ts`), so a health turn
-  is read by Muse Spark once. The reply is then replaced by the static card, the turn is
-  stored as gated, and it never enters the history, the summary or a search again.
+  reaches the agent once. The reply is then replaced by the static card, the turn is
+  stored as gated, and it never enters the history, the summary or a search again. The
+  classifier may read it again, marked escalated, as context for the next 2 parent messages
+  within 30 minutes.
 
 ## Visible agent steps (v1.1.1)
 
@@ -323,11 +338,15 @@ Every turn, typed or a voice transcript, is checked twice (`_shared/health-gate.
 2. **Classifier**: a Muse Spark 1.3 call with strict structured output
    `{health, urgent}`, `reasoning_effort: "low"`, 30 s timeout (10 s until run C), validated with zod. It
    runs in parallel with the agent, so it adds no latency. The prompt is
-   `CLASSIFIER_PROMPT` in `health-gate.ts`. It treats the message as data and covers
-   the baby's and a parent's health, feeding amounts and medicine. It gets only the
-   baby's age ("Baby age: N weeks.", for the under-13-weeks fever rule) and the
-   message as one JSON string, so the text can't close a delimiter and add
-   instructions. No name, no ids. The urgent list is mirrored in `docs/safety.md`.
+   `CLASSIFIER_PROMPT` in `health-gate.ts` for a message with no earlier parent message in
+   the last 30 minutes, and `CLASSIFIER_CONTEXT_PROMPT` otherwise. It treats every message
+   as data and covers the baby's and a parent's health, feeding amounts and medicine. It
+   gets the baby's age ("Baby age: N weeks.", for the under-13-weeks fever rule), up to 2
+   earlier parent messages of the thread from the last 30 minutes (gated ones included, each
+   marked escalated or not; never an assistant reply) and the message, each as one JSON
+   string, so the text can't close a delimiter and add instructions. No name, no ids. It
+   classifies only the last message; the context lets a follow-up such as "ok but what
+   would you do?" after a card get a card too. The urgent list is mirrored in `docs/safety.md`.
 
 Before the keyword check, the text is normalised: lower case, no diacritics, and no
 invisible format characters (`\p{Cf}`: zero-width spaces and joiners, soft hyphens),
@@ -560,7 +579,8 @@ Each thread remembers on its own; shared and private threads never mix.
 
 - **History:** the last 30 usable messages, verbatim. Usable means not gated and not
   an escalation reply.
-- **Gated turns:**
+- **Gated turns** (agent side; the classifier's context is the one exception, see "What goes
+  to the AI"):
   - The parent's message is stored only after the gate has decided. When the turn
     escalated, it is inserted with `gated = true`. Clients can't insert or update
     messages.

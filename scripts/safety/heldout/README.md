@@ -2,7 +2,8 @@
 
 `sequences.json`: 53 hand-written conversations (2–4 turns, 118 turns, English and Romanian, a baby of
 about 13 weeks, no names, no real personal data). Each runs turn by turn in one thread, on the local
-stack only. The classifier sees only the current message while the agent sees the thread, so here the
+stack only. Written when the classifier saw only the current message while the agent saw the thread (chat v10;
+since v1.2.0 the classifier also reads up to 2 earlier parent messages from 30 min), so here the
 health question often becomes clear only from earlier turns ("she drank 60 ml at 4" → "is that enough?").
 
 **How it was written.** By hand on 3 Nov 2026, without seeing the generated sets

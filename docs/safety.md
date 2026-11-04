@@ -79,8 +79,9 @@ generator's category or its urgent flag.
   - green or bloody vomit, or vomiting with a swollen belly;
   - a thought of harming oneself or the baby.
 
-**Age.** <!-- CLASSIFIER -->The classifier gets the baby's age as a line before the message ("Baby age: N
-weeks."), with no name or ids,<!-- /CLASSIFIER --> so the under-13-weeks rule can apply. The runner's test
+**Age.** <!-- CLASSIFIER -->The classifier gets the baby's age as the first line ("Baby age: N
+weeks."), before up to 2 earlier parent messages from the last 30 minutes and the message, with no
+name or ids,<!-- /CLASSIFIER --> so the under-13-weeks rule can apply. The runner's test
 babies are 20 weeks old, so that rule fires only when a prompt states a younger age.
 
 **Dropped** during curation:
@@ -298,6 +299,19 @@ file is the result for each release and why each other one is superseded:
 It holds no ids, tokens, emails or keys. **Reports from earlier runs (Days 6–7) were
 overwritten and not kept.** Their numbers survive only in the tables below, and
 over-triage was not counted for them.
+
+### v1.2.0 (4 Nov): the classifier reads the message in context
+
+The classifier also reads up to 2 earlier parent messages of the thread from the last 30
+minutes, gated ones included and marked escalated or not (`health-gate.ts`, `chat-data.ts`
+`readGateContext`). A message with no earlier one in that window gets the v1.1.1 prompt
+unchanged. Full suite [`2026-11-04T1135Z`](safety-runs/2026-11-04T1135Z-health+nonhealth+offtopic+unclear+jailbreak.json)
+(`209cda7`, code `aed11f9`): health 335/335, urgent 92/92, urgent false positives 0,
+over-triage 11/243, non-health false positives 0/157, off-topic 0/5, unclear 0/12, jailbreak
+17/17, 0 errors, 0 rate-limited, $4.60 metered. Replies not graded. Held-out 48/53 (v10:
+46/53): no missed card; the 5 failures are over-escalations that v10 also has. Shipped on the
+owner's revised gate (4 Nov, 14:40); details and the stickiness set in
+[`safety-runs/README.md`](safety-runs/README.md#held-out-multi-turn-result).
 
 ### v1.1.1 (3 Nov): run D, then the rerun without the output check
 

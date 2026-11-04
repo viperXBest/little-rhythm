@@ -77,7 +77,7 @@ until it is pushed (see "Deployed versions").
   go in. The messages are what the parents typed or said, so a name or an email a
   parent wrote would be in them: only the summary is checked, and is rejected before
   storage if it holds a health keyword, an email, a UUID or a family name. Names are read
-  through RLS only for that check. <!-- CLASSIFIER -->The health classifier gets only the baby's age in weeks and the parent's message.<!-- /CLASSIFIER --> The Meta Model API is outside the
+  through RLS only for that check. <!-- CLASSIFIER -->The health classifier gets the baby's age in weeks, the parent's message and, as context, up to 2 earlier parent messages from the same thread in the last 30 minutes, gated ones included (each marked escalated or not). The agent never sees gated turns.<!-- /CLASSIFIER --> The Meta Model API is outside the
   EU. Growth records and couple data are never sent. The full list of what goes to the AI is in
   [`docs/chat.md`](chat.md#what-goes-to-the-ai).
 - **`chat_messages` writes:** only the chat function writes messages, with the service
@@ -325,8 +325,14 @@ full safety run meters about $4–5.
 ## Deployed versions
 
 **Pending for v1.2.0 (4 Nov):** hosted still has migration `20261103090000` as its last one.
-`20261103140000_growth.sql` (the growth table) is not pushed yet, and the hosted functions
-are unchanged since v1.1.1 (`chat` v10 and the three below), because no function changed.
+`20261103140000_growth.sql` (the growth table) is not pushed yet. The hosted functions are
+still v1.1.1's (`chat` v10 and the three below). Since v1.1.1, `chat` changed: the health
+classifier reads up to 2 earlier parent messages as context (`_shared/health-gate.ts`,
+`_shared/chat-data.ts`, `chat/index.ts`; merged 4 Nov on the owner's revised gate, see
+[`safety-runs/README.md`](safety-runs/README.md#held-out-multi-turn-result)), so `chat` needs a
+deploy. `predict` imports `chat-data.ts`, which now imports `health-gate.ts`; `predict`
+calls none of the new code, but its import graph changed, so redeploy it too to keep "hosted
+equals the release commit" exact. `pair` and `delete-account` import nothing that changed.
 The app build for v1.2.0 needs the migration first. The table below is the hosted state.
 
 Hosted Edge Functions for release v1.1.1 (checked with `supabase functions list` on

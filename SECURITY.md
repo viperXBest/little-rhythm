@@ -44,13 +44,15 @@ Out of scope for this demo build:
   - The model gets the parent's message or transcript, the thread's last 30 usable
     messages and summary, the baby's age in weeks, the last 48 h of events (type, times
     and six detail fields), the computed windows and search hits from the same thread, plus the parent's local time and
-    weekday. <!-- CLASSIFIER -->The health classifier gets only the baby's age in weeks and the parent's message.<!-- /CLASSIFIER --> The server adds no names, ids or
+    weekday. <!-- CLASSIFIER -->The health classifier gets the baby's age in weeks, the parent's message and, as context, up to 2 earlier parent messages from the same thread in the last 30 minutes, gated ones included (each marked escalated or not). The agent never sees gated turns.<!-- /CLASSIFIER --> The server adds no names, ids or
     emails and never sends couple data or growth records. What a parent types is sent as
     typed. The Meta Model API is outside the EU. The full list is in
     [`docs/chat.md`](docs/chat.md#what-goes-to-the-ai).
   - Every turn passes the health gate.
-  - A health message is read by the model once, on the turn it is sent. After that, gated
-    turns never reach it again (not as history, summary or search).
+  - A health message reaches the agent once, on the turn it is sent. After that, gated
+    turns never reach the agent again (not as history, summary or search). Only the health
+    classifier may read it again, as context for at most the next 2 parent messages within
+    30 minutes.
   - A voice clip goes to Muse Voice Transcribe and is never stored.
 - **Account deletion:** the password is re-entered and checked on the server, and the
   call is rate-limited. The last member's family is deleted in full; when one of two
