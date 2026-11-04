@@ -12,6 +12,13 @@ import {
 } from "./agent-schemas.ts";
 import type { EventSummary, FoundMessage } from "./agent.ts";
 import { CONTEXT_HOURS, HISTORY_LIMIT, MAX_CONTEXT_EVENTS, type StoredMessage } from "./buddy-context.ts";
+import {
+  GATE_CONTEXT_MINUTES,
+  GATE_CONTEXT_TURNS,
+  type GateContextRow,
+  type GateContextTurn,
+  gateContextTurns,
+} from "./health-gate.ts";
 import type { NightFeedRow } from "./night-feeds.ts";
 import type { PredictEvent } from "./predict.ts";
 import type { FoldMessage, MemoryRow } from "./thread-memory.ts";
@@ -136,6 +143,33 @@ export async function readThreadHistory(db: SupabaseClient, threadId: string): P
     .limit(HISTORY_LIMIT);
   if (error) throw new Error("history_failed");
   return ((data ?? []) as StoredMessage[]).reverse();
+}
+
+/**
+ * The health classifier's context: the thread's latest parent messages from the
+ * GATE_CONTEXT_MINUTES before `now`, at most GATE_CONTEXT_TURNS, oldest first, each
+ * marked escalated (gated) or not. Read as the caller: chat_messages_select follows
+ * thread visibility only, so gated rows are visible in a thread the caller can see.
+ * User rows only (never assistant replies); unlike the history, gated rows are kept.
+ * The current message is stored after the gate, so it is never in this set. No
+ * authors or ids.
+ */
+export async function readGateContext(
+  db: SupabaseClient,
+  threadId: string,
+  now: Date,
+): Promise<GateContextTurn[]> {
+  const since = new Date(now.getTime() - GATE_CONTEXT_MINUTES * 60_000).toISOString();
+  const { data, error } = await db
+    .from("chat_messages")
+    .select("role, content, gated, created_at")
+    .eq("thread_id", threadId)
+    .eq("role", "user")
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(GATE_CONTEXT_TURNS);
+  if (error) throw new Error("gate_context_failed");
+  return gateContextTurns((data ?? []) as GateContextRow[], now);
 }
 
 /**
