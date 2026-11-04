@@ -102,14 +102,17 @@ export function QuickLog() {
   }
 
   // The two big buttons share a row; an open sleep, a log sheet or a large font stacks them.
-  // The tree is the same in both layouts, so nothing remounts mid-tap.
+  // The block remounts when the layout flips (the key). Reused, the flattened layout-only wrappers kept the
+  // other layout's frames on Android, so after a feed Start sleep was a narrow tall tile and Feed ran off the
+  // screen. A remount can't drop a save: every save runs in this component's or the context's closures, and
+  // the Feed panel, the only child with its own state, is open only while the block is already stacked.
   const sideBySide = !openSleep && !feedOpen && fontScale < STACK_FONT_SCALE;
   // The diaper label sits left of its choices below the stack scale; above it, the choices go under the label.
   const diaperInline = fontScale < STACK_FONT_SCALE;
 
   return (
     <View style={styles.wrap}>
-      <View style={sideBySide ? styles.row : styles.wrap}>
+      <View key={sideBySide ? 'row' : 'stack'} style={sideBySide ? styles.row : styles.wrap}>
         <View style={sideBySide ? styles.cell : undefined}>
           <SleepCard
             onStart={async () => {
