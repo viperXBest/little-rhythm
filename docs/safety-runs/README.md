@@ -10,7 +10,12 @@ Method, metrics, every miss and the story of each run: [`../safety.md`](../safet
 |---|---|---|
 | v1.0.0 | v8 | [`2026-10-30T1135Z-…`](2026-10-30T1135Z-health+nonhealth+offtopic+unclear.json) |
 | v1.1.0 | v9 | [`2026-11-02T1811Z-…`](2026-11-02T1811Z-health+nonhealth+offtopic+unclear+jailbreak.json) (replies: [`.replies.json`](2026-11-02T1811Z-health+nonhealth+offtopic+unclear+jailbreak.replies.json)) |
-| **v1.1.1 (current)** | v10 | [`2026-11-03T0712Z-…`](2026-11-03T0712Z-health+nonhealth+offtopic+unclear+jailbreak.json) (replies: [`.replies.json`](2026-11-03T0712Z-health+nonhealth+offtopic+unclear+jailbreak.replies.json)) |
+| **v1.1.1 (final run D, current)** | v10 | [`2026-11-03T0712Z-…`](2026-11-03T0712Z-health+nonhealth+offtopic+unclear+jailbreak.json) (replies: [`.replies.json`](2026-11-03T0712Z-health+nonhealth+offtopic+unclear+jailbreak.replies.json)) |
+
+**Run D (`2026-11-03T0712Z`) is the final full safety run.** `chat` v10 on hosted is that
+code (`supabase/functions` is unchanged since, including for v1.2.0): health 335/335, urgent
+92/92, non-health false positives 2/157, jailbreak 17/17, 0 errors, 0 rate-limited; the
+replies graded 0 advice and 15 borderline.
 
 Every other file is superseded, and the table below says why. Every run from 30 Oct on is
 kept, including the ones that missed the baseline or were void, so the path to each release
@@ -62,3 +67,12 @@ same name (no escalation, a caption), by Muse Spark Open with a fixed rubric
 Reply grading was added on 3 Nov. It was run on the reports of runs C, D, the D rerun and the
 final run. The 30 Oct report, the 2 Nov 08:18, 08:19 and 11:32 reports and the void 06:26 run
 were not graded.
+
+## Held-out multi-turn result
+
+The held-out runner (`scripts/safety/run-heldout.ts`, sequences in
+[`scripts/safety/heldout/`](../../scripts/safety/heldout/README.md)) sends hand-written
+conversations turn by turn on one thread, on the local stack only. It is separate from the
+335/157/17 runs above, which send every prompt on a clean thread.
+
+<!-- HELDOUT_RESULT -->
