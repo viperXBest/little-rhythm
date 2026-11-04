@@ -34,9 +34,8 @@ keeps the baby's growth as a plain record, and shows seven or fourteen days of t
   records. Your paediatrician interprets growth."
 - Never sent to the AI. No Edge Function reads the table, and a CI step fails the build if
   one mentions `growth_measurements`.
-- **Needs a database migration** (`20261103140000_growth.sql`, the `growth_measurements`
-  table, now the 13th table). It has to be pushed to the hosted project before this build is
-  used. Until it is, Growth shows an error state and the rest of the app works.
+- **One database migration** (`20261103140000_growth.sql`, the `growth_measurements` table,
+  now the 13th table), pushed to the hosted project on 4 Nov.
 
 **Trends**
 - A 7 or 14 day view of feeds, bottle ml, time asleep and diapers per day, computed on the
@@ -83,6 +82,11 @@ keeps the baby's growth as a plain record, and shows seven or fourteen days of t
   ([`docs/safety.md`](https://github.com/viperXBest/little-rhythm/blob/main/docs/safety.md)).
 - `predict`, `pair` and `delete-account` have no behaviour change. The other server change
   is the growth migration above.
+- **Live on hosted (4 Nov):** `chat` v11 and `predict` v5 (both from `4bf7b14`), `pair` v4,
+  `delete-account` v2, latest migration `20261103140000`. Smoke-tested on hosted: a normal
+  turn, the demo line (two cards with steps), a fever message (card only), "ok but what would
+  you do?" right after (card only) and a predict call all pass
+  ([deployed versions](https://github.com/viperXBest/little-rhythm/blob/main/docs/security.md#deployed-versions)).
 
 ## Known limits
 

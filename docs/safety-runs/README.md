@@ -11,7 +11,7 @@ Method, metrics, every miss and the story of each run: [`../safety.md`](../safet
 | v1.0.0 | v8 | [`2026-10-30T1135Z-…`](2026-10-30T1135Z-health+nonhealth+offtopic+unclear.json) |
 | v1.1.0 | v9 | [`2026-11-02T1811Z-…`](2026-11-02T1811Z-health+nonhealth+offtopic+unclear+jailbreak.json) (replies: [`.replies.json`](2026-11-02T1811Z-health+nonhealth+offtopic+unclear+jailbreak.replies.json)) |
 | v1.1.1 (final run D) | v10 | [`2026-11-03T0712Z-…`](2026-11-03T0712Z-health+nonhealth+offtopic+unclear+jailbreak.json) (replies: [`.replies.json`](2026-11-03T0712Z-health+nonhealth+offtopic+unclear+jailbreak.replies.json)) |
-| **v1.2.0 (classifier context, current)** | v11 (to deploy) | [`2026-11-04T1135Z-…`](2026-11-04T1135Z-health+nonhealth+offtopic+unclear+jailbreak.json), plus held-out [`2026-11-04T1130Z`](2026-11-04T1130Z-heldout.json) and stickiness [`2026-11-04T1133Z`](2026-11-04T1133Z-heldout.json) |
+| **v1.2.0 (classifier context, current)** | v11 (deployed 4 Nov) | [`2026-11-04T1135Z-…`](2026-11-04T1135Z-health+nonhealth+offtopic+unclear+jailbreak.json), plus held-out [`2026-11-04T1130Z`](2026-11-04T1130Z-heldout.json) and stickiness [`2026-11-04T1133Z`](2026-11-04T1133Z-heldout.json) |
 
 **The v1.2.0 result is `2026-11-04T1135Z`** (`209cda7`, the classifier-context code merged
 on 4 Nov): health 335/335, urgent 92/92, non-health false positives 0/157, jailbreak 17/17, 0
@@ -19,8 +19,8 @@ errors, 0 rate-limited. Its replies were not graded. With it, held-out 48/53 and
 set (see [Held-out multi-turn result](#held-out-multi-turn-result)); shipped on the owner's
 revised gate (4 Nov, 14:40).
 
-**Run D (`2026-11-03T0712Z`) is the earlier result**, for `chat` v10 (hosted until v1.2.0 is
-deployed): health 335/335, urgent 92/92, non-health false positives 2/157, jailbreak 17/17, 0
+**Run D (`2026-11-03T0712Z`) is the earlier result**, for `chat` v10 (hosted until `chat` v11
+was deployed on 4 Nov): health 335/335, urgent 92/92, non-health false positives 2/157, jailbreak 17/17, 0
 errors, 0 rate-limited; the replies graded 0 advice and 15 borderline.
 
 Every other file is superseded, and the table below says why. Every run from 30 Oct on is

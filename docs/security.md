@@ -67,8 +67,8 @@ example weight 300–30,000 g), not norms. **No Edge Function reads this table, 
 never reaches the AI:** a CI step runs `git grep growth_measurements -- supabase/functions`
 and fails the build on any hit. Rows go with the baby (`on delete cascade`), so the last
 member's account deletion removes them with the family. When one of two parents deletes
-their account, the rows stay and `created_by` becomes null. The migration is not on hosted
-until it is pushed (see "Deployed versions").
+their account, the rows stay and `created_by` becomes null. The migration is on hosted
+since 4 Nov (see "Deployed versions").
 
 ## Chat memory
 
@@ -324,34 +324,32 @@ full safety run meters about $4–5.
 
 ## Deployed versions
 
-**Pending for v1.2.0 (4 Nov):** hosted still has migration `20261103090000` as its last one.
-`20261103140000_growth.sql` (the growth table) is not pushed yet. The hosted functions are
-still v1.1.1's (`chat` v10 and the three below). Since v1.1.1, `chat` changed: the health
-classifier reads up to 2 earlier parent messages as context (`_shared/health-gate.ts`,
-`_shared/chat-data.ts`, `chat/index.ts`; merged 4 Nov on the owner's revised gate, see
-[`safety-runs/README.md`](safety-runs/README.md#held-out-multi-turn-result)), so `chat` needs a
-deploy. `predict` imports `chat-data.ts`, which now imports `health-gate.ts`; `predict`
-calls none of the new code, but its import graph changed, so redeploy it too to keep "hosted
-equals the release commit" exact. `pair` and `delete-account` import nothing that changed.
-The app build for v1.2.0 needs the migration first. The table below is the hosted state.
-
-Hosted Edge Functions for release v1.1.1 (checked with `supabase functions list` on
-3 Nov). Each was deployed from source identical to the release commit for that
-function's import graph, or differing only in comments and strings it never uses
-(`deno info`).
+Hosted Edge Functions for release v1.2.0 (checked with `supabase functions list` on
+4 Nov). Each was deployed from source identical to the release commit for that
+function's import graph. Since v1.1.1, `chat` changed: the health classifier reads up to 2
+earlier parent messages as context (`_shared/health-gate.ts`, `_shared/chat-data.ts`,
+`chat/index.ts`; merged 4 Nov on the owner's revised gate, see
+[`safety-runs/README.md`](safety-runs/README.md#held-out-multi-turn-result)). `predict`
+imports `chat-data.ts`, which now imports `health-gate.ts`; it calls none of the new code,
+but it was redeployed so hosted equals the release commit. `pair` and `delete-account`
+import nothing that changed.
 
 | Function | Version | Deployed (UTC) | From |
 |---|---|---|---|
-| `chat` | v10 | 3 Nov, 08:49 | `38a81e7` (= `supabase/functions` at the v1.1.1 tag): agent steps, crisis override, safe-sleep prompt line, no age-norm claims, `CHAT_GLOBAL_DAILY_USD`, new-account cap. Migration `20261103090000` pushed first. Smoke-tested on hosted: a normal turn, the demo line (two cards, steps), a fever message (card only) |
-| `predict` | v4 | 2 Nov, 18:52 | `491b761`. Since then its import graph changed only a tool-description string in `agent-schemas.ts` (it imports `TZ_OFFSET` from that file) and a comment in `predict-constants.ts`: runtime-identical, no redeploy |
-| `pair` | v4 | 30 Oct, 13:22 | `3191717`, import graph identical to v1.1.1 |
-| `delete-account` | v2 | 30 Oct, 13:22 | `3191717`, import graph identical to v1.1.1 |
+| `chat` | v11 | 4 Nov, 12:57 | `4bf7b14` (main after the audit merge): the classifier reads up to 2 earlier parent messages from the last 30 min. Migration `20261103140000` pushed first. Smoke-tested on hosted as Ana (private thread): a normal turn (reply), the demo line (two cards, steps), a fever message (card, no text), "ok but what would you do?" right after (card, no text): all pass |
+| `predict` | v5 | 4 Nov, 12:57 | `4bf7b14`, import graph changed (see above), no behaviour change. Smoke-tested on hosted: one call as Ana returns the windows with no error |
+| `pair` | v4 | 30 Oct, 13:22 | `3191717`, import graph identical to v1.2.0 |
+| `delete-account` | v2 | 30 Oct, 13:22 | `3191717`, import graph identical to v1.2.0 |
 
-Latest migration on hosted: `20261103090000_chat_new_account_cap.sql` (3 Nov). It keeps
+Latest migration on hosted: `20261103140000_growth.sql` (pushed 4 Nov, 12:58 UTC, after a dry
+run that listed only this file). `20261103090000_chat_new_account_cap.sql` (3 Nov) keeps
 the 5-argument `consume_chat_budget` as a wrapper so `chat` v9 kept working until v10
 was deployed; dropping it is on the roadmap.
 
-**Earlier:** `chat` v9 (2 Nov, 18:23, from `20242e8`: caps, spend breaker,
+**Earlier:** `chat` v10 (3 Nov, 08:49, from `38a81e7` = `supabase/functions` at the v1.1.1
+tag: agent steps, crisis override, safe-sleep prompt line, no age-norm claims,
+`CHAT_GLOBAL_DAILY_USD`, new-account cap; migration `20261103090000` pushed first;
+smoke-tested) and `predict` v4 (2 Nov, 18:52, from `491b761`) were v1.1.1's. `chat` v9 (2 Nov, 18:23, from `20242e8`: caps, spend breaker,
 `max_completion_tokens`, prompt rule, classifier timeout 30 s; migration
 `20261102120000` pushed first) was v1.1.0's.
 

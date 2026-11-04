@@ -3,22 +3,23 @@
 ## Handoff (Nov 4)
 
 **State**
-- **Code:** `main` is `3ad3402` (PR #1, the integration trial: v1.2.0 features plus review fixes). The branch `audit-final` (the final audit) and `docs-final` (docs only) sit on top of it. Nothing is pushed from this PC without the owner's OK.
+- **Code:** `main` is `4bf7b14` and later (the `--no-ff` merge of `audit-final`: the final audit, docs and the classifier-context fix, on top of PR #1 `3ad3402`), pushed. Run 2 (`audit-run2.md`, pre-approved by the owner) did the hosted steps and the release build.
 - **Published release:** v1.1.1 (tag `v1.1.1` on `e649c88`; APK from EAS build `4ea4c5f9-48e6-4d36-8e85-3d7531ba5a3e`, versionCode 6, from `5e9175b`). `v1.1.0` is on `ba15979`.
-- **v1.2.0 is pending a build.** It adds manual entry of past events, growth records and trends (see Features), plus the Codex fixes (`ee17c2a`). The notes are drafted in `docs/release-notes-v1.2.0.md` with placeholders for the EAS build id, the APK SHA-256 and the versionCode.
-- **Hosted:**
-  - **Lacks migration `20261103140000_growth`.** The last hosted migration is `20261103090000`; the latest in the repo is `20261103140000`.
-  - **Hosted functions:** `chat` v10 from `38a81e7`, `predict` v4, `pair` v4, `delete-account` v2. Table in `docs/security.md`, "Deployed versions".
-  - **`chat` changed after v1.1.1 (Nov 4, owner decision 14:40):** the classifier-context fix (the health classifier reads up to 2 earlier parent messages from the last 30 min, gated ones included) is merged into `audit-final` and needs a `chat` deploy (ask first). `_shared/health-gate.ts` and `_shared/chat-data.ts` changed, so check each function's import graph before redeploying `predict`, `pair` and `delete-account`.
+- **v1.2.0 build:** pending (EAS production build started by run 2; build id, versionCode and SHA-256 filled in when it finishes). It adds manual entry of past events, growth records and trends (see Features), plus the Codex fixes (`ee17c2a`). The notes are drafted in `docs/release-notes-v1.2.0.md` with placeholders for the EAS build id, the APK SHA-256 and the versionCode.
+- **Hosted (Nov 4, 12:57–12:58 UTC):**
+  - **Migration `20261103140000_growth` is pushed** (dry run listed only that file); hosted and repo both end at `20261103140000`.
+  - **Hosted functions:** `chat` v11 and `predict` v5 from `4bf7b14` (`chat` carries the classifier-context fix; `predict`'s import graph changed, no behaviour change), `pair` v4, `delete-account` v2 (import graphs unchanged since v1.1.1). Table in `docs/security.md`, "Deployed versions".
+  - **Smoke test on hosted (Ana, private thread): all pass.** Normal turn → reply; demo line → 2 proposals with steps; fever → escalation, no text; "ok but what would you do?" → escalation, no text; one predict call → windows, no error. No rollback.
+  - **Re-seeded once** at 14:59 Bucharest (no `--tz` needed): growth seed works against hosted (12 measurements), smoke-test turns cleared. Every seed resets the demo passwords, so sign in again on both phones.
   - No secrets were set: `CHAT_GLOBAL_DAILY_USD` is unset, so the budget is $10.
 - **Safety:** the classifier-context code got its own full suite (`docs/safety-runs/2026-11-04T1135Z-*`, `209cda7`): health 335/335, urgent 92/92, non-health false positives 0/157, jailbreak 17/17, 0 errors; held-out 48/53 (`2026-11-04T1130Z`, v10 was 46/53), the same 5 fail-safe over-escalations as v10, no missed card; stickiness 0 reply turns escalated (`1133Z`). Shipped under the owner's revised gate (Nov 4, 14:40). Final run D (`docs/safety-runs/2026-11-03T0712Z-*`, chat v10) is the earlier result: health 335/335, urgent 92/92, non-health false positives 2/157, jailbreak 17/17, 0 errors, 0 rate-limited; replies 0 advice, 15 borderline (`docs/safety.md`). The held-out multi-turn runner (`scripts/safety/run-heldout.ts`) is separate; its result goes in `docs/safety-runs/README.md`.
 - **This PC:** the local Supabase stack is stopped. `docs/judge-2026-11-02/` is gitignored. `.claude/worktrees/` holds old worktrees that can be removed once nothing needs them.
 
 **Open items, in order**
-1. Push the growth migration to hosted: dry run first, show it, `--linked`, never `--include-all`; ask the owner (the owner runs it).
-2. Deploy `chat` with the classifier-context fix (ask first; the owner runs it), then smoke-test fever → card and "ok but what would you do?" → card. Update the "Deployed versions" table in `docs/security.md`.
-3. Bump the version to 1.2.0 (`app.json`, `package.json`); versionCode is EAS-remote (v1.1.1 got 6, so v1.2.0 gets 7).
-4. EAS build (production profile), then record the build id and the APK SHA-256 in `docs/release-notes-v1.2.0.md` and in `docs/security.md`.
+1. ~~Growth migration on hosted~~ (done Nov 4).
+2. ~~Deploy `chat` v11 (+ `predict` v5) and smoke-test~~ (done Nov 4, all pass).
+3. Version 1.2.0 (`app.json`, `package.json`); versionCode is EAS-remote (v1.1.1 got 6, so v1.2.0 gets 7). Done in run 2's "release: v1.2.0" commit.
+4. EAS build (production profile), then the build id, versionCode and APK SHA-256 in `docs/release-notes-v1.2.0.md` and here (run 2 step 7; see the build line below once filled).
 5. Phone check on both phones: manual entry (Earlier…, a past sleep, the overlap refusal), growth, trends, plus the v1.1.1 items (steps row, Muse Voice Transcribe chip, confirm-card footer, escalation number 112 in Bucharest and 999 in London, real voice, launcher icon, splash, notification icon).
 6. Release v1.2.0: tag on the build commit, GitHub Release by hand with the notes and the APK (ask before pushing the tag).
 7. Seed-demo thread check: seed-demo never touches `chat_threads` or `chat_messages`; decide whether the demo threads should start empty (clear only with the owner's OK; don't print chat content).
