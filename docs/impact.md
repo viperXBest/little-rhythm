@@ -11,9 +11,9 @@ are design links, not results: the app has not been tested with other families.
   UK couple families with dependent children in 2021) → one live log, and the same Next up
   on both phones.
 
-Written 3 Nov 2026 for the released app (v1.1.1). v1.2.0 (logging at a past time, growth
-records, 7 and 14 day trends) is still being verified on phones, is not shipped, and is
-marked where it differs. What this page says about the app matches the code and the docs
+Written 3 Nov 2026 for the released app (v1.1.1), checked again on 4 Nov. v1.2.0 (logging
+at a past time, growth records, 7 and 14 day trends) is merged but its APK and one hosted
+migration are still pending, so it is not shipped, and it is marked where it differs. What this page says about the app matches the code and the docs
 it links. What it says about the world is cited. It makes no claim about outcomes.
 
 ## 1. The problem in numbers
@@ -127,8 +127,9 @@ she's asleep now"), checks the two cards and taps Confirm on each.
 - **Private and shared chat.** A parent's private thread can be read only by that parent.
 - **Part of v1.2.0, not shipped and not in the v1.1.1 APK:** logging an event at a past
   time, growth records (weight, length, head size; kept for the parents' own records,
-  never interpreted, never sent to the AI) and 7 and 14 day trends. They are still being
-  verified on phones (3 Nov); treat them as planned until the release notes list them.
+  never interpreted, never sent to the AI) and 7 and 14 day trends. They are not in a
+  published release yet; treat them as pending until the
+  [v1.2.0 release notes](release-notes-v1.2.0.md) are published.
 
 ## 4. Safety: no health advice, and why that is the point
 

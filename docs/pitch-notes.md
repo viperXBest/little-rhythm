@@ -55,7 +55,7 @@ short clip of step 3.
    and saves only after Confirm.
 4. **What about privacy?** The model gets the baby's age in weeks, the last 48 hours of events,
    the Next up windows and this thread's recent messages and summary. The server adds no names
-   or emails, and check-ins and night-feed counts never go to it. Voice clips are not stored,
+   or emails, and check-ins, night-feed counts and growth records never go to it. Voice clips are not stored,
    and every table has row-level security. The main limit is that the Meta Model API is outside
    the EU.
 5. **What's next?** v1.2.0 (logging at a past time, growth records kept for the parents and never
