@@ -19,8 +19,8 @@ keeps the baby's growth as a plain record, and shows seven or fourteen days of t
 ## What's new
 
 **Manual entry**
-- Log a feed, sleep or diaper at a past time ("Earlier…"), and add a past sleep with a
-  start and an end.
+- Log a feed (its Time field), a diaper ("Earlier…") or a sleep ("Add a past sleep", with a
+  start and an end) at a past time.
 - The rules are the same when you edit an event: no future times, nothing before the
   baby's birth date, a sleep ends after it starts, and sleeps never overlap. Bottle
   stays 5–400 ml and breast 1–90 min. If the app can't check your other sleeps, it refuses

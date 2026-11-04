@@ -34,7 +34,7 @@ Close (2:55): "One shared rhythm for two parents. It tells you the time, never t
 ## X post drafts
 
 Each is under 280 characters counting the full URL as typed (X counts a link as 23, so they are shorter on X). No hashtags;
-add the official hackathon tag only if the rules name one. Attach `docs/screenshots/` or a
+add the official hackathon tag only if the rules name one. Attach phone screenshots or a
 short clip of step 3.
 
 1. (265 characters) 3 a.m., one hand on the baby. Say "she drank 90 ml twenty minutes ago, she's asleep now": Muse Voice Transcribe hears it, Muse Spark proposes two cards, a tap on each saves them, both phones agree. Little Rhythm, Android. https://github.com/viperXBest/little-rhythm

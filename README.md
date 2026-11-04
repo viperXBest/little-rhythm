@@ -262,8 +262,9 @@ The tool calls the agent makes for that sentence (abridged; the shape is
 
 ### Manual entry (v1.2.0)
 
-For the feed you forgot to log: the log sheets have an "Earlier…" choice and a sleep can be
-added with a start and an end ("Add a past sleep"). The rules live in one pure module,
+For the feed you forgot to log: the feed sheet has a Time field (Now, or "Change ›" for a
+past time), diapers have an "Earlier…" choice, and a sleep can be added with a start and an
+end ("Add a past sleep"). The rules live in one pure module,
 [`app/src/lib/entry-time.ts`](app/src/lib/entry-time.ts) (tested under Deno), and the same
 validator runs when an event is edited:
 - **No future times.** The start, and a sleep's end, can't be later than now (one minute of
@@ -357,7 +358,7 @@ More detail:
 - **What goes to the AI:** the parent's message or transcript (up to 1,000 characters), the
   thread's last 30 usable messages and its summary, the baby's age in weeks, the parent's
   local time and weekday, the last 48 h of events (type, times and six detail fields) and
-  the computed windows. A voice clip goes to Muse Voice
+  the computed windows, and search hits from the same thread. A voice clip goes to Muse Voice
   Transcribe and is not stored. <!-- CLASSIFIER -->The health classifier gets only the baby's age in weeks and the parent's message.<!-- /CLASSIFIER --> The server adds no names, ids or
   emails and never sends couple data or growth records (a CI step fails the build if any
   function mentions the growth table). What a parent types is sent as typed. A health
@@ -402,9 +403,11 @@ Stated here so nobody has to find them.
     and were written for this project.
   - Every prompt is labelled against the same product policy the classifier follows. So the
     set measures how well the gate applies that policy, not whether the policy is right.
-  - Each prompt is one turn on a wiped thread. The 30-message history, the rolling summary
-    and long conversations are not part of the run.
-  - There is no hand-written, held-out set yet.
+  - The main sets send each prompt as one turn on a wiped thread. A separate hand-written,
+    held-out set (`scripts/safety/heldout/`: 53 multi-turn sequences plus 20 stickiness
+    checks) is sent turn by turn on one thread by `scripts/safety/run-heldout.ts`, on the
+    local stack only. Its result is in
+    [`docs/safety-runs/README.md`](docs/safety-runs/README.md#held-out-multi-turn-result).
   - The replies are graded by a model (Muse Spark Open), not by a person.
 - **The emergency number has three values.** The card shows 911 in the US and Canada, 999 in
   the UK (and the Crown Dependencies), and 112 everywhere else. It is chosen from the phone's
@@ -419,11 +422,12 @@ Stated here so nobody has to find them.
   app stores no sex for the baby, so a reply about "him" can still say "her log" (row 9 in
   the same list).
 
-Fixing the last two means editing the agent's prompt, which needs a full safety run and a
-redeploy. They are not fixed in v1.1.1.
 - **v1.2.0 needs a hosted migration.** Growth records work only after migration
   `20261103140000_growth.sql` is pushed to the hosted project; until then the Growth screen
   shows its error state and everything else works.
+
+Fixing the last two means editing the agent's prompt, which needs a full safety run and a
+redeploy. They are not fixed in v1.1.1 or v1.2.0.
 
 ### Found in the final audit (Nov 4), not fixed for v1.2.0
 

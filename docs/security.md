@@ -6,7 +6,7 @@
 `supabase_realtime` publication (`20261029090000_events_realtime.sql`,
 `20261029100000_chat_checkin.sql`, `20261103140000_growth.sql`). `chat_threads`, `invites`, `api_usage`, `usage_counters`,
 `profiles`, `babies` and `families` are not; `supabase/tests/05_events.test.sql`
-asserts both.
+asserts both (and `10_growth.test.sql` asserts `growth_measurements`).
 
 For INSERT and UPDATE, Realtime runs the subscriber's `select` policy against the
 changed row before sending it. A client filter such as `baby_id=eq.<id>` narrows

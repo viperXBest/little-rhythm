@@ -34,18 +34,12 @@ about what the app does for anyone's health or sleep, and none of them is advice
   Statistics,
   [*Births: Provisional Data for 2025*, press release "U.S. Births down 1% in 2025", 9 Apr 2026](https://cdc.gov/nchs/pressroom/releases/20260409.html).
 
-**How often a young baby feeds and wakes** (as published by health services; background
-only, not advice):
-
-- American Academy of Pediatrics, HealthyChildren.org,
-  [*How Often and How Much Should Your Baby Eat?*](https://www.healthychildren.org/English/ages-stages/baby/feeding-nutrition/Pages/How-Often-and-How-Much-Should-Your-Baby-Eat.aspx)
-  (updated 2024): "Breastfed newborns usually nurse every 2 hours"; "most newborns eat
-  every 2 to 3 hours" when bottle-fed.
-- Newcastle Hospitals NHS Foundation Trust,
-  [*Sleep (infants 0-12 months)*](https://www.newcastle-hospitals.nhs.uk/services/great-north-childrens-hospital/childrens-sleep-service/sleep-infants-0-12-months/)
-  (updated 20 May 2026): young babies "have small stomachs and wake up every 2-3 hours
-  for a feed", and "Most babies are at least 1 year old by the time they are settled all
-  night every night."
+**Young babies feed and wake often, day and night.** Health services describe it that way
+(American Academy of Pediatrics, HealthyChildren.org,
+[*How Often and How Much Should Your Baby Eat?*](https://www.healthychildren.org/English/ages-stages/baby/feeding-nutrition/Pages/How-Often-and-How-Much-Should-Your-Baby-Eat.aspx);
+Newcastle Hospitals NHS Foundation Trust,
+[*Sleep (infants 0-12 months)*](https://www.newcastle-hospitals.nhs.uk/services/great-north-childrens-hospital/childrens-sleep-service/sleep-infants-0-12-months/)).
+We cite them only for that. For how often your own baby should feed, ask your paediatrician.
 
 **New parents' sleep loss.** Richter, Krämer, Tang, Montgomery-Downs and Lemola,
 [*Long-term effects of pregnancy and childbirth on sleep satisfaction and duration of

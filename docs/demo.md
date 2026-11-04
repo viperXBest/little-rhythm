@@ -67,8 +67,8 @@ phones and hosted before the take; otherwise cut it).** About 15 s, after step 3
 laptop side: open **Trends** and show the 7 or 14 day switch, the feeds and bottle ml, sleep
 and diapers per day. Then say that **Growth** keeps weight, length and head size as the
 parents' own record, never interpreted and never sent to the AI. Logging a forgotten feed
-with "Earlier…" is a one-line mention at most. The seed creates no growth records, so the
-Growth chart is empty until a value is added by hand.
+with "Earlier…" is a one-line mention at most. The seed writes four growth check-ups (birth to
+10 weeks), so the Growth chart has a line to show.
 
 ## Notes for the recording
 
