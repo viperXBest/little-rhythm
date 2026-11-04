@@ -425,7 +425,33 @@ redeploy. They are not fixed in v1.1.1.
   `20261103140000_growth.sql` is pushed to the hosted project; until then the Growth screen
   shows its error state and everything else works.
 
-<!-- AUDIT_LIMITATIONS -->
+### Found in the final audit (Nov 4), not fixed for v1.2.0
+
+We reviewed the whole repo before release. Nothing found was a blocker. These medium and low items are known and left for after the hackathon:
+
+- **Deleting an event or a growth measurement** removes it from the screen before the server confirms. On a slow connection, the edit screen briefly shows "not found", and if the delete fails, the error is not shown.
+- **Chat confirm cards** save without the manual-entry checks (overlapping sleeps, before birth). The server still limits chat times to the last 48 hours, and Trends merges overlapping sleeps.
+- **Two-phone races:**
+  - "Woke up" on a sleep the partner already ended shows a connection error, though the data is right.
+  - Saving an edited sleep can overwrite a wake-up time the partner set while the screen was open.
+- **Server-side validation:**
+  - Manual-entry rules (no future times, no overlaps, ranges) are checked in the app.
+  - The database checks only that an event doesn't end before it starts, plus RLS and the one-open-sleep rule.
+  - `babies.birth_date` can be changed through the API (the app never does), and that can leave growth rows dated before birth.
+- **Health keyword layer:**
+  - It doesn't fold full-width or look-alike letters.
+  - It has no urgent keywords for some injury phrasings ("bumped her head", "dropped her").
+  - Explicit crisis wording relies on the classifier, which escalated every crisis and fall prompt in run D.
+  - "Fell off to sleep" can trigger the urgent card (over-triage, safe side).
+- **Daylight saving:** within 48 hours of a clock change, some chat-proposed times can be one hour off. Times can be edited on the confirm card.
+- **Spend breaker:** a memory step that gets cut off can leave its spend reserved for the day (fails safe).
+- **Turn deadline:** there's no overall deadline per chat turn on a very slow model API.
+- **Request size:** `pair` and `delete-account` don't cap request body size.
+- **Realtime:** DELETE notifications for growth rows (like events) can carry the deleted row's random id to other subscribers. No content is sent.
+- **Safety tooling (offline scripts only):**
+  - `run.ts` computes rates over successful responses and always exits 0. The error counts are in the report.
+  - The held-out runner needs `--file` for the stickiness set.
+  - Small robustness gaps in the argument checks and worker cleanup.
 
 ## Run it from a fresh clone
 
