@@ -10,11 +10,13 @@ sleep, after one tap on Confirm. Then see when the next feed, nap and bedtime ar
 likely.
 
 **Download:** [the latest APK on GitHub Releases](https://github.com/viperXBest/little-rhythm/releases/latest)
-(sideload on Android). **v1.2.0** (app 1.2.0, `chat` v11) adds manual entry, growth and
-trends, and the health classifier now reads a message in the context of the parent's previous
-ones ([release notes](docs/release-notes-v1.2.0.md)). The hosted backend runs v1.2.0: the
-growth migration is pushed and `chat` v11 and `predict` v5 are deployed. If the Releases page
-still shows v1.1.1, the v1.2.0 APK is not published yet.
+(sideload on Android). **v1.2.1** (app 1.2.1, same server as v1.2.0) fixes the quick-log
+buttons' layout after a feed is logged ([release notes](docs/release-notes-v1.2.1.md)).
+**v1.2.0** (`chat` v11) added manual entry, growth and trends, and the health classifier now
+reads a message in the context of the parent's previous ones
+([release notes](docs/release-notes-v1.2.0.md)). The hosted backend runs v1.2.0: the growth
+migration is pushed and `chat` v11 and `predict` v5 are deployed. If the Releases page still
+shows an older version, the v1.2.1 APK is not published yet.
 
 ## Why
 

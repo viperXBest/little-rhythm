@@ -1,6 +1,6 @@
 {
   "name": "app",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/baloo-2": "^0.4.2",
