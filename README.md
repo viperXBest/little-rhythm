@@ -221,7 +221,7 @@ sequenceDiagram
   Chat-->>App: transcript + reply + 2 proposals + steps ["Proposed a feed", "Proposed a sleep"]
   App->>App: two confirm cards (editable), "Muse Spark · 2 steps", nothing saved yet
   App->>DB: Confirm → insert feed + sleep with Mom's JWT
-  DB-->>App: Dad's phone updates live; Next up switches to "Expected to wake"
+  DB-->>App: Dad's phone updates live, Next up switches to "Expected to wake"
 ```
 
 The tool calls the agent makes for that sentence (abridged; the shape is
