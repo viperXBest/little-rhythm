@@ -8,9 +8,9 @@ keeps the baby's growth as a plain record, and shows seven or fourteen days of t
 
 | File | Version | SHA-256 |
 |---|---|---|
-| `little-rhythm-1.2.0.apk` | 1.2.0 (versionCode <!-- VERSION_CODE -->) | `<!-- APK_SHA256 -->` |
+| `little-rhythm-1.2.0.apk` | 1.2.0 (versionCode 7) | `49df24305a97db2533d2172e6550773850026f86519291f210e809d749a11dca` |
 
-- Built by EAS (build `<!-- EAS_BUILD_ID -->`, production profile).
+- Built by EAS (build `c345544c-6fdc-464f-b605-13e0ae361609`, production profile).
 - **Installing over v1.1.1:** updating from the v1.1.1 EAS APK works without uninstalling.
   Uninstall first if you have v1.0.0 or a local build, because the signature differs.
 - Check the file: `sha256sum little-rhythm-1.2.0.apk` (Windows:

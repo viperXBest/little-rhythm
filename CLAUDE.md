@@ -5,7 +5,7 @@
 **State**
 - **Code:** `main` is `4bf7b14` and later (the `--no-ff` merge of `audit-final`: the final audit, docs and the classifier-context fix, on top of PR #1 `3ad3402`), pushed. Run 2 (`audit-run2.md`, pre-approved by the owner) did the hosted steps and the release build.
 - **Published release:** v1.1.1 (tag `v1.1.1` on `e649c88`; APK from EAS build `4ea4c5f9-48e6-4d36-8e85-3d7531ba5a3e`, versionCode 6, from `5e9175b`). `v1.1.0` is on `ba15979`.
-- **v1.2.0 build:** pending (EAS production build started by run 2; build id, versionCode and SHA-256 filled in when it finishes). It adds manual entry of past events, growth records and trends (see Features), plus the Codex fixes (`ee17c2a`). The notes are drafted in `docs/release-notes-v1.2.0.md` with placeholders for the EAS build id, the APK SHA-256 and the versionCode.
+- **v1.2.0 build:** EAS `c345544c-6fdc-464f-b605-13e0ae361609` (production, finished Nov 4) from build commit `995f0c9` ("release: v1.2.0"), versionCode 7, APK SHA-256 `49df24305a97db2533d2172e6550773850026f86519291f210e809d749a11dca`, saved with the notes in `%LOCALAPPDATA%\lr-release\v1.2.0\`. Tag `v1.2.0` pushed; the GitHub Release is the owner's (by hand). Built from a clean detached worktree (`%LOCALAPPDATA%\lr-build-120`) because the untracked run files tripped `requireCommit`. It adds manual entry of past events, growth records and trends (see Features), plus the Codex fixes (`ee17c2a`). The notes are drafted in `docs/release-notes-v1.2.0.md` with placeholders for the EAS build id, the APK SHA-256 and the versionCode.
 - **Hosted (Nov 4, 12:57–12:58 UTC):**
   - **Migration `20261103140000_growth` is pushed** (dry run listed only that file); hosted and repo both end at `20261103140000`.
   - **Hosted functions:** `chat` v11 and `predict` v5 from `4bf7b14` (`chat` carries the classifier-context fix; `predict`'s import graph changed, no behaviour change), `pair` v4, `delete-account` v2 (import graphs unchanged since v1.1.1). Table in `docs/security.md`, "Deployed versions".
@@ -19,9 +19,9 @@
 1. ~~Growth migration on hosted~~ (done Nov 4).
 2. ~~Deploy `chat` v11 (+ `predict` v5) and smoke-test~~ (done Nov 4, all pass).
 3. Version 1.2.0 (`app.json`, `package.json`); versionCode is EAS-remote (v1.1.1 got 6, so v1.2.0 gets 7). Done in run 2's "release: v1.2.0" commit.
-4. EAS build (production profile), then the build id, versionCode and APK SHA-256 in `docs/release-notes-v1.2.0.md` and here (run 2 step 7; see the build line below once filled).
+4. ~~EAS build~~ (done Nov 4, see "v1.2.0 build" above).
 5. Phone check on both phones: manual entry (Earlier…, a past sleep, the overlap refusal), growth, trends, plus the v1.1.1 items (steps row, Muse Voice Transcribe chip, confirm-card footer, escalation number 112 in Bucharest and 999 in London, real voice, launcher icon, splash, notification icon).
-6. Release v1.2.0: tag on the build commit, GitHub Release by hand with the notes and the APK (ask before pushing the tag).
+6. Release v1.2.0: tag `v1.2.0` is pushed (on the docs commit after `995f0c9`; `app/` identical to the build commit). The owner creates the GitHub Release by hand: tag v1.2.0, title "Little Rhythm 1.2.0", body from `docs/release-notes-v1.2.0.md`, attach the APK.
 7. Seed-demo thread check: seed-demo never touches `chat_threads` or `chat_messages`; decide whether the demo threads should start empty (clear only with the owner's OK; don't print chat content).
 8. Demo video, slides, X post, and submit in the evening (deadline Nov 4, 9 PM ET = Nov 5, 04:00 Bucharest).
 
