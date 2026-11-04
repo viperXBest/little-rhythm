@@ -106,18 +106,21 @@ export async function updateEvent(id: string, patch: EventPatch): Promise<WriteE
   if (patch.started_at !== undefined) body.started_at = patch.started_at;
   if (patch.ended_at !== undefined) body.ended_at = patch.ended_at;
   if (patch.details !== undefined) body.details = patch.details;
-  const { error } = await supabase.from('events').update(body).eq('id', id);
-  return error ? 'failed' : null;
+  const { data, error } = await supabase.from('events').update(body).eq('id', id).select('id');
+  // An empty successful response can mean the partner deleted the event meanwhile.
+  return error || data?.length !== 1 ? 'failed' : null;
 }
 
 /** Ends a sleep unless the partner already ended it. */
 export async function stopSleep(id: string, endedAt: Date): Promise<WriteError | null> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('events')
     .update({ ended_at: endedAt.toISOString() })
     .eq('id', id)
-    .is('ended_at', null);
-  return error ? 'failed' : null;
+    .is('ended_at', null)
+    .select('id');
+  // No matched row means this sleep was deleted or already ended on the other phone.
+  return error || data?.length !== 1 ? 'failed' : null;
 }
 
 export async function deleteEvent(id: string): Promise<WriteError | null> {

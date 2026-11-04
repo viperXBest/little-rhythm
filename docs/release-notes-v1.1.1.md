@@ -71,8 +71,10 @@ tightens safety for a parent in crisis.
 - **Voice is English-first:** Romanian isn't one of Muse Voice Transcribe's languages,
   but Romanian works when typed.
 - **One baby, two parents, Android only.**
-- **AI processing:** chat content goes to Meta's US-hosted Model API. Only age in weeks
-  and recent events are sent, never names or emails.
+- **AI processing:** messages or transcripts, this thread's usable history, summary
+  and search results, age in weeks, recent events and computed windows go to Meta's
+  US-hosted Model API. The server adds no profile names or emails; personal details
+  a parent types are sent as typed.
 
 **Not medical advice.** Health questions get only a static card pointing to the
 paediatrician or the emergency number.

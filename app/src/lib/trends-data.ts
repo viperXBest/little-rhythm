@@ -74,7 +74,7 @@ type TrendEvents = {
  * realtime feed as Home, so a partner's logs show up here too).
  */
 export function useTrendEvents(babyId: string, now: Date): TrendEvents {
-  const { events: todayEvents, status: todayStatus } = useTodayEvents();
+  const { events: todayEvents, status: todayStatus, revision } = useTodayEvents();
   const [events, setEvents] = useState<TrendEvent[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -108,10 +108,11 @@ export function useTrendEvents(babyId: string, now: Date): TrendEvents {
     return () => sub.remove();
   }, [load]);
 
-  // After any change to today's events. The first load of them is the baseline, not a change.
-  const signature = todayEvents
+  // The revision also includes backdated entries, which today's visible list does not contain.
+  // The first load of today's events is the baseline, not a change.
+  const signature = `${revision}|${todayEvents
     .map((e) => `${e.id}:${e.started_at}:${e.ended_at ?? ''}:${JSON.stringify(e.details)}`)
-    .join('|');
+    .join('|')}`;
   const lastSignature = useRef<string | null>(null);
   useEffect(() => {
     if (todayStatus !== 'ready') return;

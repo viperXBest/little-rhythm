@@ -95,7 +95,7 @@ export default function Chat() {
   const [error, setError] = useState<string | null>(null);
   // This phone's latest reply per thread: its proposal cards (not stored on the server).
   const [replies, setReplies] = useState<Record<string, ChatReply>>({});
-  const [cards, setCards] = useState<Record<string, CardState>>({});
+  const [cardsByThread, setCardsByThread] = useState<Record<string, Record<string, CardState>>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +156,10 @@ export default function Chat() {
       return false;
     }
     setReplies((prev) => ({ ...prev, [id]: result.reply }));
-    setCards(Object.fromEntries(result.reply.proposals.map((p) => [p.id, { kind: 'open' } as CardState])));
+    setCardsByThread((prev) => ({
+      ...prev,
+      [id]: Object.fromEntries(result.reply.proposals.map((p) => [p.id, { kind: 'open' } as CardState])),
+    }));
     return true;
   }
 
@@ -168,6 +171,7 @@ export default function Chat() {
 
   const list = threadId ? (messages[threadId] ?? []) : [];
   const reply = threadId ? replies[threadId] : undefined;
+  const cards = threadId ? (cardsByThread[threadId] ?? {}) : {};
   const withCards = cardMessageId(list, reply);
   // Only this phone's live reply has steps and a transcript chip; they aren't stored.
   const withSteps = replyMessageId(list, reply);
@@ -274,9 +278,18 @@ export default function Chat() {
                       proposal={proposal}
                       source={reply.source}
                       onSaved={(summary) =>
-                        setCards((prev) => ({ ...prev, [proposal.id]: { kind: 'saved', summary } }))
+                        setCardsByThread((prev) => ({
+                          ...prev,
+                          [reply.threadId]: {
+                            ...prev[reply.threadId],
+                            [proposal.id]: { kind: 'saved', summary },
+                          },
+                        }))
                       }
-                      onDiscard={() => setCards((prev) => ({ ...prev, [proposal.id]: { kind: 'discarded' } }))}
+                      onDiscard={() => setCardsByThread((prev) => ({
+                        ...prev,
+                        [reply.threadId]: { ...prev[reply.threadId], [proposal.id]: { kind: 'discarded' } },
+                      }))}
                     />
                   );
                 })}

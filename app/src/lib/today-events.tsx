@@ -192,10 +192,13 @@ export function TodayEventsProvider({ babyId, children }: { babyId: string; chil
       if (!before) return 'failed' as const;
       setRows((prev) => withRow(prev, { ...before, ...patch }));
       const error = await updateEvent(id, patch);
-      if (error) setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
+      if (error) {
+        setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
+        await refresh();
+      }
       return error;
     },
-    [rows],
+    [rows, refresh],
   );
 
   const endSleep = useCallback(
@@ -204,10 +207,13 @@ export function TodayEventsProvider({ babyId, children }: { babyId: string; chil
       if (!before) return 'failed' as const;
       setRows((prev) => withRow(prev, { ...before, ended_at: endedAt.toISOString() }));
       const error = await stopSleep(id, endedAt);
-      if (error) setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
+      if (error) {
+        setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
+        await refresh();
+      }
       return error;
     },
-    [rows],
+    [rows, refresh],
   );
 
   const remove = useCallback(
