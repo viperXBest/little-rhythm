@@ -290,9 +290,12 @@ More detail:
   policies (`supabase/tests/`).
 - **AI tool calls** take the baby and family from the session, never from the model.
   Every argument is validated with zod, and nothing is saved until a parent confirms.
-- **Only age in weeks and recent events go to the AI:** no names or emails, and no
-  couple data. Voice clips are not stored. No chat content, audio or tokens appear in
-  logs.
+- **What goes to the AI:** the parent's message or transcript, the thread's recent
+  usable messages and summary, the baby's age in weeks, recent events and computed
+  windows, and any results from searching that thread. The server adds no profile
+  names, emails or couple-feature data. Anything a parent types is sent as typed,
+  including personal details they include. Voice clips are not stored. No chat
+  content, audio or tokens appear in logs.
 - **Pairing codes:** random, HMAC-hashed, single use, valid for 24 h, and
   rate-limited.
 - **Every function is rate-limited per user.** Chat also has daily caps (60 turns per

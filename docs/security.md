@@ -60,7 +60,9 @@ UPDATE), which goes through RLS like any other update.
 ## Chat memory
 
 - **What the model sees:** chat history (the last 30 messages) and the thread
-  summary. No names, ids or emails go with them, and gated turns never do. The
+  summary. The server adds no profile names, ids or emails; personal details a
+  parent types are sent as typed. Gated turns are excluded from later history,
+  summary and search. The
   summary is rejected before storage if it holds a health keyword, an email, a UUID
   or a family name. Names are read through RLS only for that check.
 - **`chat_messages` writes:** only the chat function writes messages, with the service

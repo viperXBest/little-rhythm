@@ -12,6 +12,10 @@ type DateFieldProps = {
   mode: 'date' | 'datetime';
   onChange: (value: Date) => void;
   placeholder?: string;
+  /** The link text while there is no value (default "Set ›"); a field that reads "Now" says "Change ›". */
+  emptyAction?: string;
+  /** Where the picker opens while there is no value (default: the latest allowed date, else now). */
+  initialValue?: Date;
   minimumDate?: Date;
   maximumDate?: Date;
   /** What the field sits on: on a card the field takes the page colour (with an outline). */
@@ -36,6 +40,8 @@ export function DateField({
   mode,
   onChange,
   placeholder = 'Choose',
+  emptyAction = 'Set ›',
+  initialValue,
   minimumDate,
   maximumDate,
   on = 'page',
@@ -43,11 +49,14 @@ export function DateField({
   const theme = useTheme();
 
   function open() {
-    const initial = value ?? maximumDate ?? new Date();
+    const initial = value ?? initialValue ?? maximumDate ?? new Date();
+    // The dialog throws when the minimum is after the maximum (e.g. a start picked later today, since the
+    // time dialog has no limit). Cap it; the save still reports the time that is in the future.
+    const min = minimumDate && maximumDate && minimumDate > maximumDate ? maximumDate : minimumDate;
     DateTimePickerAndroid.open({
       value: initial,
       mode: 'date',
-      minimumDate,
+      minimumDate: min,
       maximumDate,
       onChange: (event, date) => {
         if (event.type !== 'set' || !date) return;
@@ -88,7 +97,7 @@ export function DateField({
         <ThemedText themeColor={value ? 'text' : 'textSecondary'}>{value ? format(value, mode) : placeholder}</ThemedText>
       </View>
       <ThemedText type="link" themeColor="link">
-        {value ? 'Change ›' : 'Set ›'}
+        {value ? 'Change ›' : emptyAction}
       </ThemedText>
     </Pressable>
   );

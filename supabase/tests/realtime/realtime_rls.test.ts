@@ -296,3 +296,114 @@ Deno.test({
     }
   },
 });
+
+Deno.test({
+  name: "realtime: the partner gets growth records, another family does not",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const a1 = await createUser("grow-a1");
+    const a2 = await createUser("grow-a2");
+    const b1 = await createUser("grow-b1");
+    const familyA = await createFamily(a1.id);
+    const familyB = await createFamily(b1.id);
+    const join = await admin.from("family_members").insert({ family_id: familyA.familyId, user_id: a2.id });
+    assertEquals(join.error, null);
+
+    // DELETE payloads carry only the id (default replica identity), so keep the old row too.
+    type GrowthChange = { eventType: string; row: Record<string, unknown>; old: Record<string, unknown> };
+    const received: GrowthChange[] = [];
+    const errors: unknown[] = [];
+    const record = (
+      payload: {
+        eventType: string;
+        new: Record<string, unknown>;
+        old: Record<string, unknown>;
+        errors: unknown;
+      },
+    ) => {
+      received.push({ eventType: payload.eventType, row: payload.new, old: payload.old });
+      if (payload.errors) errors.push(payload.errors);
+    };
+    const table = { schema: "public", table: "growth_measurements" } as const;
+    // A1 listens, once unfiltered and once explicitly filtered to baby B (a snoop attempt).
+    const all = a1.client.channel("growth-all").on("postgres_changes", { event: "*", ...table }, record);
+    const snoop = a1.client
+      .channel("growth-snoop")
+      .on(
+        "postgres_changes",
+        { event: "*", ...table, filter: `baby_id=eq.${familyB.babyId}` },
+        record,
+      );
+
+    const log = (user: { client: SupabaseClient }, babyId: string, value: number) =>
+      user.client
+        .from("growth_measurements")
+        .insert({ baby_id: babyId, kind: "weight", value, measured_on: isoDay(0) })
+        .select("id")
+        .single();
+
+    try {
+      await Promise.all([subscribe(all), subscribe(snoop)]);
+
+      // Warm-up: A2 logs probes until A1 receives one, then start clean.
+      let warm = false;
+      for (let attempt = 0; attempt < 15 && !warm; attempt++) {
+        const probe = await log(a2, familyA.babyId, 4000);
+        assertEquals(probe.error, null);
+        warm = await waitFor(() => received.some((c) => c.row.id === probe.data?.id), 2_000);
+      }
+      assert(warm, "realtime stream is up");
+      received.length = 0;
+
+      // Family B writes first, then family A: once A1 has family A's change, B's was already processed.
+      const rowB = await log(b1, familyB.babyId, 3800);
+      assertEquals(rowB.error, null);
+      const rowA = await log(a2, familyA.babyId, 4300);
+      assertEquals(rowA.error, null);
+      assert(
+        await waitFor(
+          () => received.some((c) => c.eventType === "INSERT" && c.row.id === rowA.data?.id),
+          10_000,
+        ),
+        "A1 receives the partner's growth record (positive control)",
+      );
+      assertEquals(
+        received.filter((c) => c.row.baby_id === familyB.babyId || c.row.id === rowB.data?.id),
+        [],
+        "A1 receives nothing from family B",
+      );
+
+      // A correction and a delete reach the partner too.
+      const edit = await a2.client.from("growth_measurements").update({ value: 4350 }).eq(
+        "id",
+        rowA.data!.id,
+      );
+      assertEquals(edit.error, null);
+      assert(
+        await waitFor(
+          () =>
+            received.some((c) =>
+              c.eventType === "UPDATE" && c.row.id === rowA.data?.id && c.row.value === 4350
+            ),
+          10_000,
+        ),
+        "A1 receives the partner's correction",
+      );
+      const del = await a2.client.from("growth_measurements").delete().eq("id", rowA.data!.id);
+      assertEquals(del.error, null);
+      assert(
+        await waitFor(
+          () => received.some((c) => c.eventType === "DELETE" && c.old.id === rowA.data?.id),
+          10_000,
+        ),
+        "A1 receives the partner's delete",
+      );
+      assertEquals(errors, [], "no payload carries an auth error");
+    } finally {
+      await a1.client.removeAllChannels();
+      for (const user of [a1, a2, b1]) await admin.auth.admin.deleteUser(user.id);
+      await admin.from("families").delete().in("id", [familyA.familyId, familyB.familyId]);
+    }
+  },
+});

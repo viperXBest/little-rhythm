@@ -1,6 +1,7 @@
 // The demo family's timeline: three weeks of feeds, sleeps and diapers for a
 // 13-week-old in one time zone (Europe/Bucharest unless --tz), ending just
-// before the recording time (the anchor). Pure and deterministic: the same
+// before the recording time (the anchor), and four growth check-ups from birth
+// to 10 weeks (growthPlan). Pure and deterministic: the same
 // anchor and zone always give the same rows. No I/O; seed.ts writes the plan.
 //
 // The last nap (or, early in the day, the morning wake) is placed so that, at
@@ -54,12 +55,23 @@ export type PlannedEvent = {
   source: "tap" | "chat" | "voice";
 };
 export type PlannedCheckin = { day: string; by: Parent; mood: number; help: string };
+export type GrowthKind = "weight" | "length" | "head";
+/** `value` is grams for weight, millimetres for length and head; `measured_on` is a YYYY-MM-DD date. */
+export type PlannedGrowth = { kind: GrowthKind; value: number; measured_on: string; by: Parent };
 export type Plan = {
   anchor: Date;
   birthDate: string;
   events: PlannedEvent[];
   checkins: PlannedCheckin[];
+  growth: PlannedGrowth[];
   prediction: Prediction;
+};
+
+/** The growth_measurements bounds (grams for weight, millimetres for length and head). */
+export const GROWTH_BOUNDS: Record<GrowthKind, { min: number; max: number }> = {
+  weight: { min: 300, max: 30000 },
+  length: { min: 200, max: 1200 },
+  head: { min: 150, max: 600 },
 };
 
 const SEED = 20261104;
@@ -271,6 +283,43 @@ function checkins(anchorDay: number): PlannedCheckin[] {
   return out;
 }
 
+// ---- Growth
+
+/**
+ * Four check-ups, as days after birth, with the weight (g), length (mm) and head (mm) of a girl a
+ * little above the median: birth, about 2, 6 and 10 weeks. The parents enter them in turn. The last is
+ * at 70 days, so every date is well before the anchor (13 weeks and 2 days old = 93 days).
+ */
+const GROWTH_VISITS: readonly {
+  days: number;
+  weight: number;
+  length: number;
+  head: number;
+  by: Parent;
+}[] = [
+  { days: 0, weight: 3300, length: 500, head: 340, by: "parent1" },
+  { days: 14, weight: 3650, length: 520, head: 350, by: "parent2" },
+  { days: 42, weight: 4800, length: 560, head: 375, by: "parent1" },
+  { days: 70, weight: 5600, length: 595, head: 392, by: "parent2" },
+];
+
+/**
+ * The demo baby's measurements, all three kinds at each check-up. Dates are `birthDate`
+ * (YYYY-MM-DD) plus the visit's days, so none is before the birth or in the future.
+ */
+export function growthPlan(birthDate: string): PlannedGrowth[] {
+  const birth = Date.parse(birthDate);
+  return GROWTH_VISITS.flatMap((visit) => {
+    const measured_on = new Date(birth + visit.days * MS_PER_DAY).toISOString().slice(0, 10);
+    return (["weight", "length", "head"] as const).map((kind) => ({
+      kind,
+      value: visit[kind],
+      measured_on,
+      by: visit.by,
+    }));
+  });
+}
+
 // ---- The plan
 
 const isoDay = (day: number) => new Date(day * MS_PER_DAY).toISOString().slice(0, 10);
@@ -364,7 +413,17 @@ export function buildPlan(anchor: Date, zone: Zone = ZONE): Plan | null {
       if (!leadsFit(l)) continue;
       const distance = Math.abs((l.nap ?? 0) - NAP_LEAD.target);
       if (!best || distance < best.distance) {
-        best = { plan: { anchor, birthDate, events, checkins: checkins(anchorDay), prediction }, distance };
+        best = {
+          plan: {
+            anchor,
+            birthDate,
+            events,
+            checkins: checkins(anchorDay),
+            growth: growthPlan(birthDate),
+            prediction,
+          },
+          distance,
+        };
       }
     }
     if (best) return best.plan;

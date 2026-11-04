@@ -177,6 +177,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"growth_measurements": {
+                  Row: {
+                    "baby_id": string,"created_at": string,"created_by": string | null,"id": string,"kind": string,"measured_on": string,"value": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "baby_id": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"kind": string,"measured_on": string,"value": number
+                  }
+                  Update: {
+                    "baby_id"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"kind"?: string,"measured_on"?: string,"value"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "growth_measurements_baby_id_fkey"
+      columns: ["baby_id"]
+isOneToOne: false
+      referencedRelation: "babies"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"invites": {
                   Row: {
                     "code_hash": string,"created_at": string,"created_by": string | null,"expires_at": string,"family_id": string,"id": string,"used_at": string | null,"used_by": string | null

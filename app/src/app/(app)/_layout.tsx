@@ -12,6 +12,8 @@ export default function Layout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="chat" />
         <Stack.Screen name="event/[id]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="trends" />
+        <Stack.Screen name="growth" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="delete-account" />
       </Stack>

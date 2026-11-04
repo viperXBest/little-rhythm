@@ -39,8 +39,11 @@ Out of scope for this demo build:
   - The service role is used only after that check.
   - Request bodies are strict zod schemas with size limits.
 - **AI:**
-  - Only the baby's age in weeks and recent events go to the model, never names,
-    emails or couple data.
+  - The model receives the parent's text or transcript, this thread's usable history,
+    summary and search results, the baby's age in weeks, recent events and computed
+    windows. The server adds no profile names, emails or couple-feature data; personal
+    details a parent types are sent as typed. Voice audio goes to transcription and
+    is not stored.
   - Every turn passes the health gate.
   - Gated turns never reach the model again.
 - **Account deletion:** the password is re-entered and checked on the server, and the

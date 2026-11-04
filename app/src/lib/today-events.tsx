@@ -29,6 +29,11 @@ type TodayEvents = {
   events: EventRow[];
   openSleep: EventRow | null;
   status: 'loading' | 'ready' | 'error';
+  /**
+   * Counts every successful insert and every realtime change, also for events outside today (which
+   * `events` doesn't list). Anything computed from the whole log reloads when it changes.
+   */
+  revision: number;
   now: Date;
   find: (id: string) => EventRow | undefined;
   refresh: () => Promise<void>;
@@ -76,6 +81,7 @@ async function fetchToday(babyId: string, dayStart: Date): Promise<EventRow[] | 
 export function TodayEventsProvider({ babyId, children }: { babyId: string; children: ReactNode }) {
   const [rows, setRows] = useState<Rows>(new Map());
   const [status, setStatus] = useState<TodayEvents['status']>('loading');
+  const [revision, setRevision] = useState(0);
   // Inserts still in flight: a refetch must not drop them.
   const pending = useRef(new Set<string>());
   const now = useNow();
@@ -114,12 +120,18 @@ export function TodayEventsProvider({ babyId, children }: { babyId: string; chil
         .on<EventRow>(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'events', filter },
-          (payload) => setRows((prev) => withRow(prev, payload.new)),
+          (payload) => {
+            setRows((prev) => withRow(prev, payload.new));
+            setRevision((n) => n + 1);
+          },
         )
         .on<EventRow>(
           'postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'events', filter },
-          (payload) => setRows((prev) => withRow(prev, payload.new)),
+          (payload) => {
+            setRows((prev) => withRow(prev, payload.new));
+            setRevision((n) => n + 1);
+          },
         )
         // DELETE can't be filtered and carries only the id: drop it if we have it.
         .on<EventRow>(
@@ -127,7 +139,9 @@ export function TodayEventsProvider({ babyId, children }: { babyId: string; chil
           { event: 'DELETE', schema: 'public', table: 'events' },
           (payload) => {
             const id = payload.old.id;
-            if (id) setRows((prev) => withoutRow(prev, id));
+            if (!id) return;
+            setRows((prev) => withoutRow(prev, id));
+            setRevision((n) => n + 1);
           },
         )
         .subscribe((state) => {
@@ -164,6 +178,8 @@ export function TodayEventsProvider({ babyId, children }: { babyId: string; chil
       if (error) {
         setRows((prev) => withoutRow(prev, row.id));
         if (error === 'sleep_already_open') await refresh();
+      } else {
+        setRevision((n) => n + 1);
       }
       return error;
     },
@@ -176,10 +192,13 @@ export function TodayEventsProvider({ babyId, children }: { babyId: string; chil
       if (!before) return 'failed' as const;
       setRows((prev) => withRow(prev, { ...before, ...patch }));
       const error = await updateEvent(id, patch);
-      if (error) setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
+      if (error) {
+        setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
+        await refresh();
+      }
       return error;
     },
-    [rows],
+    [rows, refresh],
   );
 
   const endSleep = useCallback(
@@ -188,10 +207,13 @@ export function TodayEventsProvider({ babyId, children }: { babyId: string; chil
       if (!before) return 'failed' as const;
       setRows((prev) => withRow(prev, { ...before, ended_at: endedAt.toISOString() }));
       const error = await stopSleep(id, endedAt);
-      if (error) setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
+      if (error) {
+        setRows((prev) => (prev.has(id) ? withRow(prev, before) : prev));
+        await refresh();
+      }
       return error;
     },
-    [rows],
+    [rows, refresh],
   );
 
   const remove = useCallback(
@@ -219,6 +241,7 @@ export function TodayEventsProvider({ babyId, children }: { babyId: string; chil
         events,
         openSleep,
         status,
+        revision,
         now,
         find: (id) => rows.get(id),
         refresh,

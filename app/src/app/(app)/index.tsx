@@ -57,6 +57,7 @@ export default function Home() {
           <QuickLog />
           <CheckinCard />
           {nightFeeds ? <NightFeedsCard value={nightFeeds} /> : null}
+          <MoreLinks />
           <Timeline />
         </ScrollView>
         <ChatButton />
@@ -97,6 +98,32 @@ function SettingsButton() {
       ]}>
       <Icon name="settings" size={24} />
     </Pressable>
+  );
+}
+
+/** Trends and Growth: side by side, stacked once the font is large (like the header). */
+function MoreLinks() {
+  const { fontScale } = useWindowDimensions();
+  const stacked = fontScale >= HEADER_STACK_FONT_SCALE;
+  return (
+    <View style={stacked ? styles.linksStacked : styles.links}>
+      <View style={stacked ? undefined : styles.linkCell}>
+        <Button
+          title="Trends"
+          variant="secondary"
+          accessibilityHint="Opens the last 7 or 14 days"
+          onPress={() => router.push('/trends')}
+        />
+      </View>
+      <View style={stacked ? undefined : styles.linkCell}>
+        <Button
+          title="Growth"
+          variant="secondary"
+          accessibilityHint="Opens weight, length and head records"
+          onPress={() => router.push('/growth')}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -257,6 +284,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   fabLabel: { flexShrink: 1 },
+  links: { flexDirection: 'row', gap: Spacing.two },
+  linksStacked: { gap: Spacing.two },
+  linkCell: { flex: 1 },
   art: { alignItems: 'center' },
   inviteBody: { gap: Spacing.two },
   codeBox: { borderRadius: Radius.field, borderWidth: Sticker.outline, paddingHorizontal: Spacing.two },

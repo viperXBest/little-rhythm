@@ -51,9 +51,10 @@ app: escalation card, or caption + confirm cards → insertEvent / endSleep (RLS
 - **Privacy.** The model sees only the baby's age in weeks, the parent's message or
   transcript, recent events (type, local time, details), the computed windows, the
   thread's last 30 usable messages and its summary as plain text, and search results
-  from the same thread. No ids, authors, emails or couple data (night-feed balance,
-  check-ins); the server never sends names, and the summary is rejected if it holds
-  one. Gated turns never reach the model again. Audio is forwarded to Muse Voice Transcribe
+  from the same thread. The server adds no profile names, ids, authors, emails or
+  couple-feature data (night-feed balance, check-ins). A parent's text is sent as
+  typed, including personal details they include; the summary is checked against
+  family names before storage. Gated turns never reach the model again. Audio is forwarded to Muse Voice Transcribe
   and never stored. The app deletes the local WAV after upload, also when the upload
   fails. Logs carry error codes only. Tests: `_shared/agent.test.ts` ("buddy context").
 
