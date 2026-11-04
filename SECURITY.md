@@ -30,7 +30,9 @@ Out of scope for this demo build:
 ## Controls in short
 
 - **Database:**
-  - Postgres row-level security on all 12 tables from their first migration.
+  - Postgres row-level security on all 13 tables from their first migration. Growth records
+    (`growth_measurements`) are family-RLS only, and a CI step fails the build if any Edge
+    Function mentions the table, so they cannot reach the AI.
   - SECURITY DEFINER functions with an empty `search_path`, callable only where
     needed.
   - Clients can update only the columns that should change.

@@ -2,9 +2,9 @@
 
 ## Realtime and RLS
 
-`events`, `family_members`, `chat_messages` and `checkins` are in the
+`events`, `family_members`, `chat_messages`, `checkins` and `growth_measurements` are in the
 `supabase_realtime` publication (`20261029090000_events_realtime.sql`,
-`20261029100000_chat_checkin.sql`). `chat_threads`, `invites`, `api_usage`, `usage_counters`,
+`20261029100000_chat_checkin.sql`, `20261103140000_growth.sql`). `chat_threads`, `invites`, `api_usage`, `usage_counters`,
 `profiles`, `babies` and `families` are not; `supabase/tests/05_events.test.sql`
 asserts both.
 
@@ -56,6 +56,19 @@ UPDATE), which goes through RLS like any other update.
   `id`, `baby_id`, `type`, `created_by`, `source` and `created_at` are fixed at
   insert. To fix a wrong type, delete the event and log it again.
 - Inserts must have `created_by = auth.uid()` and a baby in the caller's family.
+
+## Growth records (v1.2.0)
+
+`growth_measurements` (weight in grams, length and head in millimetres, a date) is protected
+by family RLS only, through `is_family_member` on the baby's family. Members can select and
+delete, insert `baby_id`, `kind`, `value` and `measured_on`, and update only `value` and
+`measured_on`; the author comes from `auth.uid()`. The CHECK bounds are typo guards (for
+example weight 300–30,000 g), not norms. **No Edge Function reads this table, so growth
+never reaches the AI:** a CI step runs `git grep growth_measurements -- supabase/functions`
+and fails the build on any hit. Rows go with the baby (`on delete cascade`), so the last
+member's account deletion removes them with the family. When one of two parents deletes
+their account, the rows stay and `created_by` becomes null. The migration is not on hosted
+until it is pushed (see "Deployed versions").
 
 ## Chat memory
 
@@ -310,6 +323,11 @@ full safety run meters about $4–5.
     also build-time only. The rest are the same chain reported again.
 
 ## Deployed versions
+
+**Pending for v1.2.0 (4 Nov):** hosted still has migration `20261103090000` as its last one.
+`20261103140000_growth.sql` (the growth table) is not pushed yet, and the hosted functions
+are unchanged since v1.1.1 (`chat` v10 and the three below), because no function changed.
+The app build for v1.2.0 needs the migration first. The table below is the hosted state.
 
 Hosted Edge Functions for release v1.1.1 (checked with `supabase functions list` on
 3 Nov). Each was deployed from source identical to the release commit for that
