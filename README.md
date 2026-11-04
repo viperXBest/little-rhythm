@@ -10,7 +10,10 @@ sleep, after one tap on Confirm. Then see when the next feed, nap and bedtime ar
 likely.
 
 **Download:** [the latest APK on GitHub Releases](https://github.com/viperXBest/little-rhythm/releases/latest)
-(sideload on Android). Current release: **v1.1.1** (app 1.1.1, `chat` v10).
+(sideload on Android). **Published release: v1.1.1** (app 1.1.1, `chat` v10). **v1.2.0 is
+pending:** it adds manual entry, growth and trends, needs one database migration pushed to
+the hosted project and a new APK build, and is not on the Releases page until that is done
+([release notes draft](docs/release-notes-v1.2.0.md)). `chat` is unchanged since v10.
 
 ## Why
 
@@ -36,11 +39,7 @@ sure when she last fed, how long she slept, or whose turn the night was.
 (logging, the shared view, Next up, knowing whose night it was) is about time and
 coordination, not health. The gate takes away only the answers no app should give.
 
-## Screenshots
-
-| Home and Next up | Voice log and confirm cards | Escalation card | Check-in and night feeds |
-|---|---|---|---|
-| ![Home](docs/screenshots/home.png) | ![Voice log](docs/screenshots/voice-log.png) | ![Escalation](docs/screenshots/escalation.png) | ![Check-in](docs/screenshots/checkin.png) |
+**The case for it, with sources:** [`docs/impact.md`](docs/impact.md).
 
 ## Not a medical app
 
@@ -66,7 +65,7 @@ relationship counsellor.
 - **Safe sleep:** the agent never suggests a parent rest or nap while the baby is
   sleeping on them or in their bed.
 - **Measured:** the safety set runs through the real function. It has 335 health and
-  147 non-health prompts in English and Romanian, including prompt injection and
+  157 non-health prompts in English and Romanian, including prompt injection and
   health mixed into logs, plus 5 off-topic, 12 unclear-input and 17 jailbreak prompts
   (fake "system override", role-play, "reveal your tools").
 
@@ -117,8 +116,8 @@ Everything in this repository was written during the hackathon, which started on
 | 28 Oct (35) | Repo, Supabase, Expo scaffold. The schema with row-level security on every table, plus pgTAP tests. Pairing, auth and onboarding. One-tap tracking with realtime sync. Voice recording, the `chat` function with the Muse agent, confirm cards |
 | 29 Oct (52) | The prediction engine, the `predict` function, the Next up card and reminders. The health gate, the family-life companion with memory, shared and private threads, the check-in and night-feed balance. The safety set, account deletion, rate limits, CI with gitleaks, and the security review |
 | 30 Oct (24) | Demo data, the first palette with contrast tests, loading and error states, the notification icon, this README. Release v1.0.0 |
-| 2 Nov (73) | v1.1.0. The "Cloud Lullaby" redesign (design system, illustrations as theme-aware SVG, accessibility audit at 200% text). A second security review (Muse Spark Open plus by hand), then the server track: daily chat caps per user and family, a global spend breaker, token caps on every model call, a "never reveal tools" rule, 17 jailbreak prompts, and safety run C |
-| 2–3 Nov, after v1.1.0 (24) | v1.1.1. The agent's steps shown under the live reply, Muse named in the app, calmer Next up copy, a local emergency number, a parent-crisis override and a safe-sleep prompt line, a new-account chat cap, a reply grader, the breaker runbook, and safety run D (`chat` v10) |
+| 2 Nov (87) | v1.1.0. The "Cloud Lullaby" redesign (design system, illustrations as theme-aware SVG, accessibility audit at 200% text). A second security review (Muse Spark Open plus by hand), then the server track: daily chat caps per user and family, a global spend breaker, token caps on every model call, a "never reveal tools" rule, 17 jailbreak prompts, and safety run C |
+| 3–4 Nov (59, on `main`) | v1.1.1: the agent's steps shown under the live reply, Muse named in the app, calmer Next up copy, a local emergency number, a parent-crisis override and a safe-sleep prompt line, a new-account chat cap, a reply grader, the breaker runbook, and safety run D (`chat` v10). Then v1.2.0: manual entry of past events, growth records, trends, a held-out multi-turn safety runner, and a final review whose fixes are in `main` (per-thread confirm cards, a partner's delete or end, trends refresh). Commit counts are `git log` on `main` by calendar day, merges included |
 
 ## Meta AI in the app
 
@@ -257,6 +256,53 @@ The tool calls the agent makes for that sentence (abridged; the shape is
 - **F6 Couple layer:** a daily check-in revealed once both answered, night-feed balance, shared and private chats. Couple data never goes to the AI.
 - **F7 Notifications:** local reminders before predicted windows and for the check-in.
 - **F8 Account deletion:** password re-entered and checked on the server; the partner's data stays.
+- **Manual entry (v1.2.0):** log a feed, sleep or diaper at a past time, with the same rules on edit. See below.
+- **Growth (v1.2.0):** weight, length and head circumference as a plain record and chart. See below.
+- **Trends (v1.2.0):** 7 or 14 days of feeds, bottle ml, sleep and diapers. See below.
+
+### Manual entry (v1.2.0)
+
+For the feed you forgot to log: the log sheets have an "Earlier…" choice and a sleep can be
+added with a start and an end ("Add a past sleep"). The rules live in one pure module,
+[`app/src/lib/entry-time.ts`](app/src/lib/entry-time.ts) (tested under Deno), and the same
+validator runs when an event is edited:
+- **No future times.** The start, and a sleep's end, can't be later than now (one minute of
+  clock drift between the phones is allowed).
+- **Nothing before the baby's birth date.**
+- **A sleep ends after it starts,** and an ended sleep needs an end. Only the open sleep you
+  are editing may stay open.
+- **No overlapping sleeps.** A new or edited sleep may not share time with another sleep of
+  the baby (compared to the minute; sleeps that only touch are fine). If the check can't
+  reach the server, the entry is refused instead of saved unchecked.
+- **Amounts keep their range:** bottle 5–400 ml, breast 1–90 min, as in chat.
+
+### Growth (v1.2.0)
+
+A plain record of weight (kg), length (cm) and head circumference (cm), one line chart per
+measure ([`app/src/lib/growth-values.ts`](app/src/lib/growth-values.ts),
+[`growth-chart.tsx`](app/src/components/growth-chart.tsx)). Both parents can add, edit and
+delete values; the table `growth_measurements` has family RLS like every other table and is
+migration `20261103140000_growth.sql`.
+- **Never interpreted.** The app shows no percentiles, norms, reference lines or bands, and
+  says "For your records. Your paediatrician interprets growth." The only checks are typo
+  guards on the stored number (for example weight 0.3–30 kg), not statements about what is normal.
+- **Never sent to the AI.** No Edge Function reads the table, so the agent, the classifier
+  and the memory fold cannot see it. A CI step fails the build if any file under
+  `supabase/functions` mentions `growth_measurements`.
+- **Accessible:** the chart has a text alternative, and the list under it holds every value.
+
+### Trends (v1.2.0)
+
+A Trends screen with a 7 or 14 day switch, computed on the phone from the events table
+([`app/src/lib/trends.ts`](app/src/lib/trends.ts)): feeds per day, bottle ml per day, time
+asleep per day and diapers per day (wet and dirty). Counts and totals only; nothing is
+compared or judged, and today is shown as partial.
+- **Sleep is split at local midnight,** so a night's sleep counts toward both days it
+  covers. Days are calendar days, so a clock change gives a 23 or 25 hour day; CI runs the
+  tests in `Europe/Bucharest` and `America/Santiago` as well as UTC.
+- **Screen readers:** each chart has a text summary, and a "Day by day" list holds every
+  number as text at any text size.
+- It reads the family's own events through RLS, like the timeline. It does not go to the AI.
 
 ## Roadmap
 
@@ -267,7 +313,7 @@ Not built, and not part of this submission:
   phone.
 - An output keyword check on model replies (tried in v1.1.1, removed after safety run D;
   the replies are graded in tests instead, see [`docs/safety.md`](docs/safety.md)).
-- Relationship nudges, pumping, growth charts, medication tracking, a tips library, more
+- Relationship nudges, pumping, medication tracking, a tips library, more
   caregivers and babies, iOS, WhatsApp logging, and EU hosting for the AI.
 
 ## Architecture
@@ -277,7 +323,7 @@ Android app (Expo, React Native, TypeScript)
   │  supabase-js; the session token is stored in expo-secure-store
   ▼
 Supabase (EU, Frankfurt)
-  ├─ Postgres: 12 tables, row-level security on every one (is_family_member)
+  ├─ Postgres: 13 tables, row-level security on every one (is_family_member)
   ├─ Realtime: both phones see changes live, filtered by the same RLS
   ├─ Auth
   └─ Edge Functions (Deno)
@@ -296,12 +342,13 @@ More detail:
 - [`docs/predictions.md`](docs/predictions.md): the prediction engine.
 - [`docs/couple.md`](docs/couple.md): check-in and night-feed balance.
 - [`docs/security.md`](docs/security.md) and [`SECURITY.md`](SECURITY.md): security.
-- [`docs/safety.md`](docs/safety.md): the safety set.
+- [`docs/safety.md`](docs/safety.md): the safety set; [`docs/safety-runs/`](docs/safety-runs/README.md): every run report.
+- [`docs/impact.md`](docs/impact.md): the problem, the evidence and what the app changes.
 - [`docs/demo.md`](docs/demo.md): the demo.
 
 ## Security in brief
 
-- **Row-level security** on all 12 tables from their first migration, through one
+- **Row-level security** on all 13 tables from their first migration, through one
   helper, `is_family_member`. Private threads are readable only by their owner, and a
   partner's check-in only after you answered the same day. pgTAP tests cover the
   policies (`supabase/tests/`).
@@ -374,6 +421,11 @@ Stated here so nobody has to find them.
 
 Fixing the last two means editing the agent's prompt, which needs a full safety run and a
 redeploy. They are not fixed in v1.1.1.
+- **v1.2.0 needs a hosted migration.** Growth records work only after migration
+  `20261103140000_growth.sql` is pushed to the hosted project; until then the Growth screen
+  shows its error state and everything else works.
+
+<!-- AUDIT_LIMITATIONS -->
 
 ## Run it from a fresh clone
 
@@ -562,9 +614,13 @@ Findings go to `scripts/review/out/` (gitignored) and are triaged by hand
 
 GitHub Actions runs on every push:
 - the app typecheck and lint;
+- `deno fmt --check` on the function and script sources;
 - Deno unit tests: the prediction engine, the agent, the health gate, the voice checks,
-  memory, the spend meter, the demo-seed timeline, and every app test (reminder ids,
-  palette contrast, display helpers, the build guard);
+  memory, the spend meter, the demo-seed timeline, the reply grader, the held-out runner's
+  evaluation, and every app test (reminder ids, palette contrast, display helpers, entry
+  rules, growth values, trends, the build guard); the trends tests run again in two time
+  zones with clock changes;
+- a guard that fails the build if any Edge Function mentions `growth_measurements`;
 - against a local Supabase stack: pgTAP tests for row-level security, plus realtime,
   Edge Function and demo-seed tests;
 - a gitleaks scan of the full git history.
@@ -574,7 +630,9 @@ CI has no secrets and makes no model calls.
 ## AI use disclosure
 
 - **Building:** the code, tests and docs were written with **Claude Code** (Anthropic),
-  directed and reviewed by the developer.
+  directed and reviewed by the developer. **OpenAI Codex** was used for the final
+  debugging pass (commit `ee17c2a`: per-thread confirm cards, a partner's delete or end
+  of an event, and the trends refresh).
 - **In the app:** `muse-spark-1.3` (agent, health classifier, memory summary) and
   `muse-voice-transcribe-1.0`, through the Meta Model API.
 - **Test data and review:** **Muse Spark Open** generated candidate prompts for the
